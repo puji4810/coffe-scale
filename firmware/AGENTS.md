@@ -69,21 +69,29 @@ idf.py -B build-esp32s3 build flash
   `pre` (2x cascaded 8 Hz Butterworth) feeds the Kalman measurement,
   `fast` (single 16 Hz Butterworth) feeds detection only. Impact and
   tracking are separate evidence paths: a |innovation| trip (4 g on
-  pre, 3 g on fast) or a nonlinear windowed-mean jump gates — rewind
+  pre, 3 g on fast), a nonlinear windowed-mean jump, or a clean fitted
+  slope past 22 g/s contradicting the state while un-boosted (blind
+  tracking must not chase what no pour sustains) gates — rewind
   0.1 s, hold the captured flow decaying to 0 over 1.0 s, and after a
   minimum hold re-anchor once the trailing 0.3 s fit AND its newest
   half are calm (<1.5 g / ~1.05 g residual); the resume flow is the
-  half-window slope when it's flat or agrees with the full fit, else
-  held-or-0 — pouring through an impact keeps pouring, a stopped pour
-  doesn't resurrect stale flow. Tracking speed is dynamic, never via
+  half-window slope when it's flat, or when the WHOLE gate window is
+  one clean ramp agreeing with it and the oscillation streak is quiet,
+  else held-or-0 — pouring through a gate keeps pouring, a stopped
+  pour doesn't resurrect stale flow, a sustained wiggle can't adopt
+  its instantaneous slope. Tracking speed is dynamic, never via
   configure() (that resets): same-sign innovation persistence + clean
-  window slope evidence snaps f_ to the fit (bounded, steep claims
-  need longer proof) and runs q_boost until settled, then a mid-level
-  q_track rides a confirmed slope for ~0.3 s; slope-sign flips and a
-  growing hold-off suppress re-entry so handling wiggles can't latch.
+  window slope evidence snaps f_ to the fit (bounded, damped ~15%,
+  steep claims need longer proof) and runs q_boost until settled,
+  then a mid-level q_track rides a confirmed slope for ~0.3 s; the
+  boosted flow stays capped to the shallower adjacent-window slope so
+  post-boost momentum can't overshoot. Slope-sign flips and a growing
+  hold-off suppress re-entry so handling wiggles can't latch.
   Boost aborts into the gate when the signal is already flat — a
   gently-placed mass, not a pour. IMU |delta| EMA only vetoes boost.
   A dt >40 ms re-primes the prefilters and drops boost/track evidence.
+  Stored times rebase cleanly: elapsed math tolerates values crossing
+  zero and "never" sentinels sit at -1e9, never -1.
   Unfed pipelines
   read 0, not the unprimed-filter phantom value. No HW deps.
   `scale::push(counts, now)` takes a real monotone timestamp — the Kalman
@@ -104,10 +112,16 @@ idf.py -B build-esp32s3 build flash
 - `components/ui` — LVGL screens + `ui_port_esp.cpp` (ST7789 via esp_lcd) +
   `ui_port_sdl.cpp` (desktop).
 - `main/app_main.cpp` — tasks: adc (DRDY ISR→notify with the edge's
-  esp_timer captured in the ISR, ~2-period 30 ms timeout that falls
-  back to polling the CR bit, model fed before the optional per-sample
-  CSV so logging can't delay it, i2c/feed/interval stats logged every
-  ~20 s, and BLE cal writes to NVS outside the model lock), accel (100 Hz LIS2DW12 poll, feed_accel/motion decimated to 20 Hz), button
+  esp_timer captured in the ISR — the stored low word MUST be read
+  before esp_timer_get_time() or a mid-sequence edge unwraps ~71.6 min
+  backwards — notification is only a wake hint: CR is verified before
+  every read since NAU7802 latches the last conversion on a premature
+  read, ~2-period 30 ms timeout that falls back to polling the CR bit,
+  timestamps clamped non-decreasing for the estimator, model fed before
+  the optional per-sample CSV so logging can't delay it, i2c/feed/
+  interval stats logged every ~20 s, and BLE cal writes to NVS outside
+  the model lock), accel (100 Hz LIS2DW12 poll, feed_accel/motion
+  decimated to 20 Hz), button
   (debounce, short tare / long tare_long / mode), battery (ADC1_CH8 +
   chrg_stat + TMP102), console ('t' toggles CSV telemetry, 'z' = tare,
   'r' toggles the raw capture stream — `W`/`A`/`E` lines for

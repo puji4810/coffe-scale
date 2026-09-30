@@ -51,9 +51,9 @@ TEST_CASE("flow_kf: capture regression bounds") {
     scale::flow_kf kf;
     char           line[256];
     REQUIRE(std::fgets(line, sizeof line, f));   // header
-    struct win { double a, b, sum2, peak; int n; };
-    win rest{140, 170, 0, 0, 0}, cups{450, 490, 0, 0, 0},
-        taps{492, 514, 0, 0, 0};
+    struct win { double a, b, sum, sum2, peak; int n; };
+    win rest{140, 170, 0, 0, 0, 0}, cups{450, 490, 0, 0, 0, 0},
+        taps{492, 514, 0, 0, 0, 0};
     int n = 0;
     while (std::fgets(line, sizeof line, f)) {
         double t, g, ef, ew;
@@ -67,6 +67,7 @@ TEST_CASE("flow_kf: capture regression bounds") {
         for (win* w : {&rest, &cups, &taps}) {
             if (t >= w->a && t < w->b) {
                 const double d = std::clamp(r, -30.0, 30.0);
+                w->sum  += d;
                 w->sum2 += d * d;
                 w->peak = std::max(w->peak, std::fabs(d));
                 ++w->n;
@@ -76,7 +77,9 @@ TEST_CASE("flow_kf: capture regression bounds") {
     }
     std::fclose(f);
     CHECK(n > 40000);
-    const double rest_std = std::sqrt(rest.sum2 / rest.n);
+    const double rest_mean = rest.sum / rest.n;
+    const double rest_std =
+        std::sqrt(rest.sum2 / rest.n - rest_mean * rest_mean);
     MESSAGE("capture: rest std=", rest_std, " cups peak=", cups.peak,
             " taps peak=", taps.peak);
     CHECK(rest_std < 0.15);   // old baseline measured ~0.06 g/s
@@ -92,19 +95,33 @@ TEST_CASE("flow_kf: ramp latency and stop") {
         feed_t(kf, t, ramp_w(t));
         r.push_back(kf.rate());
     }
-    float t_rise = -1, t_fall = -1, overshoot = 0;
+    float t_rise = -1, t_fall = -1, overshoot = 0, undershoot = 0;
+    float settle = -1, ssettle = -1;
     for (std::size_t i = 0; i < r.size(); ++i) {
         const float t = i * kDt;
         if (t_rise < 0 && t >= 2.0f && r[i] >= 3.6f) t_rise = t - 2.0f;
-        if (t >= 2.0f && t < 8.0f && r[i] - 4.0f > overshoot)
-            overshoot = r[i] - 4.0f;
+        if (t >= 2.0f && t < 8.0f) {
+            if (r[i] - 4.0f > overshoot) overshoot = r[i] - 4.0f;
+            if (std::fabs(r[i] - 4.0f) > 0.4f) settle = t - 2.0f;
+        }
         if (t_fall < 0 && t >= 8.0f && r[i] <= 0.4f) t_fall = t - 8.0f;
+        if (t >= 8.0f) {
+            if (r[i] < undershoot) undershoot = r[i];
+            if (std::fabs(r[i]) > 0.4f) ssettle = t - 8.0f;
+        }
     }
     CHECK(t_rise >= 0.10f);
     CHECK(t_rise <= 0.45f);   // dynamic-q target: well under the old 0.66
-    CHECK(overshoot < 1.2f);  // the snap's fit overshoot is brief
+    // First-crossing t90 is not the whole story — the ±10% settle time
+    // and the overshoot are asserted too, so speed may not be bought
+    // with a ringing readout.
+    CHECK(settle >= 0.0f);
+    CHECK(settle <= 0.50f);
+    CHECK(overshoot < 0.5f);
     CHECK(t_fall >= 0.0f);
     CHECK(t_fall <= 0.45f);
+    CHECK(ssettle <= 0.50f);
+    CHECK(undershoot > -0.6f);   // stop may not bounce back hard
     CHECK(!kf.disturbed());
 }
 
@@ -129,7 +146,7 @@ TEST_CASE("flow_kf: same latency after 10 days of uptime") {
     }
     CHECK(t_rise >= 0.10f);
     CHECK(t_rise <= 0.45f);
-    CHECK(overshoot < 1.2f);
+    CHECK(overshoot < 0.5f);
     CHECK(t_fall >= 0.0f);
     CHECK(t_fall <= 0.45f);
 }
@@ -361,4 +378,48 @@ TEST_CASE("flow_kf: a hard step holds the gate, never same-sample open") {
     CHECK(t_un > 0.15f);
     CHECK(t_un < 1.0f);
     CHECK(std::fabs(kf.weight() - 10.0f) < 0.5f);
+}
+
+TEST_CASE("flow_kf: sustained oscillation never resumes as flow") {
+    // +-3 g at 2 Hz for 10 s with no pour: the sine's slope reaches
+    // ~37 g/s, which blind tracking would follow to ~24 g/s and an
+    // un-gated fit could adopt. The steep-slope gate plus the
+    // oscillation bookkeeping must keep the readout near zero.
+    scale::flow_kf kf;
+    float peak = 0;
+    for (int i = 0; i < static_cast<int>(14.0f * kFs); ++i) {
+        const float t = i * kDt;
+        const float g = t < 3.0f
+            ? 0.0f
+            : 3.0f * std::sin(2.0f * 3.14159265f * 2.0f * (t - 3.0f));
+        feed_t(kf, t, g);
+        if (t >= 3.5f) peak = std::max(peak, std::fabs(kf.rate()));
+    }
+    CHECK(peak < 2.0f);   // was ~24 on the slope-adoption hole
+}
+
+TEST_CASE("flow_kf: rebase keeps gate policy and live timers valid") {
+    // The same two-step sequence placed just before vs just after the
+    // ~120 s rebase must resolve identically — stored times that cross
+    // zero stay valid (elapsed math), sentinels never become "now".
+    const auto run_steps = [](float offset) {
+        scale::flow_kf kf;
+        float peak1 = 0, peak2 = 0;
+        for (int i = 0; i < static_cast<int>(2.5f * kFs); ++i) {
+            const float t = offset + i * kDt;
+            float       g = 0.0f;
+            if (t >= offset + 0.55f && t < offset + 1.1f) g = 2.0f;
+            if (t >= offset + 1.1f)                       g = 4.0f;
+            feed_t(kf, t, g);
+            if (t >= offset + 0.55f && t < offset + 1.1f)
+                peak1 = std::max(peak1, std::fabs(kf.rate()));
+            if (t >= offset + 1.1f)
+                peak2 = std::max(peak2, std::fabs(kf.rate()));
+        }
+        return std::pair{peak1, peak2};
+    };
+    const auto early = run_steps(9.0f);
+    const auto late  = run_steps(119.55f);   // straddles the rebase
+    CHECK(std::fabs(early.first - late.first) < 0.05f);
+    CHECK(std::fabs(early.second - late.second) < 0.05f);
 }

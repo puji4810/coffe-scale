@@ -192,30 +192,41 @@ void adc_task(void*) {
         // stalled task), so fall back to polling the CR bit over i2c.
         const int pending = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(30));
         if (!s_adc) continue;
-        std::int64_t t_us;
+        std::int64_t t_us = 0;
         if (pending > 0) {
             no_edge_streak = 0;
             if (pending > 1) n_coalesced += pending - 1;  // late task
             // Conversion-complete instant from the ISR, unwrapped
-            // against now — the edge is always recent, never in the
-            // future past one 32-bit wrap.
-            const std::int64_t now = esp_timer_get_time();
-            t_us = (now & ~0xffffffffLL) | g_drdy_lo;
+            // against now. The low word MUST be read before `now`: an
+            // edge landing between the two reads writes a low word
+            // newer than `now`, and wrapping it backwards then lands
+            // the timestamp ~71.6 min in the past. Read first, and any
+            // race only makes the stamp older by one edge — never the
+            // future, never backwards by minutes.
+            const std::uint32_t lo = g_drdy_lo;
+            const std::int64_t  now = esp_timer_get_time();
+            t_us = (now & ~0xffffffffLL) | lo;
             if (t_us > now) t_us -= 1LL << 32;
         } else {
             ++n_late;
             if (++no_edge_streak == 8) {
                 ESP_LOGW(kTag, "adc: no DRDY edges on IO12 — polling CR bit");
             }
-            const auto rdy = s_adc->data_ready();
-            if (!rdy) {
-                if (++err_streak % 8 == 1) {
-                    ESP_LOGW(kTag, "NAU7802 i2c error: errc %d",
-                             static_cast<int>(rdy.error()));
-                }
-                continue;
+        }
+        // The notification is only a wake hint: NAU7802 latches the
+        // previous conversion on a premature read, so every path
+        // verifies CR before reading — a spurious/stale wake can then
+        // never produce a duplicated sample.
+        const auto rdy = s_adc->data_ready();
+        if (!rdy) {
+            if (++err_streak % 8 == 1) {
+                ESP_LOGW(kTag, "NAU7802 i2c error: errc %d",
+                         static_cast<int>(rdy.error()));
             }
-            if (!*rdy) continue;
+            continue;
+        }
+        if (!*rdy) continue;
+        if (pending == 0) {
             // An edge may have queued while we polled — drain it so the
             // same conversion isn't sampled twice on the next take.
             (void)ulTaskNotifyTake(pdTRUE, 0);
@@ -234,6 +245,9 @@ void adc_task(void*) {
             continue;
         }
         err_streak = 0;
+        // Timestamps must be non-decreasing — the estimator treats dt as
+        // truth. Any residual race can only nudge it, never step it back.
+        if (prev_us != 0 && t_us < prev_us) t_us = prev_us;
         if (prev_us != 0) gap_max = std::max(gap_max, t_us - prev_us);
         prev_us = t_us;
         // Activity = a step away from a slowly-following count baseline:

@@ -157,8 +157,9 @@ TEST_CASE("scale: lag compensation removes pour tracking error") {
         t += clock_ms{10};
     }
     CHECK(s.grams() < 14.8f);                 // the LPF still trails
-    // display adds the measured lag back -> lands on the true weight
-    CHECK(s.display_grams() >= 14.5f);
+    // display adds the measured lag back -> lands on the true weight;
+    // the flow band caps the lead slightly (~0.1 g at 10 g/s)
+    CHECK(s.display_grams() >= 14.3f);
     CHECK(s.display_grams() <= 15.1f);
 }
 

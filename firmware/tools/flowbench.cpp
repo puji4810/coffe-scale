@@ -50,6 +50,7 @@ struct probe {
 void bench_ramp() {
     probe p;
     float t10 = -1, t50 = -1, t90 = -1, tstop = -1, over = 0;
+    float settle = -1, ssettle = -1, under = 0;
     for (int i = 0; i < static_cast<int>(10 * kFs); ++i) {
         const double t = i * kDt;
         const float  g = t < 2 ? 0 : t < 8 ? 4.0f * (t - 2) : 24.0f;
@@ -57,12 +58,21 @@ void bench_ramp() {
         if (t10 < 0 && t >= 2 && r >= 0.4f) t10 = static_cast<float>(t) - 2;
         if (t50 < 0 && t >= 2 && r >= 2.0f) t50 = static_cast<float>(t) - 2;
         if (t90 < 0 && t >= 2 && r >= 3.6f) t90 = static_cast<float>(t) - 2;
-        if (t >= 2 && t < 8 && r - 4.0f > over) over = r - 4.0f;
+        if (t >= 2 && t < 8) {
+            if (r - 4.0f > over) over = r - 4.0f;
+            if (std::fabs(r - 4.0f) > 0.4f) settle = static_cast<float>(t) - 2;
+        }
         if (tstop < 0 && t >= 8 && r <= 0.4f) tstop = static_cast<float>(t) - 8;
+        if (t >= 8) {
+            if (r < under) under = r;
+            if (std::fabs(r) > 0.4f) ssettle = static_cast<float>(t) - 8;
+        }
     }
-    std::printf("ramp t10=%.3f t50=%.3f t90=%.3f stop90=%.3f over=%.3f "
+    std::printf("ramp t10=%.3f t50=%.3f t90=%.3f settle=%.3f over=%.3f "
+                "stop90=%.3f ssettle=%.3f under=%.3f "
                 "trips=%d boosts=%d boost_ms=%d\n",
-                t10, t50, t90, tstop, over, p.trips, p.boosts,
+                t10, t50, t90, settle, over, tstop, ssettle, under,
+                p.trips, p.boosts,
                 static_cast<int>(p.boosted * 1000 / kFs));
 }
 
@@ -166,6 +176,22 @@ void bench_wiggle() {
                 peak, p.trips, p.boosts);
 }
 
+// +-3 g, 2 Hz sine for 10 s — a strong sustained wobble that DOES trip
+// the gate; resume must not adopt the sine's instantaneous slope.
+void bench_wiggle2() {
+    probe p;
+    float peak = 0;
+    for (int i = 0; i < static_cast<int>(14 * kFs); ++i) {
+        const double t = i * kDt;
+        const float  g = t < 3 ? 0.0f
+                               : 3.0f * std::sin(2 * 3.14159265f * 2.0f * (t - 3));
+        const float r = p.feed(t, g);
+        if (t >= 3) peak = std::max(peak, std::fabs(r));
+    }
+    std::printf("wiggle2 peak=%.3f trips=%d boosts=%d\n",
+                peak, p.trips, p.boosts);
+}
+
 // A 200 ms hole in an otherwise steady 80 Hz stream while pouring —
 // the gap re-prime should keep the estimator sane.
 void bench_gap() {
@@ -188,10 +214,10 @@ void bench_capture(const char* path, bool loud = false) {
     if (!in) { std::printf("cap cannot open %s\n", path); return; }
     probe      p;
     std::string s;
-    struct win { const char* name; double a, b; float peak, sum2; int n; };
-    win wins[] = {{"rest", 140, 170, 0, 0, 0},   {"bloom", 335, 349, 0, 0, 0},
-                  {"lift", 433, 441, 0, 0, 0},   {"cups", 450, 490, 0, 0, 0},
-                  {"taps", 492, 514, 0, 0, 0},   {"all", 0, 1e9, 0, 0, 0}};
+    struct win { const char* name; double a, b; float peak; double sum, sum2; int n; };
+    win wins[] = {{"rest", 140, 170, 0, 0, 0, 0}, {"bloom", 335, 349, 0, 0, 0, 0},
+                  {"lift", 433, 441, 0, 0, 0, 0}, {"cups", 450, 490, 0, 0, 0, 0},
+                  {"taps", 492, 514, 0, 0, 0, 0}, {"all", 0, 1e9, 0, 0, 0, 0}};
     double cpg = 1262.910034, zero = 3613397.0;   // capture header
     int    acc_decim = 0;
     while (std::getline(in, s)) {
@@ -233,13 +259,17 @@ void bench_capture(const char* path, bool loud = false) {
             if (t < w.a || t >= w.b) continue;
             const float d = std::fabs(r) < 0.3f ? 0.0f : std::clamp(r, -30.f, 30.f);
             ++w.n;
+            w.sum  += d;
             w.sum2 += d * d;
             w.peak = std::max(w.peak, std::fabs(d));
         }
     }
-    for (const auto& w : wins)
+    for (const auto& w : wins) {
+        const double mean = w.n ? w.sum / w.n : 0.0;
+        const double var  = w.n ? w.sum2 / w.n - mean * mean : 0.0;
         std::printf("cap %s disp_std=%.3f disp_peak=%.3f n=%d\n", w.name,
-                    w.n ? std::sqrt(w.sum2 / w.n) : 0.0, w.peak, w.n);
+                    std::sqrt(std::max(var, 0.0)), w.peak, w.n);
+    }
     std::printf("cap gate_samples=%d boost_samples=%d\n", p.gated, p.boosted);
 }
 
@@ -308,6 +338,7 @@ int main(int argc, char** argv) {
     bench_mid_impact();
     bench_softstep();
     bench_wiggle();
+    bench_wiggle2();
     bench_gap();
     return 0;
 }
