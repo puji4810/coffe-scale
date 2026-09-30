@@ -179,6 +179,7 @@ public:
     /// Feed one accelerometer sample (mg) — 10-25 Hz suffices.
     void feed_accel(float x_mg, float y_mg, float z_mg) {
         tilt_.feed(x_mg, y_mg, z_mg);
+        kf_.feed_accel(x_mg, y_mg, z_mg);   // motion veto on boost evidence
     }
 
     /// Load-cell signal stable (spread window quiet).

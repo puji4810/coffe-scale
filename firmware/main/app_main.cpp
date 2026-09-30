@@ -23,6 +23,7 @@
 /// Bring-up per pcb/scale-adc-s3/README.md: missing sensors log and boot
 /// continues so the board can be brought up peripheral by peripheral.
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstdio>
@@ -123,10 +124,6 @@ std::optional<drv::tmp102<bus::i2c_dev_esp>>      s_tmp;
 
 void delay_ms(std::uint32_t ms) { vTaskDelay(pdMS_TO_TICKS(ms)); }
 
-scale::clock_ms now_ms() {
-    return scale::clock_ms{esp_timer_get_time() / 1000};
-}
-
 // ---- calibration persistence ------------------------------------------------
 
 bool load_calibration(scale::calibration& c) {
@@ -152,7 +149,14 @@ void save_calibration(const scale::calibration& c) {
 
 // ---- interrupts --------------------------------------------------------------
 
+// Low word of the DRDY edge time (us) — written in the ISR so the
+// conversion-complete instant survives task scheduling jitter. The adc
+// task unwraps it against the current time; edges are ~12.5 ms apart so
+// the wrap ambiguity never spans two samples.
+volatile std::uint32_t g_drdy_lo = 0;
+
 void IRAM_ATTR drdy_isr(void*) {
+    g_drdy_lo = static_cast<std::uint32_t>(esp_timer_get_time());
     BaseType_t hp = pdFALSE;
     vTaskNotifyGiveFromISR(g_adc_task, &hp);
     portYIELD_FROM_ISR(hp);
@@ -175,16 +179,31 @@ void IRAM_ATTR int1_isr(void*) {
 
 void adc_task(void*) {
     scale::diag d;
-    int         no_edge_streak = 0, err_streak = 0;
-    float       activity_base  = 0.0f;   // slow count baseline for activity
-    bool        base_init      = false;
+    int           no_edge_streak = 0, err_streak = 0;
+    float         activity_base  = 0.0f;   // slow count baseline for activity
+    bool          base_init      = false;
+    // sampling health: coalesced/lost edges, i2c + feed cost, interval max
+    std::uint32_t n_samp = 0, n_coalesced = 0, n_late = 0;
+    std::int64_t  i2c_sum = 0, feed_sum = 0, prev_us = 0;
+    std::int64_t  i2c_max = 0, feed_max = 0, gap_max = 0;
     for (;;) {
-        // Primary path: one notification per DRDY rising edge. If the DRDY
-        // line never pulses (broken trace, wrong connector), fall back to
-        // polling the CR bit over i2c so the scale still gets samples.
-        const bool edged = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(250)) != 0;
+        // Primary path: one notification per DRDY rising edge. ~2 sample
+        // periods is generous — a longer silence means a lost edge (or a
+        // stalled task), so fall back to polling the CR bit over i2c.
+        const int pending = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(30));
         if (!s_adc) continue;
-        if (!edged) {
+        std::int64_t t_us;
+        if (pending > 0) {
+            no_edge_streak = 0;
+            if (pending > 1) n_coalesced += pending - 1;  // late task
+            // Conversion-complete instant from the ISR, unwrapped
+            // against now — the edge is always recent, never in the
+            // future past one 32-bit wrap.
+            const std::int64_t now = esp_timer_get_time();
+            t_us = (now & ~0xffffffffLL) | g_drdy_lo;
+            if (t_us > now) t_us -= 1LL << 32;
+        } else {
+            ++n_late;
             if (++no_edge_streak == 8) {
                 ESP_LOGW(kTag, "adc: no DRDY edges on IO12 — polling CR bit");
             }
@@ -197,10 +216,16 @@ void adc_task(void*) {
                 continue;
             }
             if (!*rdy) continue;
-        } else {
-            no_edge_streak = 0;
+            // An edge may have queued while we polled — drain it so the
+            // same conversion isn't sampled twice on the next take.
+            (void)ulTaskNotifyTake(pdTRUE, 0);
+            t_us = esp_timer_get_time();   // polled sample: read time
         }
-        const auto v = s_adc->read();
+        const auto t0 = esp_timer_get_time();
+        const auto v  = s_adc->read();
+        const auto i2c_dur = esp_timer_get_time() - t0;
+        i2c_sum += i2c_dur;
+        i2c_max  = std::max(i2c_max, i2c_dur);
         if (!v) {
             if (++err_streak % 8 == 1) {
                 ESP_LOGW(kTag, "NAU7802 read failed: errc %d",
@@ -209,13 +234,8 @@ void adc_task(void*) {
             continue;
         }
         err_streak = 0;
-        if (g_raw.load(std::memory_order_relaxed)) {
-            char line[64];
-            snprintf(line, sizeof(line), "W,%lld,%ld\n",
-                     static_cast<long long>(esp_timer_get_time()),
-                     static_cast<long>(*v));
-            fputs(line, stdout);
-        }
+        if (prev_us != 0) gap_max = std::max(gap_max, t_us - prev_us);
+        prev_us = t_us;
         // Activity = a step away from a slowly-following count baseline:
         // pouring or a load placed/removed trips it instantly, while
         // thermal creep and quiet-state noise just move the baseline.
@@ -230,14 +250,42 @@ void adc_task(void*) {
             activity_base += (raw - activity_base) * 0.002f;
         }
         {
+            const auto f0 = esp_timer_get_time();
             std::lock_guard lk(g_mtx);
-            g_app.feed(*v, now_ms());
+            g_app.feed(*v, scale::clock_ms{t_us / 1000});
             d = g_app.inner().last_diag();
+            const auto dur = esp_timer_get_time() - f0;
+            feed_sum += dur;
+            feed_max  = std::max(feed_max, dur);
+        }
+        // Raw record goes out after the model saw the sample — logging
+        // can never hold up the estimator's view of the stream.
+        if (g_raw.load(std::memory_order_relaxed)) {
+            char line[64];
+            snprintf(line, sizeof(line), "W,%lld,%ld\n",
+                     static_cast<long long>(t_us),
+                     static_cast<long>(*v));
+            fputs(line, stdout);
         }
         if (g_telemetry.load(std::memory_order_relaxed)) {
             char line[192];
             scale::diag_csv(line, sizeof(line), d);
             fputs(line, stdout);   // USB-serial-JTAG console
+        }
+        if (++n_samp % 1600 == 0) {   // ~20 s at 80 Hz
+            ESP_LOGI(kTag,
+                     "adc: i2c %.1f/%lld us, feed %.1f/%lld us, "
+                     "gap<=%lld us, coalesced %lu, late-poll %lu",
+                     static_cast<double>(i2c_sum) / n_samp,
+                     static_cast<long long>(i2c_max),
+                     static_cast<double>(feed_sum) / n_samp,
+                     static_cast<long long>(feed_max),
+                     static_cast<long long>(gap_max),
+                     static_cast<unsigned long>(n_coalesced),
+                     static_cast<unsigned long>(n_late));
+            i2c_sum = feed_sum = 0;
+            i2c_max = feed_max = gap_max = 0;
+            n_samp = n_coalesced = n_late = 0;
         }
     }
 }
@@ -660,50 +708,55 @@ void ble_command(void*, const proto::command& cmd) {
         g_sleep_request.store(true, std::memory_order_relaxed);
         return;
     }
-    std::lock_guard lk(g_mtx);
-    switch (cmd.o) {
-        case proto::op::tare:
-            g_app.tare();
-            raw_event("tare");
-            break;
-        case proto::op::timer_toggle:
-            g_app.tare_long();   // long-press equivalent: toggles brew timer
-            raw_event("timer_toggle");
-            break;
-        case proto::op::timer_reset:
-            g_app.timer_reset();
-            raw_event("timer_reset");
-            break;
-        case proto::op::mode:
-            g_app.next_mode();
-            raw_event("mode");
-            break;
-        case proto::op::unit:
-            g_app.set_unit(cmd.arg == 1 ? scale::unit::ounce
-                                        : scale::unit::gram);
-            raw_event("unit");
-            break;
-        case proto::op::cal_zero:
-            // Calibration wizard: empty-pan zero capture, persisted to NVS.
-            g_app.cal_zero();
-            raw_event("cal_zero");
-            save_calibration(g_app.inner().calibration_data());
-            ESP_LOGI(kTag, "cal zero saved");
-            break;
-        case proto::op::cal_span:
-            raw_event("cal_span");
-            if (g_app.cal_span(cmd.arg / 100.0f)) {   // arg is centigrams
-                save_calibration(g_app.inner().calibration_data());
-                ESP_LOGI(kTag, "cal span saved: %.1f g -> %.1f counts/g",
-                         static_cast<double>(cmd.arg / 100.0f),
-                         static_cast<double>(
-                             g_app.inner()
-                                 .calibration_data()
-                                 .counts_per_gram));
-            }
-            break;
-        default:
-            break;
+    scale::calibration cal{};   // copied under the lock, saved after —
+    bool               save_cal = false;   // an NVS write is too slow
+    {                                        // to hold g_mtx through it
+        std::lock_guard lk(g_mtx);
+        switch (cmd.o) {
+            case proto::op::tare:
+                g_app.tare();
+                raw_event("tare");
+                break;
+            case proto::op::timer_toggle:
+                g_app.tare_long();   // long-press equivalent: toggles brew timer
+                raw_event("timer_toggle");
+                break;
+            case proto::op::timer_reset:
+                g_app.timer_reset();
+                raw_event("timer_reset");
+                break;
+            case proto::op::mode:
+                g_app.next_mode();
+                raw_event("mode");
+                break;
+            case proto::op::unit:
+                g_app.set_unit(cmd.arg == 1 ? scale::unit::ounce
+                                            : scale::unit::gram);
+                raw_event("unit");
+                break;
+            case proto::op::cal_zero:
+                // Calibration wizard: empty-pan zero capture, persisted
+                // to NVS.
+                g_app.cal_zero();
+                raw_event("cal_zero");
+                cal      = g_app.inner().calibration_data();
+                save_cal = true;
+                break;
+            case proto::op::cal_span:
+                raw_event("cal_span");
+                if (g_app.cal_span(cmd.arg / 100.0f)) {   // centigrams
+                    cal      = g_app.inner().calibration_data();
+                    save_cal = true;
+                }
+                break;
+            default:
+                break;
+        }
+    }
+    if (save_cal) {
+        save_calibration(cal);
+        ESP_LOGI(kTag, "cal saved: %.2f counts/g",
+                 static_cast<double>(cal.counts_per_gram));
     }
 }
 
