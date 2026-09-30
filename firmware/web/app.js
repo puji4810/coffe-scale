@@ -6,7 +6,7 @@
 //   Chart is vendored uPlot.
 
 import ScaleScreenFactory from './dist/scale_screen.mjs';
-import { ScaleChart } from './chart.js';
+import { ScaleChart, brewPlot } from './chart.js';
 import { ScaleLink } from './ble.js';
 import * as DB from './store.js';
 
@@ -203,9 +203,48 @@ $('btn-dl').onclick = () => {
     URL.revokeObjectURL(a.href);
 };
 
-$('btn-clear').onclick = () => { chart.clear(); $('btn-live').hidden = true; };
+$('btn-clear').onclick = () => chart.clear();
 
-$('btn-live').onclick = () => { chart.resume(); $('btn-live').hidden = true; };
+// --- drawer + pages ------------------------------------------------------------
+
+const drawer = $('drawer'), backdrop = $('backdrop');
+function setDrawer(open) {
+    drawer.classList.toggle('open', open);
+    backdrop.classList.toggle('on', open);
+}
+$('btn-menu').onclick = () => setDrawer(!drawer.classList.contains('open'));
+backdrop.onclick = () => setDrawer(false);
+
+const PAGES = ['weigh', 'beans', 'cal', 'data'];
+function switchPage(name) {
+    if (!PAGES.includes(name)) name = 'weigh';
+    for (const p of PAGES) $(`page-${p}`).classList.toggle('active', p === name);
+    document.querySelectorAll('#drawer nav a').forEach(a =>
+        a.classList.toggle('active', a.dataset.page === name));
+    if (location.hash !== `#${name}`) location.hash = name;
+    setDrawer(false);
+}
+document.querySelectorAll('#drawer nav a').forEach(a =>
+    a.onclick = () => switchPage(a.dataset.page));
+addEventListener('hashchange', () => switchPage(location.hash.slice(1)));
+switchPage(location.hash.slice(1) || 'weigh');
+
+// touch: swipe right starting near the left edge opens the drawer;
+// swipe left while it's open closes it. Vertical scroll unaffected.
+let touchX0 = null, touchY0 = null;
+addEventListener('touchstart', e => {
+    touchX0 = e.touches[0].clientX; touchY0 = e.touches[0].clientY;
+}, { passive: true });
+addEventListener('touchend', e => {
+    if (touchX0 === null) return;
+    const dx = e.changedTouches[0].clientX - touchX0;
+    const dy = e.changedTouches[0].clientY - touchY0;
+    const sx = touchX0;
+    touchX0 = null;
+    if (Math.abs(dy) > Math.abs(dx) || Math.abs(dx) < 50) return;
+    if (dx > 0 && sx < 40) setDrawer(true);
+    else if (dx < 0 && drawer.classList.contains('open')) setDrawer(false);
+}, { passive: true });
 
 // --- brew library -----------------------------------------------------------
 
@@ -256,96 +295,219 @@ async function saveBrew(frames, startedAt) {
     }
     $('rec-info').textContent =
         `saved · ${brew.liquid} g in ${fmtDur(brew.durationS)}${beanTxt}`;
-    renderLibrary();
+    renderBeans();
 }
 
 function fmtDur(s) {
     return `${Math.floor(s / 60)}:${String(Math.round(s) % 60).padStart(2, '0')}`;
 }
 
-let beanCache = [];
+let beanCache = [], brewCache = [];
+const openBeans = new Set(), openBrews = new Set();
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
 function beanName(id) {
     const b = beanCache.find(b => b.id === id);
-    return b ? b.name : '?';
+    return b ? b.name : 'unassigned';
 }
 
 function stars(rating, id) {
     let h = '<span class="stars">';
     for (let i = 1; i <= 5; i++) {
-        h += `<span data-brew="${id}" data-n="${i}" class="${i <= rating ? 'on' : ''}">★</span>`;
+        h += `<span data-rate="${id}:${i}" class="${i <= rating ? 'on' : ''}">★</span>`;
     }
     return h + '</span>';
 }
 
-async function renderLibrary() {
-    beanCache = await DB.beans.list();
-    const list = await DB.brews.list();
-    list.sort((a, b) => b.date < a.date ? -1 : 1);   // newest first
+function brewMeta(w) {
+    const ratio = w.dose ? ` · 1:${(w.liquid / w.dose).toFixed(1)}` : '';
+    return `${w.dose || '?'}→${w.liquid} g${ratio} · ${fmtDur(w.durationS)}`;
+}
 
-    // bean select keeps its value across re-renders
+function beanCard(b, bs) {
+    const id = b ? b.id : 0;
+    const open = openBeans.has(id);
+    const meta = b ? `
+      <div class="bean-meta">
+        <label>name<input data-bf="name" data-bid="${b.id}" value="${esc(b.name)}"></label>
+        <label>brand<input data-bf="brand" data-bid="${b.id}" value="${esc(b.brand)}"></label>
+        <label>variety<input data-bf="variety" data-bid="${b.id}" value="${esc(b.variety)}"></label>
+        <label>dose g<input type="number" step="0.1" min="0" data-bf="dose" data-bid="${b.id}" value="${b.dose || ''}"></label>
+        <label class="wide">note<input data-bf="note" data-bid="${b.id}" value="${esc(b.note)}"></label>
+        <button class="danger" data-delbean="${b.id}">delete bean</button>
+      </div>` : '';
+    const rows = bs.map(w => `
+      <div class="brew ${openBrews.has(w.id) ? 'open' : ''}">
+        <div class="brew-head" data-brewhead="${w.id}">
+          <span class="tw">▸</span>
+          <span class="meta">${w.date.slice(5, 16).replace('T', ' ')}</span>
+          <span class="meta">${brewMeta(w)}</span>
+          <span style="flex:1"></span>
+          ${stars(w.rating, w.id)}
+          <button class="fav ${w.fav ? 'on' : ''}" data-fav="${w.id}">♥</button>
+        </div>
+        <div class="brew-detail" data-bd="${w.id}" ${openBrews.has(w.id) ? '' : 'hidden'}></div>
+      </div>`).join('')
+        || '<div class="hint" style="padding:4px 2px">还没有冲煮记录。</div>';
+    const sub = b ? esc([b.brand, b.variety].filter(Boolean).join(' · ')) : '';
+    return `
+    <div class="bean ${open ? 'open' : ''}">
+      <div class="bean-head" data-beanhead="${id}">
+        <span class="tw">▸</span><b>${b ? esc(b.name) : 'unassigned'}</b>
+        <span class="meta">${sub}</span>
+        <span style="flex:1"></span>
+        <span class="meta">${bs.length} brews</span>
+      </div>
+      <div class="bean-body" ${open ? '' : 'hidden'}>${meta}${rows}</div>
+    </div>`;
+}
+
+async function renderBeans() {
+    beanCache = await DB.beans.list();
+    brewCache = await DB.brews.list();
+    brewCache.sort((a, b) => (a.date < b.date ? 1 : -1));   // newest first
+
+    // weigh-page bean select keeps its value across re-renders
     const sel = beanSel.value;
     beanSel.innerHTML = '<option value="">no bean</option>' +
-        beanCache.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+        beanCache.map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('');
     beanSel.value = sel;
 
-    $('bean-list').innerHTML = beanCache.map(b =>
-        `<div class="brew-row"><span class="who">${b.name}</span>` +
-        `<span class="meta">${b.dose || '–'} g</span>` +
-        `<button data-delbean="${b.id}">✕</button></div>`).join('');
+    const groups = beanCache.map(b => ({
+        b, bs: brewCache.filter(w => w.beanId === b.id),
+    }));
+    const loose = brewCache.filter(w =>
+        w.beanId === null || !beanCache.some(b => b.id === w.beanId));
+    if (loose.length) groups.push({ b: null, bs: loose });
 
-    $('brew-list').innerHTML = list.length === 0
-        ? '<div class="hint" style="padding:8px 2px">冲一次 brew，曲线会自动存在这里。</div>'
-        : list.map(b =>
-            `<div class="brew-row">` +
-            `<button data-view="${b.id}">view</button>` +
-            `<span class="who"><b>${beanName(b.beanId)}</b></span>` +
-            `<span class="meta">${b.date.slice(5, 16).replace('T', ' ')}</span>` +
-            `<span class="meta">${b.dose || '?'}→${b.liquid} g` +
-            `${b.dose ? ` · 1:${(b.liquid / b.dose).toFixed(1)}` : ''}</span>` +
-            stars(b.rating, b.id) +
-            `<button class="fav ${b.fav ? 'on' : ''}" data-fav="${b.id}">♥</button>` +
-            `<button data-delbrew="${b.id}">✕</button></div>`).join('');
+    const acc = $('bean-accordion');
+    acc.innerHTML = groups.length === 0
+        ? '<div class="hint" style="padding:10px 2px">先加一支豆子；冲煮记录会自动归档到豆子下面。</div>'
+        : groups.map(({ b, bs }) => beanCard(b, bs)).join('');
+
+    // open brew details need a sized box — mount plots after the DOM exists
+    for (const w of brewCache) {
+        if (openBrews.has(w.id) && openBeans.has(w.beanId ?? 0)) mountBrewDetail(w);
+    }
 }
 
-$('brew-list').onclick = async e => {
-    const el = e.target.closest('[data-view],[data-fav],[data-delbrew],[data-brew]');
-    if (!el) return;
-    if (el.dataset.brew) {                  // star rating
-        const b = await brewOf(+el.dataset.brew);
-        b.rating = (+el.dataset.n === b.rating) ? 0 : +el.dataset.n;
-        await DB.brews.update(b);
-    } else if (el.dataset.fav) {
-        const b = await brewOf(+el.dataset.fav);
-        b.fav = !b.fav;
-        await DB.brews.update(b);
-    } else if (el.dataset.delbrew) {
-        await DB.brews.del(+el.dataset.delbrew);
-    } else if (el.dataset.view) {
-        const b = await brewOf(+el.dataset.view);
-        chart.showSaved(b.t, b.w, b.f);
-        $('btn-live').hidden = false;
+function mountBrewDetail(w) {
+    const bd = document.querySelector(`.brew-detail[data-bd="${w.id}"]`);
+    if (!bd || bd.dataset.mounted) return;
+    bd.dataset.mounted = '1';
+    bd.innerHTML = `
+      <div class="bd-curve"></div>
+      <div class="bd-data">
+        <div><span class="v">${w.date.slice(0, 16).replace('T', ' ')}</span></div>
+        <div>${w.dose || '?'} g → <span class="v">${w.liquid} g</span>` +
+        `${w.dose ? ` · <span class="v">1:${(w.liquid / w.dose).toFixed(1)}</span>` : ''}</div>
+        <div>${fmtDur(w.durationS)} · ${w.t.length} pts</div>
+        <input class="note" data-note="${w.id}" placeholder="备注：风味、改进…" value="${esc(w.note || '')}">
+        <div class="row" style="margin-top:2px">
+          <button data-expbrew="${w.id}">export</button>
+          <button class="danger" data-delbrew="${w.id}">delete</button>
+        </div>
+      </div>`;
+    brewPlot(bd.querySelector('.bd-curve'), w.t, w.w, w.f);
+}
+
+function exportBrew(w) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(
+        new Blob([JSON.stringify(w)], { type: 'application/json' }));
+    a.download = `brew-${w.date.slice(0, 10)}-${beanName(w.beanId)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+$('bean-accordion').onclick = async e => {
+    const rate = e.target.closest('[data-rate]');
+    if (rate) {
+        const [id, n] = rate.dataset.rate.split(':').map(Number);
+        const w = brewCache.find(w => w.id === id);
+        w.rating = (n === w.rating) ? 0 : n;
+        await DB.brews.update(w);
+        renderBeans();
+        return;
     }
-    renderLibrary();
+    const fav = e.target.closest('[data-fav]');
+    if (fav) {
+        const w = brewCache.find(w => w.id === +fav.dataset.fav);
+        w.fav = !w.fav;
+        await DB.brews.update(w);
+        renderBeans();
+        return;
+    }
+    const exp = e.target.closest('[data-expbrew]');
+    if (exp) {
+        exportBrew(brewCache.find(w => w.id === +exp.dataset.expbrew));
+        return;
+    }
+    const delB = e.target.closest('[data-delbrew]');
+    if (delB) {
+        const id = +delB.dataset.delbrew;
+        openBrews.delete(id);
+        await DB.brews.del(id);
+        renderBeans();
+        return;
+    }
+    const delBean = e.target.closest('[data-delbean]');
+    if (delBean) {
+        const id = +delBean.dataset.delbean;
+        if (!confirm('删除这支豆子？它的冲煮记录会归入 unassigned。')) return;
+        for (const w of brewCache.filter(w => w.beanId === id)) {
+            w.beanId = null;
+            await DB.brews.update(w);
+        }
+        openBeans.delete(id);
+        await DB.beans.del(id);
+        renderBeans();
+        return;
+    }
+    const bh = e.target.closest('[data-brewhead]');
+    if (bh) {
+        const id = +bh.dataset.brewhead;
+        openBrews.has(id) ? openBrews.delete(id) : openBrews.add(id);
+        renderBeans();
+        return;
+    }
+    const bnh = e.target.closest('[data-beanhead]');
+    if (bnh) {
+        const id = +bnh.dataset.beanhead;
+        openBeans.has(id) ? openBeans.delete(id) : openBeans.add(id);
+        renderBeans();
+    }
 };
 
-async function brewOf(id) {
-    return (await DB.brews.list()).find(b => b.id === id);
-}
-
-$('bean-list').onclick = async e => {
-    const el = e.target.closest('[data-delbean]');
-    if (!el) return;
-    await DB.beans.del(+el.dataset.delbean);
-    renderLibrary();
+// bean meta fields + per-brew note — saved on blur/enter
+$('bean-accordion').onchange = async e => {
+    const bf = e.target.closest('[data-bf]');
+    if (bf) {
+        const b = beanCache.find(b => b.id === +bf.dataset.bid);
+        b[bf.dataset.bf] = bf.dataset.bf === 'dose'
+            ? (parseFloat(bf.value) || 0) : bf.value;
+        await DB.beans.update(b);
+        renderBeans();                       // name/brand may be in the header
+        return;
+    }
+    const nt = e.target.closest('[data-note]');
+    if (nt) {
+        const w = brewCache.find(w => w.id === +nt.dataset.note);
+        w.note = nt.value;
+        await DB.brews.update(w);
+    }
 };
 
 $('btn-addbean').onclick = async () => {
     const name = $('bean-name').value.trim();
     if (!name) return;
     $('bean-name').value = '';
-    const id = await DB.beans.add(name, doseVal());
+    const id = await DB.beans.add({ name, dose: doseVal() });
     beanSel.value = String(id);
-    renderLibrary();
+    openBeans.add(id);
+    renderBeans();
 };
 
 beanSel.onchange = async () => {
@@ -372,7 +534,7 @@ $('btn-import').onclick = () => {
             const data = JSON.parse(await inp.files[0].text());
             const n = await DB.importAll(data);
             $('rec-info').textContent = `imported ${n.beans} beans, ${n.brews} brews`;
-            renderLibrary();
+            renderBeans();
         } catch (e) {
             $('rec-info').textContent = `import failed: ${e.message}`;
         }
@@ -383,11 +545,11 @@ $('btn-import').onclick = () => {
 $('btn-clearbrews').onclick = async () => {
     if (confirm('清空全部冲煮记录？（豆子保留）')) {
         await DB.brews.clear();
-        renderLibrary();
+        renderBeans();
     }
 };
 
-renderLibrary().catch(() => {});
+renderBeans().catch(() => {});
 
 // curve on/off — hidden keeps collecting in the background, re-showing
 // flushes the whole backlog in one setData. Choice persists on the device.

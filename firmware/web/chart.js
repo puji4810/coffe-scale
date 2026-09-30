@@ -107,29 +107,48 @@ export class ScaleChart {
         let i = 0;
         while (i < x.length && x[i] < cut) i++;
         if (i) { x.splice(0, i); this.w.splice(0, i); this.f.splice(0, i); }
-        if (this.visible && !this.saved) this.u.setData([x, this.w, this.f]);
-    }
-
-    /// Show a recorded brew curve in place of the live stream; the live
-    /// buffers keep collecting underneath and resume() restores them.
-    showSaved(x, w, f) {
-        this.saved = true;
-        this.u.setData([x, w, f]);
-    }
-
-    resume() {
-        this.saved = false;
-        this.u.setData([this.x, this.w, this.f]);
+        if (this.visible) this.u.setData([x, this.w, this.f]);
     }
 
     clear() {
         this.t0 = null;
         this.lastT = -Infinity;
         this.x.length = this.w.length = this.f.length = 0;
-        this.saved = false;
         this.u.setData([[], [], []]);
         this.tip.style.display = 'none';
     }
 
     resize(w, h) { this.u.setSize({ width: w, height: h }); }
+}
+
+/// Static weight/flow curve for a saved brew — same axes/series language
+/// as the live chart, but a plain one-shot plot for the bean library.
+export function brewPlot(el, t, w, f) {
+    return new uPlot({
+        width: el.clientWidth,
+        height: 190,
+        padding: [8, 8, 0, 0],
+        scales: {
+            x: { time: false },
+            w: { range: { min: { soft: 0, mode: 1, pad: 0.05 },
+                          max: { soft: 50, mode: 1, pad: 0.08 } } },
+            f: { range: [-10, 40] },
+        },
+        series: [
+            {},
+            { label: 'g', scale: 'w', stroke: FG, width: 2,
+              points: { show: false } },
+            { label: 'g/s', scale: 'f', stroke: AMBER, width: 1.5,
+              points: { show: false } },
+        ],
+        axes: [
+            { stroke: DIM, grid: { stroke: GRID },
+              values: (u, s) => s.map(fmtTime) },
+            { scale: 'w', stroke: FG, grid: { stroke: GRID }, size: 50 },
+            { scale: 'f', side: 1, stroke: AMBER, grid: { show: false },
+              size: 42 },
+        ],
+        legend: { show: false },
+        cursor: { show: true, drag: { x: false, y: false } },
+    }, [t, w, f], el);
 }
