@@ -1,0 +1,7 @@
+target("sim")
+    set_kind("binary")
+    set_default(true)
+    add_deps("scale_core", "ui", "board")
+    add_packages("lvgl", "libsdl2")
+    add_files("*.cpp")
+    add_includedirs(".")

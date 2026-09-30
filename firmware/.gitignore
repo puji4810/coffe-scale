@@ -1,0 +1,19 @@
+# ESP-IDF build output
+/build-esp32s3/
+/build/
+/managed_components/
+
+# korvo1-remote is a separate IDF project with its own build dir and
+# managed_components (registry deps pinned in dependencies.lock)
+/korvo1-remote/build-s31/
+/korvo1-remote/managed_components/
+
+# xmake host cache
+/.xmake/
+
+# generated at build time by littlefs_create_partition_image
+/littlefs_py_venv/
+
+# web wasm + packed fs root (regenerate: web/wasm/build.sh, web/pack.sh)
+/web/dist/
+/web/root/

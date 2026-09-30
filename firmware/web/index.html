@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#161616">
+<title>coffee-scale</title>
+<link rel="stylesheet" href="./vendor/uPlot.min.css">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #161616; --bg2: #1c1c1c; --bg3: #262626;
+    --line: #2a2a2a; --line2: #3a3a3a;
+    --fg: #f5f5f5; --dim: #8a8a8a; --faint: #555;
+    --amber: #e8a33d; --green: #3dd68c; --red: #e5534b;
+    --r: 10px;
+  }
+  /* wordmark: Ms Madi subset — only the glyphs in "coffee scale" */
+  @font-face {
+    font-family: 'Ms Madi';
+    src: url('./vendor/logo.woff2') format('woff2');
+    font-display: swap;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: radial-gradient(1200px 600px at 50% -10%, #1d1a14 0%, var(--bg) 60%);
+    color: var(--fg);
+    font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* --- header ------------------------------------------------------------- */
+  header {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; gap: 10px; align-items: center;
+    padding: 10px calc(16px + env(safe-area-inset-right))
+             10px calc(16px + env(safe-area-inset-left));
+    background: rgba(22,22,22,.85); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  header .logo {
+    font-family: 'Ms Madi', 'Snell Roundhand', 'Segoe Script', cursive;
+    font-size: 32px; line-height: 1.1; color: var(--amber);
+    white-space: nowrap; padding-right: 4px;
+  }
+  #conn {
+    color: var(--dim); font-size: 12px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 40vw;
+    transition: color .3s;
+  }
+  #conn::before {
+    content: ''; display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--line2); margin-right: 6px;
+    transition: background .3s, box-shadow .3s;
+  }
+  #conn.live { color: var(--green); }
+  #conn.live::before { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  header .spacer { flex: 1; min-width: 4px; }
+  #ws-url { width: min(200px, 34vw); min-width: 0; }
+
+  /* --- layout ------------------------------------------------------------- */
+  main {
+    display: grid; grid-template-columns: minmax(300px, 640px) minmax(0, 1fr);
+    gap: 16px; padding: 16px; align-items: start;
+    padding-left: calc(16px + env(safe-area-inset-left));
+    padding-right: calc(16px + env(safe-area-inset-right));
+  }
+  @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+  section { min-width: 0; }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .card { animation: rise .45s cubic-bezier(.2,.7,.3,1) backwards; }
+  main > section:nth-child(2) .card { animation-delay: .08s; }
+
+  /* --- screen mirror -------------------------------------------------------- */
+  #screen {
+    width: 100%; aspect-ratio: 320 / 172; display: block;
+    image-rendering: pixelated; background: #0b0b0b;
+    border-radius: var(--r); outline: 1px solid #333;
+    box-shadow: 0 8px 30px rgba(0,0,0,.45);
+  }
+
+  /* --- controls: fixed grid, buttons can't shuffle or wrap ------------------ */
+  .controls {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; margin-top: 12px;
+  }
+  .controls > * { width: 100%; min-width: 0; }
+
+  button, select, input[type=text], input[type=number] {
+    background: var(--bg3); color: var(--fg); border: 1px solid var(--line2);
+    border-radius: 8px; padding: 9px 12px; font: inherit; cursor: pointer;
+    min-height: 40px;
+    transition: transform .08s ease, background .15s, border-color .15s,
+                box-shadow .15s, color .15s, opacity .15s;
+  }
+  input[type=text], input[type=number] { cursor: text; }
+  button:hover { background: #303030; border-color: #4a4a4a; }
+  button:active { transform: scale(.94); }
+  button:disabled { opacity: .35; cursor: default; }
+  button:disabled:active { transform: none; }
+  button.warn { border-color: var(--amber); color: var(--amber); }
+  button.danger { border-color: #5a3a37; color: var(--red); }
+  button.danger:hover { border-color: var(--red); background: #2a1d1c; }
+  button.rec-on {
+    border-color: var(--red); color: var(--red);
+    animation: recpulse 1.2s ease-in-out infinite;
+  }
+  @keyframes recpulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(229,83,75,.35); }
+    50%      { box-shadow: 0 0 0 6px rgba(229,83,75,0); }
+  }
+  select { appearance: none; text-align: center; }
+
+  details { margin-top: 12px; }
+  summary {
+    cursor: pointer; color: var(--dim); list-style: none;
+    padding: 6px 2px; transition: color .15s;
+  }
+  summary::before {
+    content: '▸'; display: inline-block; margin-right: 6px;
+    transition: transform .25s;
+  }
+  details[open] summary::before { transform: rotate(90deg); }
+  summary:hover { color: var(--fg); }
+  details .row { padding-top: 8px; }
+
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+
+  /* --- stats: fixed-height cells + tabular numbers -> zero layout shift ----- */
+  #stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+    gap: 8px; margin-bottom: 12px;
+  }
+  #stats .cell {
+    background: var(--bg2); border: 1px solid var(--line);
+    border-radius: var(--r); padding: 10px 12px;
+    min-height: 68px; display: flex; flex-direction: column;
+    justify-content: center; gap: 2px;
+    transition: border-color .2s;
+  }
+  #stats .k { color: var(--dim); font-size: 11px; white-space: nowrap; }
+  #stats .v {
+    font-size: clamp(18px, 5.5vw, 26px); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+    min-height: 1.4em;
+  }
+  #v-weight { font-size: clamp(24px, 8vw, 34px); }
+  #v-flow, #v-timer { color: var(--amber); }
+  #v-state .v { font-size: 14px; }
+  #stable-dot {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--line2); vertical-align: middle; margin-right: 6px;
+    transition: background .3s, box-shadow .3s;
+  }
+  #stable-dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+  /* battery icon: outline + tip + fill set inline by pct/colour */
+  .batt-v { display: flex; align-items: center; gap: 8px; }
+  .batt-body {
+    position: relative; width: 22px; height: 12px; flex: none;
+    border: 1px solid var(--dim); border-radius: 3px;
+  }
+  .batt-body::after {           /* tip nub */
+    content: ''; position: absolute; top: 3px; right: -4px;
+    width: 2px; height: 4px; background: var(--dim); border-radius: 0 1px 1px 0;
+  }
+  #batt-fill {
+    position: absolute; left: 1px; top: 1px; bottom: 1px;
+    width: 0%; border-radius: 1px; background: var(--green);
+    transition: width .4s ease, background .4s;
+  }
+
+  /* level bubble: ring + wandering dot, mirrors the on-device indicator */
+  .level-v { display: flex; align-items: center; gap: 10px; }
+  .bubble {
+    position: relative; width: 22px; height: 22px; flex: none;
+    border: 1px solid var(--dim); border-radius: 50%; opacity: .7;
+  }
+  #bubble-dot {
+    position: absolute; left: 50%; top: 50%;
+    width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%;
+    background: var(--dim);
+    transition: transform .2s ease, background .3s;
+  }
+
+  /* --- chart panel with collapse switch ------------------------------------- */
+  .panel {
+    border: 1px solid var(--line); border-radius: var(--r);
+    background: var(--bg2); padding: 10px 12px;
+  }
+  .panel-head {
+    display: flex; align-items: center; gap: 10px;
+    padding-bottom: 6px;
+  }
+  .panel-title { color: var(--dim); font-size: 12px; }
+  .panel-head .spacer { flex: 1; }
+
+  .switch { position: relative; display: inline-block; width: 40px; height: 22px; flex: none; }
+  .switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .switch .knob {
+    position: absolute; inset: 0; border-radius: 999px;
+    background: var(--bg3); border: 1px solid var(--line2);
+    transition: background .25s, border-color .25s;
+  }
+  .switch .knob::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--dim);
+    transition: transform .25s cubic-bezier(.2,.7,.3,1.3), background .25s;
+  }
+  .switch input:checked + .knob { background: #2e3f35; border-color: var(--green); }
+  .switch input:checked + .knob::after { transform: translateX(18px); background: var(--green); }
+
+  /* smooth collapse: animated grid-row trick */
+  .chart-wrap {
+    display: grid; grid-template-rows: 1fr;
+    transition: grid-template-rows .35s cubic-bezier(.2,.7,.3,1);
+  }
+  .chart-wrap > #chart {
+    min-height: 0; overflow: hidden;
+    height: clamp(200px, 38vh, 380px);
+    transition: opacity .25s;
+  }
+  .chart-panel.off { padding-bottom: 6px; }
+  .chart-panel.off .panel-head { padding-bottom: 0; }
+  .chart-panel.off .chart-wrap { grid-template-rows: 0fr; }
+  .chart-panel.off #chart { opacity: 0; height: 0; }
+
+  .chart-tip {
+    position: absolute; z-index: 5; pointer-events: none;
+    background: rgba(0,0,0,.85); border: 1px solid var(--line2);
+    border-radius: 4px; color: #e0e0e0; font: 12px/1.4 monospace;
+    padding: 3px 7px; white-space: nowrap;
+  }
+  .hint { color: var(--faint); font-size: 12px; padding: 8px 16px 16px; }
+  .u-legend { font-size: 11px; }
+  .u-cursor-x, .u-cursor-y { border-color: #666 !important; }
+
+  :focus-visible {
+    outline: 2px solid var(--amber); outline-offset: 2px; border-radius: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .01ms !important;
+      transition-duration: .01ms !important;
+    }
+  }
+
+  /* very small / short screens: tighten everything, nothing may overflow */
+  @media (max-width: 420px) {
+    main { padding: 10px; gap: 12px; }
+    header { padding: 8px 10px; }
+    header .logo { font-size: 14px; }
+    .controls { gap: 6px; }
+    button, select { padding: 8px 6px; font-size: 13px; }
+  }
+  @media (max-height: 500px) {
+    #stats .cell { min-height: 52px; }
+    .chart-wrap > #chart { height: clamp(160px, 50vh, 380px); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">coffee scale</span>
+  <span id="conn">offline</span>
+  <span class="spacer"></span>
+  <input type="text" id="ws-url" placeholder="ws://192.168.4.1/ws" size="22" spellcheck="false">
+  <button id="btn-ws">Connect</button>
+</header>
+
+<main>
+  <section>
+    <canvas id="screen" width="320" height="172" class="card"></canvas>
+    <div class="controls card">
+      <button id="btn-tare">Tare</button>
+      <button id="btn-long">Timer</button>
+      <button id="btn-mode">Mode</button>
+      <select id="sel-unit">
+        <option value="0">g</option>
+        <option value="1">oz</option>
+      </select>
+      <button id="btn-rec" class="warn">● rec</button>
+      <button id="btn-sleep" class="danger" title="进入低功耗（敲击秤体唤醒）">power off</button>
+    </div>
+    <details class="card">
+      <summary>calibration (two-point)</summary>
+      <div class="row">
+        <button id="btn-calzero">1. empty pan → cal zero</button>
+        <input type="number" id="cal-mass" value="100" min="1" step="0.1" size="6" style="width:80px"> g
+        <button id="btn-calspan">2. weight on → cal span</button>
+        <span id="cal-state"></span>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <div id="stats" class="card">
+      <div class="cell"><div class="k">weight</div><div class="v" id="v-weight">–</div></div>
+      <div class="cell"><div class="k">flow</div><div class="v" id="v-flow">–</div></div>
+      <div class="cell"><div class="k">timer</div><div class="v" id="v-timer">–</div></div>
+      <div class="cell"><div class="k">state</div><div class="v" id="v-state"><span id="stable-dot"></span><span id="v-flags">–</span></div></div>
+      <div class="cell"><div class="k">battery</div>
+        <div class="v batt-v"><span class="batt-body"><i id="batt-fill"></i></span><span id="v-batt">–</span></div></div>
+      <div class="cell"><div class="k">level</div>
+        <div class="v level-v"><span class="bubble"><i id="bubble-dot"></i></span><span id="v-tilt" style="font-size:15px">–</span></div></div>
+    </div>
+    <div class="panel chart-panel card">
+      <div class="panel-head">
+        <span class="panel-title">curve · weight / flow</span>
+        <span class="spacer"></span>
+        <label class="switch" title="绘制曲线">
+          <input type="checkbox" id="chart-toggle" checked><span class="knob"></span>
+        </label>
+      </div>
+      <div class="chart-wrap"><div id="chart"></div></div>
+    </div>
+    <div class="row card">
+      <span id="rec-info" style="color:var(--dim)"></span>
+      <span class="spacer" style="flex:1"></span>
+      <button id="btn-dl" disabled>download jsonl</button>
+      <button id="btn-clear">clear chart</button>
+    </div>
+  </section>
+</main>
+
+<div class="hint">
+  连 coffee-scale WiFi 后打开 http://192.168.4.1 自动连接本秤。
+  快捷键 T/L/M。brew 计时器启动会自动开始记录。
+</div>
+
+<script src="./vendor/uPlot.iife.min.js"></script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

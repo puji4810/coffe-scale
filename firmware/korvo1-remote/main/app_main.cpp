@@ -1,0 +1,55 @@
+/// korvo1-remote — touch remote display/controller for the coffee scale.
+///
+///   link      WiFi STA onto the scale's SoftAP + WebSocket client
+///   display   BSP: 800x480 RGB LCD + GT1151 touch + LVGL (esp_lvgl_port
+///             owns the LVGL task/tick — all LVGL calls under
+///             bsp_display_lock/unlock)
+///   ui        vitals + curve + command buttons
+
+#include "bsp/esp32_s31_korvo_1.h"
+#include "display.hpp"
+#include "link.hpp"
+#include "ui.hpp"
+
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "nvs_flash.h"
+
+namespace {
+
+constexpr char kTag[] = "remote";
+
+void ui_task(void*) {
+    ESP_LOGI(kTag, "ui task alive");
+    int tries = 0;
+    while (!bsp_display_lock(pdMS_TO_TICKS(1000))) {
+        if (++tries % 5 == 0) ESP_LOGW(kTag, "lvgl lock timeout x%d", tries);
+    }
+    ui::create();
+    bsp_display_unlock();
+    ESP_LOGI(kTag, "ui created");
+    for (;;) {
+        if (bsp_display_lock(pdMS_TO_TICKS(100))) {
+            ui::update();
+            bsp_display_unlock();
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));   // 20 Hz matches the ws push rate
+    }
+}
+
+} // namespace
+
+extern "C" void app_main() {
+    ESP_ERROR_CHECK(nvs_flash_init());
+
+    net::start();                     // wifi + websocket, self-healing
+
+    if (!display::init()) {
+        ESP_LOGE(kTag, "display init failed — check the SUB3 board/ribbon");
+        return;
+    }
+
+    xTaskCreate(ui_task, "ui", 8192, nullptr, 4, nullptr);
+    ESP_LOGI(kTag, "korvo1-remote up");
+}

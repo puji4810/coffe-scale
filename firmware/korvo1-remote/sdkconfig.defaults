@@ -1,0 +1,42 @@
+# ESP32-S31-Korvo-1 V1.1 defaults — see the board user guide.
+CONFIG_IDF_TARGET_ESP32S31=y
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+
+# S31-WROOM-3: 16 MB PSRAM on-package (needed for the RGB panel framebuffers)
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+
+# RGB LCD: keep the two full framebuffers in PSRAM and let LVGL draw into
+# them (direct mode) — DMA-capable internal SRAM can't hold LVGL bufs.
+CONFIG_BSP_LCD_RGB_BUFFER_NUMS=2
+CONFIG_BSP_DISPLAY_LVGL_AVOID_TEAR=y
+CONFIG_BSP_DISPLAY_LVGL_DIRECT_MODE=y
+# LCD DMA reads from an internal-SRAM bounce buffer instead of streaming
+# straight from PSRAM — WiFi bursts / LVGL writes stall PSRAM long enough
+# to underrun the LCD FIFO and garble frames.
+CONFIG_BSP_LCD_RGB_BOUNCE_BUFFER_MODE=y
+# 40 lines of SRAM bounce ≈ 2 ms of refill slack — the old 10-line window
+# (~0.5 ms) underran under WiFi/LVGL PSRAM bursts and showed a garbled
+# "mosaic" line. (Must divide the 480-line frame: 40 works.)
+CONFIG_BSP_LCD_RGB_BOUNCE_BUFFER_HEIGHT=40
+# NOTE: do NOT enable LCD_RGB_ISR_IRAM_SAFE — with it, the bounce-fill ISR
+# keeps running while the flash cache is off (NVS writes during WiFi
+# connect) and its memcpy reads the PSRAM framebuffer through the cache ->
+# instant "Cache error" panic (esp_lcd_panel_rgb.c documents this).
+# (LCD_RGB_RESTART_IN_VSYNC is an ESP32-S3-only workaround — no S31 symbol.)
+
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# Console/monitor goes through the on-board USB-UART bridge (UART0) —
+# unlike the scale board there is NO USB-Serial-JTAG console here.
+
+# LVGL — same visual language as the scale screen
+CONFIG_LV_COLOR_DEPTH_16=y
+CONFIG_LV_USE_FLOAT=y
+CONFIG_LV_USE_CHART=y
+CONFIG_LV_FONT_MONTSERRAT_14=y
+CONFIG_LV_FONT_MONTSERRAT_24=y
+CONFIG_LV_FONT_MONTSERRAT_28=y
+CONFIG_LV_FONT_MONTSERRAT_48=y

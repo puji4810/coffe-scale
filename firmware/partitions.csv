@@ -1,0 +1,11 @@
+# Name,   Type, SubType,  Offset,    Size
+# 16 MB layout: dual OTA (~3.9 MB each) + ~8.1 MB LittleFS for the
+# self-hosted web UI. nvs kept at 0x9000/0x6000 so existing calibration
+# data survives the switch; otadata sits right after phy_init.
+# Subtype "littlefs" (0x83) is what esp_littlefs looks up.
+nvs,      data, nvs,      0x9000,    0x6000
+phy_init, data, phy,      0xf000,    0x1000
+otadata,  data, ota,      0x10000,   0x2000
+ota_0,    app,  ota_0,    0x20000,   0x3E0000
+ota_1,    app,  ota_1,    0x400000,  0x3E0000
+littlefs, data, littlefs, 0x7E0000,  0x820000

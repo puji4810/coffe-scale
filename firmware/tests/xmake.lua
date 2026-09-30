@@ -1,0 +1,7 @@
+target("unit_tests")
+    set_kind("binary")
+    set_default(true)
+    add_deps("board", "bus", "scale_core", "nau7802", "lis2dw12", "tmp102")
+    add_packages("doctest")
+    add_files("*.cpp")
+    add_includedirs(".")
