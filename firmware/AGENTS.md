@@ -69,9 +69,12 @@ idf.py -B build-esp32s3 build flash
   `pre` (2x cascaded 8 Hz Butterworth) feeds the Kalman measurement,
   `fast` (single 16 Hz Butterworth) feeds detection only. Impact and
   tracking are separate evidence paths: a |innovation| trip (4 g on
-  pre, 3 g on fast), a nonlinear windowed-mean jump, or a clean fitted
-  slope past 22 g/s contradicting the state while un-boosted (blind
-  tracking must not chase what no pour sustains) gates — rewind
+  pre, 3 g on fast), a windowed-mean jump exceeding the fitted ramp's
+  own prediction (a step's kink can't be explained by one slope), or
+  a clean fitted slope past 22 g/s contradicting the state by >6 g/s
+  while un-boosted (blind tracking must not chase what no pour
+  sustains; the margin clears fast-fit jitter so a healthy pour can't
+  re-trip) gates — rewind
   0.1 s, hold the captured flow decaying to 0 over 1.0 s, and after a
   minimum hold re-anchor once the trailing 0.3 s fit AND its newest
   half are calm (<1.5 g / ~1.05 g residual); the resume flow is the
@@ -83,9 +86,13 @@ idf.py -B build-esp32s3 build flash
   configure() (that resets): same-sign innovation persistence + clean
   window slope evidence snaps f_ to the fit (bounded, damped ~15%,
   steep claims need longer proof) and runs q_boost until settled,
-  then a mid-level q_track rides a confirmed slope for ~0.3 s; the
-  boosted flow stays capped to the shallower adjacent-window slope so
-  post-boost momentum can't overshoot. Slope-sign flips and a growing
+  then a mid-level q_track rides a confirmed slope for ~0.3 s. A
+  two-sided band vs the shallower adjacent-window slope is split by
+  lifetime: the positive ceiling runs only during boost + ~0.35 s
+  after (chronic clamping biases a noisy pour low — min() of noisy
+  fits is biased), while the negative floor stays armed and a
+  flat-signal rebound pin keeps settle dips ~0.35 g/s. Slope-sign
+  flips and a growing
   hold-off suppress re-entry so handling wiggles can't latch.
   Boost aborts into the gate when the signal is already flat — a
   gently-placed mass, not a pour. IMU |delta| EMA only vetoes boost.

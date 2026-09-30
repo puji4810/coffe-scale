@@ -399,27 +399,57 @@ TEST_CASE("flow_kf: sustained oscillation never resumes as flow") {
 }
 
 TEST_CASE("flow_kf: rebase keeps gate policy and live timers valid") {
-    // The same two-step sequence placed just before vs just after the
-    // ~120 s rebase must resolve identically — stored times that cross
-    // zero stay valid (elapsed math), sentinels never become "now".
-    const auto run_steps = [](float offset) {
-        scale::flow_kf kf;
-        float peak1 = 0, peak2 = 0;
-        for (int i = 0; i < static_cast<int>(2.5f * kFs); ++i) {
-            const float t = offset + i * kDt;
-            float       g = 0.0f;
-            if (t >= offset + 0.55f && t < offset + 1.1f) g = 2.0f;
-            if (t >= offset + 1.1f)                       g = 4.0f;
-            feed_t(kf, t, g);
-            if (t >= offset + 0.55f && t < offset + 1.1f)
-                peak1 = std::max(peak1, std::fabs(kf.rate()));
-            if (t >= offset + 1.1f)
-                peak2 = std::max(peak2, std::fabs(kf.rate()));
-        }
-        return std::pair{peak1, peak2};
+    // ONE estimator fed continuously past the ~120 s rebase — a fresh
+    // estimator per offset (the old version of this test) never crosses
+    // it, since tp_ restarts near 0. Here a step gates just before the
+    // boundary, a 4 g/s pour crosses it with tracking state live, and a
+    // second step gates just after: stored times that cross zero must
+    // stay valid (elapsed math), sentinels never become "now".
+    scale::flow_kf kf;
+    const auto level = [](float t) {
+        float g = 0.0f;
+        if (t >= 118.5f) g += 2.0f;                 // pre-rebase step
+        if (t >= 119.3f) g += 4.0f * (t - 119.3f);  // pour across 120
+        if (t >= 121.8f) g += 6.0f;                 // post-rebase step
+        return g;
     };
-    const auto early = run_steps(9.0f);
-    const auto late  = run_steps(119.55f);   // straddles the rebase
-    CHECK(std::fabs(early.first - late.first) < 0.05f);
-    CHECK(std::fabs(early.second - late.second) < 0.05f);
+    bool  gated_pre = false, gated_post = false;
+    float pour_err = 0.0f;
+    for (int i = 0; i < static_cast<int>(123.0f * kFs); ++i) {
+        const float t = i * kDt;
+        feed_t(kf, t, level(t));
+        if (t >= 118.6f && t < 119.2f && kf.disturbed()) gated_pre = true;
+        if (t >= 120.05f && t < 121.75f)
+            pour_err = std::max(pour_err, std::fabs(kf.rate() - 4.0f));
+        if (t >= 121.85f && kf.disturbed()) gated_post = true;
+    }
+    CHECK(gated_pre);
+    CHECK(gated_post);
+    CHECK(pour_err < 1.0f);
+}
+
+TEST_CASE("flow_kf: oscillation then quiet then a real pour") {
+    // +-4 g at 1.5 Hz for 6 s, 1.5 s quiet, then a genuine 20 g/s pour:
+    // the oscillation streak must expire during the quiet gap so the
+    // pour resumes as flow promptly instead of staying suppressed.
+    scale::flow_kf kf;
+    float peak_osc = 0, t_half = -1, fin_err = 0;
+    for (int i = 0; i < static_cast<int>(16.0f * kFs); ++i) {
+        const float t = i * kDt;
+        float g = 0.0f;
+        if (t < 9.0f)
+            g = 4.0f * std::sin(2.0f * 3.14159265f * 1.5f * (t - 3.0f));
+        else if (t >= 10.5f)
+            g = 20.0f * (t - 10.5f);   // pour (quiet gap 9.0..10.5)
+        feed_t(kf, t, g);
+        if (t >= 3.0f && t < 10.0f)
+            peak_osc = std::max(peak_osc, std::fabs(kf.rate()));
+        if (t_half < 0 && t >= 10.5f && kf.rate() >= 10.0f)
+            t_half = t - 10.5f;
+        if (t >= 13.0f) fin_err = std::fabs(kf.rate() - 20.0f);
+    }
+    CHECK(peak_osc < 2.0f);      // oscillation never reads as flow
+    CHECK(t_half > 0.0f);        // pour actually acquired
+    CHECK(t_half < 1.5f);        // ...within a sane response window
+    CHECK(fin_err < 1.0f);
 }

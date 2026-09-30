@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -176,6 +177,22 @@ void bench_wiggle() {
                 peak, p.trips, p.boosts);
 }
 
+// +-4 g, 1.5 Hz — slower wobble: the gate can resolve inside a single
+// half-cycle, so the gate window alone can't see the reversal.
+void bench_wiggle3() {
+    probe p;
+    float peak = 0;
+    for (int i = 0; i < static_cast<int>(14 * kFs); ++i) {
+        const double t = i * kDt;
+        const float  g = t < 3 ? 0.0f
+                               : 4.0f * std::sin(2 * 3.14159265f * 1.5f * (t - 3));
+        const float r = p.feed(t, g);
+        if (t >= 3) peak = std::max(peak, std::fabs(r));
+    }
+    std::printf("wiggle3 peak=%.3f trips=%d boosts=%d\n",
+                peak, p.trips, p.boosts);
+}
+
 // +-3 g, 2 Hz sine for 10 s — a strong sustained wobble that DOES trip
 // the gate; resume must not adopt the sine's instantaneous slope.
 void bench_wiggle2() {
@@ -190,6 +207,59 @@ void bench_wiggle2() {
     }
     std::printf("wiggle2 peak=%.3f trips=%d boosts=%d\n",
                 peak, p.trips, p.boosts);
+}
+
+// Constant 4 g/s pour + white noise (sigma 0.1 g) — the regression the
+// chronic band clamp caused: steady-state mean must stay ~4.0, not sag
+// toward the noisy trough fits.
+void bench_pour_noise() {
+    probe p;
+    std::mt19937 rng(42);
+    std::normal_distribution<float> nz(0.0f, 0.1f);
+    float sum = 0, sum2 = 0;
+    int   n = 0;
+    for (int i = 0; i < static_cast<int>(14 * kFs); ++i) {
+        const double t = i * kDt;
+        const float  g = t < 3 ? 0.0f : 4.0f * static_cast<float>(t - 3)
+                                    + nz(rng);
+        const float r = p.feed(t, g);
+        if (t >= 5 && t <= 13) {
+            const float d = std::fabs(r) < 0.3f ? 0.0f : r;
+            sum += d;
+            sum2 += d * d;
+            ++n;
+        }
+    }
+    const float mean = sum / n;
+    std::printf("pournoise mean=%.3f std=%.3f trips=%d\n",
+                mean, std::sqrt(std::max(sum2 / n - mean * mean, 0.0f)),
+                p.trips);
+}
+
+// Rest noise (sigma 0.1 g) for 3 s, then a hard 30 g/s pour — a stale
+// oscillation streak must not survive into the pour and pin it at 0.
+void bench_rest_pour() {
+    probe p;
+    std::mt19937 rng(42);
+    std::normal_distribution<float> nz(0.0f, 0.1f);
+    float t20 = -1, fin = 0, sum = 0;
+    int   n = 0, gt = 0;
+    for (int i = 0; i < static_cast<int>(12 * kFs); ++i) {
+        const double t = i * kDt;
+        const float  g = t < 3 ? nz(rng)
+                               : 30.0f * static_cast<float>(t - 3) + nz(rng);
+        const float r = p.feed(t, g);
+        if (t20 < 0 && t >= 3 && r >= 20.0f) t20 = static_cast<float>(t) - 3;
+        if (t >= 7) {
+            const float d = std::fabs(r) < 0.3f ? 0.0f : r;
+            sum += d;
+            ++n;
+            if (p.kf.disturbed()) ++gt;
+        }
+        fin = r;
+    }
+    std::printf("restpour t20=%.3f mean=%.3f fin=%.2f trips=%d gate_s=%d\n",
+                t20, sum / n, fin, p.trips, gt);
 }
 
 // A 200 ms hole in an otherwise steady 80 Hz stream while pouring —
@@ -339,6 +409,9 @@ int main(int argc, char** argv) {
     bench_softstep();
     bench_wiggle();
     bench_wiggle2();
+    bench_wiggle3();
+    bench_pour_noise();
+    bench_rest_pour();
     bench_gap();
     return 0;
 }

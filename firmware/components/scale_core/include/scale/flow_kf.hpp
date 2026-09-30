@@ -30,11 +30,14 @@
 ///
 /// Impact gate:
 ///   |inn| > gate_g (pre) or |inn_fast| > gate_fast_g, a windowed-mean
-///   jump > jump_g on fast that fails a "still one clean line" residual
-///   test (a sustained steep pour is linear, a step is not), or a clean
-///   fitted slope past gate_slope_gps that contradicts the state while
-///   un-boosted — blind tracking must not chase a slope no pour can
-///   sustain, so the gate captures it early -> gate: rewind to the
+///   jump whose EXCESS over the window's fitted ramp exceeds jump_g
+///   (a sustained pour is one line — its slope already predicts the
+///   mean difference; a step has a kink it cannot), or a clean fitted
+///   slope past gate_slope_gps that contradicts the state by more than
+///   gate_diff_gps while un-boosted — blind tracking must not chase a
+///   slope no pour can sustain, so the gate captures it early, and the
+///   margin keeps fast-fit jitter from re-tripping a healthy pour ->
+///   gate: rewind to the
 ///   newest history state at least rewind_s old, predict forward to
 ///   now, hold the captured flow decaying linearly to 0 over hold_s.
 ///   The gate holds at least gate_min_s, then un-gates once the
@@ -82,9 +85,16 @@ struct flow_kf_config {
                                 //   blind tracking must not chase a
                                 //   slope a pour can't sustain; a real
                                 //   steep pour re-acquires via the
-                                //   un-gate fit resume
-    float jump_g     = 1.5f;    // fast windowed-mean step that trips it
-    float jump_line_g = 0.4f;   // max fit residual for "still a ramp"
+                                //   un-gate fit. The contradiction
+                                //   margin below must clear the fast
+                                //   fit's slope jitter (~3 under real
+                                //   noise) or a healthy pour re-trips
+                                //   every release.
+    float gate_diff_gps  = 6.0f;
+    float jump_g     = 1.5f;    // fast windowed-mean step EXCESS over
+                                //   the window's fitted ramp that trips
+                                //   it (a real step has a kink the
+                                //   single slope can't explain)
     int   jump_n     = 4;       // samples per side of the jump test
     float rewind_s   = 0.1f;    // how far back the gate restores state
     float gate_min_s = 0.2f;    // the gate holds at least this long
@@ -113,9 +123,24 @@ struct flow_kf_config {
                                   //   of the two window slopes ± this
     float gate_flip_reset_s = 0.45f; // flips older than this no longer
                                   //   count as "still oscillating"
+    float band_hold_s   = 0.35f; // the pour-side cap applies for this
+                                  //   long after boost ends — it exists
+                                  //   to stop boost-exit momentum, NOT
+                                  //   to clamp a running pour (min() of
+                                  //   two noisy fits is biased low and
+                                  //   would under-report continuously)
     float flip_min_gap_s    = 0.08f; // flips denser than this are a ring
                                   //   (~12 Hz), not a wiggle — ignored
-    int   resume_flip_max   = 3;  // this many recent flips -> resume flow 0
+    int   resume_flip_max   = 1;  // any counted (>=80 ms-spaced) flip
+                                  //   means the signal genuinely
+                                  //   reversed recently -> resume 0
+    float osc_slope_gps     = 5.0f; // a flip counts only past this
+                                  //   |slope| — rest-noise slope fits
+                                  //   jitter ~2 g/s, a real wiggle
+                                  //   swings 20+
+    float rebound_gps       = 0.35f;// while the fitted signal is flat a
+                                  //   deeply negative reading is settle
+                                  //   momentum, not weight leaving
     float boost_steep_gps = 12.f; // beyond this |slope| evidence must persist
     float boost_steep_s   = 0.35f;// ...this long instead of boost_min_s
     float q_track      = 30.0f;   // post-settle tracking density on a slope
@@ -163,6 +188,7 @@ public:
         lost_t_     = 0.0f;
         abort_t_    = 0.0f;
         boost_t_    = 0.0f;
+        boost_end_t_ = -1e9f;
         suppress_t_ = -1e9f;
         sup_streak_ = 0.0f;
         ungate_t_   = -1e9f;
@@ -171,6 +197,8 @@ public:
         osc_flips_  = 0;
         osc_sign_   = 0.0f;
         osc_flip_t_ = -1e9f;
+        trip_why_   = 0;
+        ungate_f0_  = 0.0f;
         motion_ema_ = 0.0f;
         acc_primed_ = false;
         hist_.clear();
@@ -226,10 +254,12 @@ public:
         const float inn    = last_inn_;
         const float inn_f  = fast - w_;
         last_fast_         = fast;
-        const bool  trip   = std::fabs(inn) > cfg_.gate_g ||
-                             std::fabs(inn_f) > cfg_.gate_fast_g ||
-                             jump_detected();
-        if (!gated_ && trip) {
+        int trip_why = 0;
+        if (std::fabs(inn) > cfg_.gate_g)         trip_why = 1;
+        else if (std::fabs(inn_f) > cfg_.gate_fast_g) trip_why = 2;
+        else if (jump_detected())                    trip_why = 3;
+        if (!gated_ && trip_why) {
+            trip_why_ = trip_why;
             trip_gate(t, cfg_.rewind_s);
         }
 
@@ -288,6 +318,11 @@ public:
     [[nodiscard]] bool boosting() const { return boosting_; }
     /// Latest measurement innovation (g) — diagnostic aid.
     [[nodiscard]] float innovation() const { return last_inn_; }
+    /// Why the current/last gate tripped: 1 pre innovation,
+    /// 2 fast innovation, 3 jump, 4 boost abort — diagnostic aid.
+    [[nodiscard]] int trip_reason() const { return trip_why_; }
+    /// Flow adopted by the last un-gate — diagnostic aid.
+    [[nodiscard]] float ungate_f0() const { return ungate_f0_; }
     /// Latest `fast` channel level and windowed-mean jump — diagnostic.
     [[nodiscard]] float fast_level() const { return last_fast_; }
     [[nodiscard]] float jump_g_diff() const { return last_jump_; }
@@ -439,11 +474,17 @@ private:
         last_jump_ = std::fabs(a - b) / static_cast<float>(n);
         if (last_jump_ <= cfg_.jump_g) return false;
         // A sustained steep pour is still a clean line across the whole
-        // window; a step has a kink inside it. Only the kink trips.
+        // window: its fitted slope already predicts the mean difference
+        // between the halves, so the *excess* beyond that prediction is
+        // the step signature. A real step has a kink — the single slope
+        // can't explain it. This is noise-robust where a residual cap
+        // on the raw samples is not.
         const fit_res f =
             line_fit(fbuf_, 2.0f * n / cfg_.sample_hz, 8,
                      1.5f * n / cfg_.sample_hz);
-        if (f.ok && f.worst <= cfg_.jump_line_g) return false;
+        const float ramp_diff =
+            f.ok ? std::fabs(f.slope) * n / cfg_.sample_hz : 0.0f;
+        if (last_jump_ - ramp_diff <= cfg_.jump_g) return false;
         if (tp_ - ungate_t_ < cfg_.jump_cool_s)
             return false;
         return true;
@@ -465,11 +506,15 @@ private:
     /// count fitted-slope sign flips with a hysteresis. A sustained
     /// wiggle flips every half cycle and keeps the streak alive; a dying
     /// impact ring flaps far denser than flip_min_gap_s and is ignored;
-    /// a real pour transition never flips. The streak resets itself when
-    /// the last flip is older than gate_flip_reset_s, so it survives
-    /// across gates but only while the signal is still oscillating.
+    /// a real pour transition never flips. The streak decays on elapsed
+    /// time FIRST — quiet or same-direction input produces no flips, so
+    /// without the time-based expiry a stale streak would sit forever
+    /// and block the next pour's resume.
     void note_osc(float slope, float t) {
-        if (std::fabs(slope) < cfg_.boost_quiet_gps) return;
+        if (t - osc_flip_t_ > cfg_.gate_flip_reset_s) osc_flips_ = 0;
+        // Only a coherent reversal counts — rest noise flips sign
+        // constantly at tiny magnitude; a real wiggle swings hard.
+        if (std::fabs(slope) < cfg_.osc_slope_gps) return;
         const float ss = slope > 0.0f ? 1.0f : -1.0f;
         if (osc_sign_ != 0.0f && ss != osc_sign_) {
             const float gapf = t - osc_flip_t_;
@@ -527,13 +572,19 @@ private:
                 shape = sn >= cfg_.boost_dslope_gps;
             }
         }
-        // Pour-side cap on the fitted slope: the Kalman gain otherwise
-        // grows the flow past the measurement on lagging innovation.
-        // Applied on any sane fit — the transition's imperfect residual
-        // is exactly when overshoot happens — and against the SHALLOWER
-        // of the two adjacent windows so an onset can't extrapolate its
-        // steepest instant into a visible spike.
-        const auto apply_band = [&] {
+        // Pour-side bound on the fitted slope, two directions with
+        // different lifetimes:
+        //  - the CEILING (positive slope) exists only to stop boost/settle
+        //    momentum overshoot and runs for band_hold_s after boost —
+        //    applied chronically it biases a noisy running pour low
+        //    (min() of two noisy fits is biased; clipping is instant,
+        //    recovery is slow), so it MUST be a transition-only tool.
+        //  - the FLOOR (negative slope) only stops the readout dipping
+        //    below the measured slope — it can never under-report a real
+        //    pour, so it stays armed whenever the fit is sane.
+        // Both use the SHALLOWER of two adjacent windows so an onset
+        // can't extrapolate its steepest instant into a spike.
+        const auto apply_band = [&](bool pos_cap) {
             if (!now.ok ||
                 std::fabs(now.slope) > cfg_.fit_slope_max_gps)
                 return;
@@ -544,10 +595,18 @@ private:
                           ? std::min(now.slope, prev.slope)
                           : std::max(now.slope, prev.slope);
             }
-            if (now.slope >= 0.0f)
-                f_ = std::min(f_, ref + cfg_.boost_band_gps);
-            else
+            if (now.slope >= 0.0f) {
+                if (pos_cap) f_ = std::min(f_, ref + cfg_.boost_band_gps);
+            } else {
                 f_ = std::max(f_, ref - cfg_.boost_band_gps);
+            }
+            // Flat-signal rebound guard: after a stop the residual
+            // innovation can drag f_ well below 0 even though nothing
+            // is leaving — pin the dip, the Kalman re-settles.
+            if (std::fabs(now.slope) < cfg_.boost_quiet_gps &&
+                f_ < -cfg_.rebound_gps) {
+                f_ = -cfg_.rebound_gps;
+            }
         };
 
         const float dsl = shape ? now.slope - f_ : 0.0f;
@@ -594,13 +653,15 @@ private:
                 // of tracked to the sine's peak rate.
                 if (now.ok &&
                     std::fabs(now.slope) > cfg_.gate_slope_gps &&
-                    std::fabs(now.slope - f_) > cfg_.boost_dslope_gps) {
+                    std::fabs(now.slope - f_) > cfg_.gate_diff_gps) {
+                    trip_why_ = 5;
                     trip_gate(tp_, cfg_.rewind_s);
                     return;
                 }
-                // q_track still live: the same cap keeps post-boost
-                // momentum from overshooting the measured slope.
-                apply_band();
+                // Ceiling only inside the boost-exit momentum window;
+                // the negative floor stays armed — it can only stop a
+                // spurious rebound, never under-report a pour.
+                apply_band(tp_ - boost_end_t_ <= cfg_.band_hold_s);
                 return;
             }
             boosting_ = true;
@@ -617,15 +678,16 @@ private:
             return;
         }
         if (std::fabs(inn) <= cfg_.boost_settle_g) {
-            boosting_  = false;
+            boosting_   = false;
+            boost_end_t_ = tp_;
             sup_streak_ = 0.0f;
-            apply_band();
+            apply_band(true);
             return;
         }
         // While boosted the state still has to climb to the slope
         // itself, so a handling slam (brief steep ramp) only ever shows
         // the bounded snap value while a real pour tracks normally.
-        apply_band();
+        apply_band(true);
         // Abort: the signal already sits flat while the estimate still
         // trails it — a mass placed gently, not a pour. Rewind to just
         // before the boost started so the held flow isn't the false
@@ -634,6 +696,7 @@ private:
             std::fabs(inn) > cfg_.abort_inn_g) {
             abort_t_ += dt;
             if (abort_t_ >= cfg_.abort_s) {
+                trip_why_ = 4;
                 trip_gate(tp_, tp_ - boost_t_ + 0.05f);
                 return;
             }
@@ -644,6 +707,7 @@ private:
         if (lost_t_ > cfg_.boost_drop_s &&
             tp_ - boost_t_ > cfg_.boost_hold_s) {
             boosting_   = false;
+            boost_end_t_ = tp_;
             suppress_t_ = tp_;
             sup_streak_ = std::min(sup_streak_ + 1.0f, 6.0f);
         }
@@ -690,13 +754,22 @@ private:
         float f0;
         if (std::fabs(h.slope) < cfg_.boost_quiet_gps) {
             f0 = h.slope;   // flat half-window: stopped
-        } else if (gate_ramp && osc_flips_ < cfg_.resume_flip_max &&
-                   std::fabs(h.slope) <= cfg_.fit_slope_max_gps &&
-                   std::fabs(fg.slope - h.slope) <=
-                       cfg_.slope_consist_gps) {
-            f0 = h.slope;
         } else if (osc_flips_ >= cfg_.resume_flip_max) {
-            f0 = 0.0f;      // sustained oscillation — not a pour
+            f0 = 0.0f;      // the slope genuinely reversed recently —
+                            // oscillation or removal, never a pour to
+                            // resume (a ~12 Hz ring can't produce
+                            // counted flips: its gaps are too dense)
+        } else if (h.slope > 0.0f && gate_ramp &&
+                   h.slope <= cfg_.fit_slope_max_gps &&
+                   std::fabs(fg.slope - h.slope) <=
+                       cfg_.slope_consist_gps &&
+                   std::fabs(f.slope - h.slope) <=
+                       cfg_.slope_consist_gps) {
+            // Only a positive slope is adoptable (a steep negative ramp
+            // is a lift-off, not a pour), and it must agree with BOTH
+            // the whole-gate ramp and the trailing calm fit — a sine
+            // segment can pass either one alone.
+            f0 = h.slope;
         } else {
             const float pred = gate_w_ + held_f_ * (t - gate_t_);
             f0 = std::fabs(f.level - pred) < cfg_.step_g ? held_f_ : 0.0f;
@@ -710,6 +783,7 @@ private:
         abort_t_    = 0.0f;
         slope_sign_ = 0.0f;
         ungate_t_   = t;
+        ungate_f0_  = f0;        // diagnostics: what the resume adopted
         anchor(f.level, f0);
     }
 
@@ -733,6 +807,7 @@ private:
         flip_t_     -= delta_s;
         track_t_    -= delta_s;
         osc_flip_t_ -= delta_s;
+        boost_end_t_ -= delta_s;
         for (std::size_t i = 0; i < hist_.size(); ++i) {
             hist_.at(i).t -= delta_s;
         }
@@ -801,6 +876,8 @@ private:
     float          lost_t_   = 0.0f;  // evidence stale time while boosted
     float          abort_t_  = 0.0f;  // flat-signal+inn time while boosted
     float          boost_t_  = 0.0f;  // boost start (rebased time)
+    float          boost_end_t_ = -1e9f; // boost end — band keeps running
+                                    //   briefly to stop settle momentum
     float          suppress_t_ = -1e9f; // evidence-loss drop -> re-boost hold-off
     float          sup_streak_ = 0.0f;  // consecutive lost-evidence drops
     // "Never" sentinels sit at -1e9, not -1: every consumer compares
@@ -816,6 +893,9 @@ private:
     int            osc_flips_ = 0;
     float          osc_sign_   = 0.0f;
     float          osc_flip_t_ = -1e9f;
+    int            trip_why_   = 0; // 1 pre inn, 2 fast inn, 3 jump,
+                                  //   4 boost abort, 5 steep slope
+    float          ungate_f0_  = 0.0f; // flow adopted at last un-gate
     // accel motion veto
     float          motion_ema_ = 0.0f;
     float          ax_ = 0.0f, ay_ = 0.0f, az_ = 0.0f;
