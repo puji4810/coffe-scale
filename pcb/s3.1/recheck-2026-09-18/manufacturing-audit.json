@@ -1,0 +1,109 @@
+{
+  "zip": {
+    "s3.1-B_Cu.gbl": {
+      "exists": true,
+      "identical": true
+    },
+    "s3.1-B_Mask.gbs": {
+      "exists": true,
+      "identical": true
+    },
+    "s3.1-B_Paste.gbp": {
+      "exists": true,
+      "identical": true
+    },
+    "s3.1-B_Silkscreen.gbo": {
+      "exists": true,
+      "identical": true
+    },
+    "s3.1.drl": {
+      "exists": true,
+      "identical": true
+    },
+    "s3.1-Edge_Cuts.gm1": {
+      "exists": true,
+      "identical": true
+    },
+    "s3.1-F_Cu.gtl": {
+      "exists": true,
+      "identical": true
+    },
+    "s3.1-F_Mask.gts": {
+      "exists": true,
+      "identical": true
+    },
+    "s3.1-F_Paste.gtp": {
+      "exists": true,
+      "identical": true
+    },
+    "s3.1-F_Silkscreen.gto": {
+      "exists": true,
+      "identical": true
+    },
+    "s3.1-job.gbrjob": {
+      "exists": true,
+      "identical": true
+    }
+  },
+  "copper": {
+    "s3.1-F_Cu.gtl": {
+      "matches_saved_fill": true,
+      "matches_refilled": false
+    },
+    "s3.1-B_Cu.gbl": {
+      "matches_saved_fill": true,
+      "matches_refilled": false
+    }
+  },
+  "bom_csv": {
+    "BOM.csv": {
+      "rows": 36,
+      "column_counts": {
+        "8": 20,
+        "9": 10,
+        "14": 3,
+        "11": 1,
+        "10": 2,
+        "15": 1
+      },
+      "malformed_data_lines": [
+        5,
+        15,
+        18,
+        19,
+        20,
+        21,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        32,
+        33,
+        36,
+        37
+      ]
+    },
+    "BOM-jlc.csv": {
+      "rows": 36,
+      "column_counts": {
+        "8": 37
+      },
+      "malformed_data_lines": []
+    }
+  },
+  "gnd_contains_signal_centers": {
+    "saved": {
+      "D4.1 VIN5V": true,
+      "R22.2 SIG2_N": true,
+      "SIG2_P via": true
+    },
+    "refilled_saved": {
+      "D4.1 VIN5V": false,
+      "R22.2 SIG2_N": false,
+      "SIG2_P via": false
+    }
+  }
+}

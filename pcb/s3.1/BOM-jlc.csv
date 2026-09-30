@@ -1,0 +1,37 @@
+Reference,Qty,Value,Footprint,Description,DNP,LCSC,Note
+"U1","1","NAU7802SGI","SOIC-16_3.9x9.9mm_P1.27mm","24-bit bridge-sensor ADC (Nuvoton)",,"C5180029","extended"
+"U2","1","LIS2DW12","LGA-12_2x2mm_P0.5mm_LIS2DW12","3-axis accelerometer (ST) level/vibration",,"C189624","extended"
+"U3","1","TMP102","SOT-563_1.6x1.6mm_P0.5mm","I2C temperature sensor (TI)",,"C99269","extended"
+"U4","1","ESP32-S3-WROOM-1-N16R8","ESP32-S3-WROOM-1","Wi-Fi/BLE5 module, 16MB flash + 8MB octal PSRAM",,"C2913202","extended"
+"U5","1","TP4057-42","SOT-23-6","Li-ion charger ~370mA (R10=2k7)",,"C12044",
+"U6","1","XC6220B331MR-G","SOT-23-5","Main 3.3V LDO 1A high-PSRR",,"C86534","extended"
+"U7","1","HT7533-1","SOT-89-3","ADC rail LDO VDD_ADC 3.3V 100mA",,"C14289",
+"U8","1","USBLC6-2SC6","SOT-23-6","USB ESD protection diode array",,"C7519",
+"Q1","1","AO3401A","SOT-23","P-FET load switch D=BAT S=VSYS G=VIN5V",,"C15127",
+"Q2","1","2N7002","SOT-23","Buzzer low-side switch",,"C8545",
+"D1","1","B5819W","D_SOD-123","VIN5V->VSYS Schottky load sharing",,"C64885",
+"D2","1","1N4148W","D_SOD-123","Buzzer flyback diode",,"C81598",
+"D3","1","B5819W","D_SOD-123","EXP_5V->VIN5V injection (machine build)","DNP","C64885",
+"D4","1","B5819WS","D_SOD-323","USB_VBUS->VIN5V Schottky isolation, SOD-323, 1A",,"C64886",
+"J5","1","TYPE-C-31-M-12","USB_C_Receptacle_HRO_TYPE-C-31-M-12","USB-C 16-pin receptacle USB 2.0",,"C165948","extended"
+"BZ1","1","MLT-8530","MagneticBuzzer_CUI_CMT-8540S-SMT","Passive magnetic buzzer 8.5mm SMD",,"C94599","extended"
+"R1,R2","2","1k","SMD_0805_VR","RFI/series resistor",,"C17513",
+"R3,R4","2","4k7","SMD_0805","I2C SDA pull-up to VCC_3V3",,"C17673",
+"R5,R6,R11,R15,R16,R21,R32","7","10k","SMD_0805","pull-up/down",,"C17414",
+"R8,R9","2","5k1","SMD_0805_VR","USB-C CC1 pulldown",,"C27834",
+"R10","1","2k7","SMD_0805","TP4057 PROG resistor ~370mA",,"C17530",
+"R12,R13,R14,R18","4","100k","SMD_0805","Q1 gate pulldown VIN5V-GND",,"C149504",
+"R17,R22,R23","3","1k","SMD_0805","RFI/series resistor",,"C17513",
+"R19,R20","2","22R","SMD_0805_F","USB D+/D- series resistor",,"C17561",
+"R24,R25,R26,R27,R28,R29,R30,R31","8","100R","SMD_0805_V","EXP signal series resistor (J10)",,"C17408",
+"C1,C2,C7,C17,C18,C19,C26","7","100n","SMD_0805","decoupling",,"C49678",
+"C3,C25","2","1u","SMD_0805","bulk decoupling",,"C28323",
+"C4,C5,C27","3","100n","SMD_0805_VR","decoupling",,"C49678",
+"C6","1","100n","SMD_0805_V","decoupling",,"C49678",
+"C8","1","4u7","SMD_0805","LIS2DW12 VDD_IO decoupling",,"C1779",
+"C9,C13,C15,C16,C20,C21,C22","7","10u","SMD_0805","rail bulk cap",,"C15850",
+"C10,C11","2","1n","SMD_0805_F","common-mode filter cap to GND",,"C46653",
+"C12","1","100n","SMD_0805_F","decoupling",,"C49678",
+"C14","1","1u","SMD_0805_V","bulk decoupling",,"C28323",
+"C23,C24","2","DNP","SMD_0805_V","USB D+/D- cap to GND (optional)","DNP","C49678",
+"C28,C29","2","1n","SMD_0805","common-mode filter cap to GND",,"C46653",

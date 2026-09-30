@@ -1,0 +1,68 @@
+{
+  "cpl": {
+    "count": 73,
+    "unique": 73,
+    "mismatches": [],
+    "bom_only": [],
+    "cpl_only": []
+  },
+  "zip": {
+    "s3.1-B_Cu.gbl": true,
+    "s3.1-B_Mask.gbs": true,
+    "s3.1-B_Paste.gbp": true,
+    "s3.1-B_Silkscreen.gbo": true,
+    "s3.1.drl": true,
+    "s3.1-Edge_Cuts.gm1": true,
+    "s3.1-F_Cu.gtl": true,
+    "s3.1-F_Mask.gts": true,
+    "s3.1-F_Paste.gtp": true,
+    "s3.1-F_Silkscreen.gto": true,
+    "s3.1-job.gbrjob": true
+  },
+  "release_identical": true,
+  "gnd_contains_signal_centers": {
+    "D4.1 VIN5V": false,
+    "R22.2 SIG2_N": false,
+    "SIG2_P via": false
+  },
+  "csv": {
+    "BOM.csv": {
+      "data_rows": 36,
+      "malformed_lines": [
+        5,
+        15,
+        18,
+        19,
+        20,
+        21,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        32,
+        33,
+        36,
+        37
+      ]
+    },
+    "BOM-jlc.csv": {
+      "data_rows": 36,
+      "malformed_lines": []
+    }
+  },
+  "gerber_against_fresh_export": {
+    "s3.1.drl": true,
+    "s3.1-Edge_Cuts.gm1": true,
+    "s3.1-B_Mask.gbs": true,
+    "s3.1-F_Mask.gts": true,
+    "s3.1-B_Silkscreen.gbo": true,
+    "s3.1-F_Silkscreen.gto": true,
+    "s3.1-B_Paste.gbp": true,
+    "s3.1-F_Paste.gtp": true,
+    "s3.1-B_Cu.gbl": true,
+    "s3.1-F_Cu.gtl": true
+  }
+}

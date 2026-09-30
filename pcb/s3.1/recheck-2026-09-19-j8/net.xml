@@ -1,0 +1,3341 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<export version="E">
+  <design>
+    <source>/tmp/s31-j8-review-20260919/snapshot/s3.1.kicad_sch</source>
+    <date>2026-09-19T01:05:26</date>
+    <tool>Eeschema 10.0.6</tool>
+    <sheet number="1" name="/" tstamps="/">
+      <title_block>
+        <title>CoffeeScale Control Board s3.1 (ESP32-S3)</title>
+        <company>Coffee Scale</company>
+        <rev>D</rev>
+        <date>2026-09-17</date>
+        <source>s3.1.kicad_sch</source>
+        <comment number="1" value="Rev D — dual-use control board: coffee scale OR auto-brewer brain"/>
+        <comment number="2" value="USB-C charge + Li-ion on J6, D1/Q1 load-sharing, XC6220 3V3(1A) + HT7533 VDD_ADC"/>
+        <comment number="3" value="NAU7802 ch1=load cell J2, ch2=J11 (PT1000/2nd sensor); J10 2x10 expansion; UART0 TPs, BOOT=IO0"/>
+        <comment number="4" value=""/>
+        <comment number="5" value=""/>
+        <comment number="6" value=""/>
+        <comment number="7" value=""/>
+        <comment number="8" value=""/>
+        <comment number="9" value=""/>
+      </title_block>
+    </sheet>
+  </design>
+  <components>
+    <comp ref="BZ1">
+      <value>MLT-8530</value>
+      <footprint>s3-1:MagneticBuzzer_CUI_CMT-8540S-SMT</footprint>
+      <datasheet>https://www.cuidevices.com/product/resource/pdf/cmt-8540s-smt.pdf</datasheet>
+      <description>Passive magnetic buzzer 8.5mm SMD, driven via Q2</description>
+      <fields>
+        <field name="Footprint">s3-1:MagneticBuzzer_CUI_CMT-8540S-SMT</field>
+        <field name="Datasheet">https://www.cuidevices.com/product/resource/pdf/cmt-8540s-smt.pdf</field>
+        <field name="Description">Passive magnetic buzzer 8.5mm SMD, driven via Q2</field>
+      </fields>
+      <libsource lib="s3-1" part="BUZZER" description="Magnetic buzzer transducer, SMT 8.5x8.5"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000003fa</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C1">
+      <value>100n</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>DVDD decoupling (VDD_ADC)</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">DVDD decoupling (VDD_ADC)</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000001ef</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C2">
+      <value>100n</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>AVDD pin decoupling (VDD_ADC)</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">AVDD pin decoupling (VDD_ADC)</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000001df</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C3">
+      <value>1u</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>AVDD pin bulk (VDD_ADC)</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">AVDD pin bulk (VDD_ADC)</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000001e7</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C4">
+      <value>100n</value>
+      <footprint>s3-1:SMD_0805_VR</footprint>
+      <description>VBG bypass</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_VR</field>
+        <field name="Datasheet"/>
+        <field name="Description">VBG bypass</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000001d7</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C5">
+      <value>100n</value>
+      <footprint>s3-1:SMD_0805_VR</footprint>
+      <description>Differential cap across VIN1</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_VR</field>
+        <field name="Datasheet"/>
+        <field name="Description">Differential cap across VIN1</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000156</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C6">
+      <value>100n</value>
+      <footprint>s3-1:SMD_0805_V</footprint>
+      <description>TMP102 V+ bypass (VDD_ADC)</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_V</field>
+        <field name="Datasheet"/>
+        <field name="Description">TMP102 V+ bypass (VDD_ADC)</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000258</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C7">
+      <value>100n</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>LIS2DW12 VDD decoupling</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">LIS2DW12 VDD decoupling</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000232</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C8">
+      <value>4u7</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>LIS2DW12 bulk</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">LIS2DW12 bulk</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000023b</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C9">
+      <value>10u</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>3V3 LDO output cap</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">3V3 LDO output cap</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000000fb</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C10">
+      <value>1n</value>
+      <footprint>s3-1:SMD_0805_F</footprint>
+      <description>CM filter, SIG_P to GND</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_F</field>
+        <field name="Datasheet"/>
+        <field name="Description">CM filter, SIG_P to GND</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000015d</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C11">
+      <value>1n</value>
+      <footprint>s3-1:SMD_0805_F</footprint>
+      <description>CM filter, SIG_N to GND</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_F</field>
+        <field name="Datasheet"/>
+        <field name="Description">CM filter, SIG_N to GND</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000165</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C12">
+      <value>100n</value>
+      <footprint>s3-1:SMD_0805_F</footprint>
+      <description>WROOM-1 3V3 decoupling</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_F</field>
+        <field name="Datasheet"/>
+        <field name="Description">WROOM-1 3V3 decoupling</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000298</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C13">
+      <value>10u</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>WROOM-1 3V3 bulk cap</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">WROOM-1 3V3 bulk cap</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000028f</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C14">
+      <value>1u</value>
+      <footprint>s3-1:SMD_0805_V</footprint>
+      <description>EN delay cap</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_V</field>
+        <field name="Datasheet"/>
+        <field name="Description">EN delay cap</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000002b5</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C15">
+      <value>10u</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>USB_VBUS input cap (receptacle side)</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">USB_VBUS input cap (receptacle side)</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000081</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C16">
+      <value>10u</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>Battery rail cap</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">Battery rail cap</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000000bf</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C17">
+      <value>100n</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>VBAT sense filter</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">VBAT sense filter</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000012a</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C18">
+      <value>100n</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>BTN_TARE debounce</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">BTN_TARE debounce</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000003d2</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C19">
+      <value>100n</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>BTN_MODE debounce</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">BTN_MODE debounce</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000003e2</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C20">
+      <value>10u</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>VDD_ADC LDO output cap</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">VDD_ADC LDO output cap</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000117</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C21">
+      <value>10u</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>VSYS input cap U6</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">VSYS input cap U6</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000000f3</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C22">
+      <value>10u</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>VSYS input cap U7</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">VSYS input cap U7</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000010f</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C23">
+      <value>DNP</value>
+      <footprint>s3-1:SMD_0805_V</footprint>
+      <description>USB DP shunt cap pad (DNP)</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_V</field>
+        <field name="Datasheet"/>
+        <field name="Description">USB DP shunt cap pad (DNP)</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <property name="dnp"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000006c</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C24">
+      <value>DNP</value>
+      <footprint>s3-1:SMD_0805_V</footprint>
+      <description>USB DM shunt cap pad (DNP)</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_V</field>
+        <field name="Datasheet"/>
+        <field name="Description">USB DM shunt cap pad (DNP)</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <property name="dnp"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000007a</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C25">
+      <value>1u</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>WROOM-1 3V3 mid cap</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">WROOM-1 3V3 mid cap</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000002a1</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C26">
+      <value>100n</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>LCD_RST delay cap (RC POR with R21)</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">LCD_RST delay cap (RC POR with R21)</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000003f2</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C27">
+      <value>100n</value>
+      <footprint>s3-1:SMD_0805_VR</footprint>
+      <description>Differential cap across VIN2</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_VR</field>
+        <field name="Datasheet"/>
+        <field name="Description">Differential cap across VIN2</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000189</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C28">
+      <value>1n</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>CM filter, SIG2_P to GND</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">CM filter, SIG2_P to GND</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000190</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C29">
+      <value>1n</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>CM filter, SIG2_N to GND</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">CM filter, SIG2_N to GND</field>
+      </fields>
+      <libsource lib="s3-1" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000198</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="D1">
+      <value>B5819W</value>
+      <footprint>s3-1:D_SOD-123</footprint>
+      <description>VIN5V-&gt;VSYS Schottky, load sharing</description>
+      <fields>
+        <field name="Footprint">s3-1:D_SOD-123</field>
+        <field name="Datasheet"/>
+        <field name="Description">VIN5V-&gt;VSYS Schottky, load sharing</field>
+      </fields>
+      <libsource lib="s3-1" part="D_Schottky" description="Schottky diode, SOD-123"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000000c7</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="2"/>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="D2">
+      <value>1N4148W</value>
+      <footprint>s3-1:D_SOD-123</footprint>
+      <description>Buzzer flyback diode</description>
+      <fields>
+        <field name="Footprint">s3-1:D_SOD-123</field>
+        <field name="Datasheet"/>
+        <field name="Description">Buzzer flyback diode</field>
+      </fields>
+      <libsource lib="s3-1" part="D" description="Diode, SOD-123"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000402</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="2"/>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="D3">
+      <value>B5819W</value>
+      <footprint>s3-1:D_SOD-123</footprint>
+      <description>EXP_5V -&gt; VIN5V injection (DNP: Schottky or wire jumper)</description>
+      <fields>
+        <field name="Footprint">s3-1:D_SOD-123</field>
+        <field name="Datasheet"/>
+        <field name="Description">EXP_5V -&gt; VIN5V injection (DNP: Schottky or wire jumper)</field>
+      </fields>
+      <libsource lib="s3-1" part="D_Schottky" description="Schottky diode, SOD-123"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <property name="dnp"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000039a</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="2"/>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="D4">
+      <value>B5819WS</value>
+      <footprint>s3-1:D_SOD-323</footprint>
+      <description>USB_VBUS-&gt;VIN5V source isolation</description>
+      <fields>
+        <field name="Footprint">s3-1:D_SOD-323</field>
+        <field name="Datasheet"/>
+        <field name="Description">USB_VBUS-&gt;VIN5V source isolation</field>
+      </fields>
+      <libsource lib="s3-1" part="D_Schottky" description="Schottky diode, SOD-123"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000089</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="2"/>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J2">
+      <value>LOADCELL</value>
+      <footprint>s3-1:PinHeader_1x05_P2.54mm_H</footprint>
+      <description>L6D load cell E+/E-/S-/S+/SHLD</description>
+      <fields>
+        <field name="Footprint">s3-1:PinHeader_1x05_P2.54mm_H</field>
+        <field name="Datasheet"/>
+        <field name="Description">L6D load cell E+/E-/S-/S+/SHLD</field>
+      </fields>
+      <libsource lib="s3-1" part="CONN_1x05_LC" description="Load cell connector E+/E-/S-/S+/SHLD"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000136</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+            <pin num="5"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J5">
+      <value>TYPE-C-31-M-12</value>
+      <footprint>s3-1:USB_C_Receptacle_HRO_TYPE-C-31-M-12</footprint>
+      <description>USB-C 16-pin receptacle, USB 2.0</description>
+      <fields>
+        <field name="Footprint">s3-1:USB_C_Receptacle_HRO_TYPE-C-31-M-12</field>
+        <field name="Datasheet"/>
+        <field name="Description">USB-C 16-pin receptacle, USB 2.0</field>
+      </fields>
+      <libsource lib="s3-1" part="USB_C_16P" description="USB Type-C receptacle 16-pin mid-mount, USB 2.0"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000000c</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="A4"/>
+            <pin num="B4"/>
+            <pin num="A9"/>
+            <pin num="B9"/>
+            <pin num="A1"/>
+            <pin num="B1"/>
+            <pin num="A12"/>
+            <pin num="B12"/>
+            <pin num="SH"/>
+            <pin num="A5"/>
+            <pin num="B5"/>
+            <pin num="A6"/>
+            <pin num="B6"/>
+            <pin num="A7"/>
+            <pin num="B7"/>
+            <pin num="A8"/>
+            <pin num="B8"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J6">
+      <value>BAT</value>
+      <footprint>s3-1:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical</footprint>
+      <description>Li-ion battery 1S, JST PH</description>
+      <fields>
+        <field name="Footprint">s3-1:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical</field>
+        <field name="Datasheet"/>
+        <field name="Description">Li-ion battery 1S, JST PH</field>
+      </fields>
+      <libsource lib="s3-1" part="CONN_1x02_BAT" description="Battery connector JST PH 1x02: 1=BAT+ 2=GND"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000000b4</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J7">
+      <value>LCD</value>
+      <footprint>s3-1:JST_PH_B8B-PH-K_1x08_P2.00mm_Vertical</footprint>
+      <description>LCD SPI connector: GND/3V3/SCK/MOSI/CS/DC/RST/BL</description>
+      <fields>
+        <field name="Footprint">s3-1:JST_PH_B8B-PH-K_1x08_P2.00mm_Vertical</field>
+        <field name="Datasheet"/>
+        <field name="Description">LCD SPI connector: GND/3V3/SCK/MOSI/CS/DC/RST/BL</field>
+      </fields>
+      <libsource lib="s3-1" part="CONN_1x08_LCD" description="LCD connector JST PH 1x08: GND/3V3/SCK/MOSI/CS/DC/RST/BL"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000003a0</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+            <pin num="5"/>
+            <pin num="6"/>
+            <pin num="7"/>
+            <pin num="8"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J8">
+      <value>BTN</value>
+      <footprint>s3-1:JST_PH_B4B-PH-K_1x04_P2.00mm_Vertical</footprint>
+      <description>Buttons: 1=GND 2=TARE 3=MODE 4=3V3 (TTP223 touch supply)</description>
+      <fields>
+        <field name="Footprint">s3-1:JST_PH_B4B-PH-K_1x04_P2.00mm_Vertical</field>
+        <field name="Datasheet"/>
+        <field name="Description">Buttons: 1=GND 2=TARE 3=MODE 4=3V3 (TTP223 touch supply)</field>
+      </fields>
+      <libsource lib="s3-1" part="CONN_1x04_BTN" description="Button connector JST PH 1x04: 1=GND 2=BTN_TARE 3=BTN_MODE 4=VCC_3V3 (TTP223 touch supply)"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000003bb</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J10">
+      <value>EXP</value>
+      <footprint>s3-1:PinHeader_2x10_P2.54mm_Vertical</footprint>
+      <description>Expansion to machine power/driver board</description>
+      <fields>
+        <field name="Footprint">s3-1:PinHeader_2x10_P2.54mm_Vertical</field>
+        <field name="Datasheet"/>
+        <field name="Description">Expansion to machine power/driver board</field>
+      </fields>
+      <libsource lib="s3-1" part="CONN_2x10_EXP" description="Expansion to machine power/driver board: A row GPIO, B row power+bus"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000032a</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="10"/>
+            <pin num="9"/>
+            <pin num="8"/>
+            <pin num="7"/>
+            <pin num="6"/>
+            <pin num="5"/>
+            <pin num="4"/>
+            <pin num="3"/>
+            <pin num="2"/>
+            <pin num="1"/>
+            <pin num="20"/>
+            <pin num="19"/>
+            <pin num="18"/>
+            <pin num="17"/>
+            <pin num="16"/>
+            <pin num="15"/>
+            <pin num="14"/>
+            <pin num="13"/>
+            <pin num="12"/>
+            <pin num="11"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J11">
+      <value>CH2</value>
+      <footprint>s3-1:PinHeader_1x04_P2.54mm</footprint>
+      <description>ADC ch2: 1=E+(VDD_ADC) 2=E-(GND) 3=S2- 4=S2+</description>
+      <fields>
+        <field name="Footprint">s3-1:PinHeader_1x04_P2.54mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">ADC ch2: 1=E+(VDD_ADC) 2=E-(GND) 3=S2- 4=S2+</field>
+      </fields>
+      <libsource lib="s3-1" part="CONN_1x04_VIN2" description="ADC ch2 connector E+/E-/S2-/S2+ (PT1000 divider or 2nd cell)"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000016d</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="MH1">
+      <value>M2</value>
+      <footprint>s3-1:MountingHole_M2_NPTH</footprint>
+      <description>M2 mounting hole NPTH</description>
+      <fields>
+        <field name="Footprint">s3-1:MountingHole_M2_NPTH</field>
+        <field name="Datasheet"/>
+        <field name="Description">M2 mounting hole NPTH</field>
+      </fields>
+      <libsource lib="s3-1" part="MOUNT_HOLE" description="M2 non-plated mounting hole"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000421</tstamps>
+      <units>
+        <unit name="A">
+          <pins/>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="MH2">
+      <value>M2</value>
+      <footprint>s3-1:MountingHole_M2_NPTH</footprint>
+      <description>M2 mounting hole NPTH</description>
+      <fields>
+        <field name="Footprint">s3-1:MountingHole_M2_NPTH</field>
+        <field name="Datasheet"/>
+        <field name="Description">M2 mounting hole NPTH</field>
+      </fields>
+      <libsource lib="s3-1" part="MOUNT_HOLE" description="M2 non-plated mounting hole"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000422</tstamps>
+      <units>
+        <unit name="A">
+          <pins/>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="MH3">
+      <value>M2</value>
+      <footprint>s3-1:MountingHole_M2_NPTH</footprint>
+      <description>M2 mounting hole NPTH</description>
+      <fields>
+        <field name="Footprint">s3-1:MountingHole_M2_NPTH</field>
+        <field name="Datasheet"/>
+        <field name="Description">M2 mounting hole NPTH</field>
+      </fields>
+      <libsource lib="s3-1" part="MOUNT_HOLE" description="M2 non-plated mounting hole"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000423</tstamps>
+      <units>
+        <unit name="A">
+          <pins/>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="MH4">
+      <value>M2</value>
+      <footprint>s3-1:MountingHole_M2_NPTH</footprint>
+      <description>M2 mounting hole NPTH</description>
+      <fields>
+        <field name="Footprint">s3-1:MountingHole_M2_NPTH</field>
+        <field name="Datasheet"/>
+        <field name="Description">M2 mounting hole NPTH</field>
+      </fields>
+      <libsource lib="s3-1" part="MOUNT_HOLE" description="M2 non-plated mounting hole"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000424</tstamps>
+      <units>
+        <unit name="A">
+          <pins/>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="Q1">
+      <value>AO3401A</value>
+      <footprint>s3-1:SOT-23</footprint>
+      <datasheet>https://www.aosmd.com/res/datasheets/AO3401A.pdf</datasheet>
+      <description>P-FET load switch: D=BAT S=VSYS G=VIN5V</description>
+      <fields>
+        <field name="Footprint">s3-1:SOT-23</field>
+        <field name="Datasheet">https://www.aosmd.com/res/datasheets/AO3401A.pdf</field>
+        <field name="Description">P-FET load switch: D=BAT S=VSYS G=VIN5V</field>
+      </fields>
+      <libsource lib="s3-1" part="AO3401A" description="P-channel MOSFET -30V -4A, SOT-23"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000000d1</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="Q2">
+      <value>2N7002</value>
+      <footprint>s3-1:SOT-23</footprint>
+      <description>Buzzer low-side switch</description>
+      <fields>
+        <field name="Footprint">s3-1:SOT-23</field>
+        <field name="Datasheet"/>
+        <field name="Description">Buzzer low-side switch</field>
+      </fields>
+      <libsource lib="s3-1" part="2N7002" description="N-channel MOSFET 60V 300mA, SOT-23"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000040a</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R1">
+      <value>1k</value>
+      <footprint>s3-1:SMD_0805_VR</footprint>
+      <description>RFI series R, S+</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_VR</field>
+        <field name="Datasheet"/>
+        <field name="Description">RFI series R, S+</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000148</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R2">
+      <value>1k</value>
+      <footprint>s3-1:SMD_0805_VR</footprint>
+      <description>RFI series R, S-</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_VR</field>
+        <field name="Datasheet"/>
+        <field name="Description">RFI series R, S-</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000014f</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R3">
+      <value>4k7</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>SDA pull-up to VCC_3V3</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">SDA pull-up to VCC_3V3</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000001f7</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R4">
+      <value>4k7</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>SCL pull-up to VCC_3V3</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">SCL pull-up to VCC_3V3</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000001ff</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R5">
+      <value>10k</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>EN pull-up (RC with C14)</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">EN pull-up (RC with C14)</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000002af</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R6">
+      <value>10k</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>IO0 BOOT pull-up</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">IO0 BOOT pull-up</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000002c4</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R8">
+      <value>5k1</value>
+      <footprint>s3-1:SMD_0805_VR</footprint>
+      <description>CC1 pulldown 5.1k</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_VR</field>
+        <field name="Datasheet"/>
+        <field name="Description">CC1 pulldown 5.1k</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000038</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R9">
+      <value>5k1</value>
+      <footprint>s3-1:SMD_0805_VR</footprint>
+      <description>CC2 pulldown 5.1k</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_VR</field>
+        <field name="Datasheet"/>
+        <field name="Description">CC2 pulldown 5.1k</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000003f</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R10">
+      <value>2k7</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>PROG resistor, ~370mA charge</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">PROG resistor, ~370mA charge</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000009e</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R11">
+      <value>10k</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>CHRG open-drain pull-up</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">CHRG open-drain pull-up</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000000aa</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R12">
+      <value>100k</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>Q1 gate pulldown</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">Q1 gate pulldown</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000000db</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R13">
+      <value>100k</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>VBAT divider top</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">VBAT divider top</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000011f</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R14">
+      <value>100k</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>VBAT divider bottom</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">VBAT divider bottom</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000125</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R15">
+      <value>10k</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>BTN_TARE pull-up</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">BTN_TARE pull-up</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000003ca</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R16">
+      <value>10k</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>BTN_MODE pull-up</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">BTN_MODE pull-up</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000003da</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R17">
+      <value>1k</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>Q2 gate series R</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">Q2 gate series R</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000414</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R18">
+      <value>100k</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>Q2 gate pulldown</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">Q2 gate pulldown</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000041a</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R19">
+      <value>22R</value>
+      <footprint>s3-1:SMD_0805_F</footprint>
+      <description>USB D+ series R 22R</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_F</field>
+        <field name="Datasheet"/>
+        <field name="Description">USB D+ series R 22R</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000066</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R20">
+      <value>22R</value>
+      <footprint>s3-1:SMD_0805_F</footprint>
+      <description>USB D- series R 22R</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_F</field>
+        <field name="Datasheet"/>
+        <field name="Description">USB D- series R 22R</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000074</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R21">
+      <value>10k</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>LCD_RST pull-up (RC POR with C26)</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">LCD_RST pull-up (RC POR with C26)</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000003ea</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R22">
+      <value>1k</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>RFI series R, S2-</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">RFI series R, S2-</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000182</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R23">
+      <value>1k</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>RFI series R, S2+</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">RFI series R, S2+</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000017b</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R24">
+      <value>100R</value>
+      <footprint>s3-1:SMD_0805_V</footprint>
+      <description>J10 series R, EXP_IO38</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_V</field>
+        <field name="Datasheet"/>
+        <field name="Description">J10 series R, EXP_IO38</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000341</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R25">
+      <value>100R</value>
+      <footprint>s3-1:SMD_0805_V</footprint>
+      <description>J10 series R, EXP_IO39</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_V</field>
+        <field name="Datasheet"/>
+        <field name="Description">J10 series R, EXP_IO39</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000348</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R26">
+      <value>100R</value>
+      <footprint>s3-1:SMD_0805_V</footprint>
+      <description>J10 series R, EXP_IO40</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_V</field>
+        <field name="Datasheet"/>
+        <field name="Description">J10 series R, EXP_IO40</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000034f</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R27">
+      <value>100R</value>
+      <footprint>s3-1:SMD_0805_V</footprint>
+      <description>J10 series R, EXP_IO41</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_V</field>
+        <field name="Datasheet"/>
+        <field name="Description">J10 series R, EXP_IO41</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000356</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R28">
+      <value>100R</value>
+      <footprint>s3-1:SMD_0805_V</footprint>
+      <description>J10 series R, EXP_IO42</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_V</field>
+        <field name="Datasheet"/>
+        <field name="Description">J10 series R, EXP_IO42</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000035d</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R29">
+      <value>100R</value>
+      <footprint>s3-1:SMD_0805_V</footprint>
+      <description>J10 series R, EXP_IO14</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_V</field>
+        <field name="Datasheet"/>
+        <field name="Description">J10 series R, EXP_IO14</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000364</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R30">
+      <value>100R</value>
+      <footprint>s3-1:SMD_0805_V</footprint>
+      <description>J10 series R, EXP_IO15</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_V</field>
+        <field name="Datasheet"/>
+        <field name="Description">J10 series R, EXP_IO15</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000036b</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R31">
+      <value>100R</value>
+      <footprint>s3-1:SMD_0805_V</footprint>
+      <description>J10 series R, EXP_IO17</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805_V</field>
+        <field name="Datasheet"/>
+        <field name="Description">J10 series R, EXP_IO17</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000372</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R32">
+      <value>10k</value>
+      <footprint>s3-1:SMD_0805</footprint>
+      <description>XIO15 (HEATER_EN) pulldown</description>
+      <fields>
+        <field name="Footprint">s3-1:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">XIO15 (HEATER_EN) pulldown</field>
+      </fields>
+      <libsource lib="s3-1" part="R" description="Resistor"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000037b</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP3">
+      <value>TP_EN</value>
+      <footprint>s3-1:TestPoint_1.2mm</footprint>
+      <description>EN test pad (reset)</description>
+      <fields>
+        <field name="Footprint">s3-1:TestPoint_1.2mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">EN test pad (reset)</field>
+      </fields>
+      <libsource lib="s3-1" part="TP" description="SMD test point pad"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000002bc</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP4">
+      <value>TP_BOOT</value>
+      <footprint>s3-1:TestPoint_1.2mm</footprint>
+      <description>BOOT pad: short to GND = download boot</description>
+      <fields>
+        <field name="Footprint">s3-1:TestPoint_1.2mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">BOOT pad: short to GND = download boot</field>
+      </fields>
+      <libsource lib="s3-1" part="TP" description="SMD test point pad"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000002ca</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP5">
+      <value>TP_TXD</value>
+      <footprint>s3-1:TestPoint_1.2mm</footprint>
+      <description>UART0 TXD test pad</description>
+      <fields>
+        <field name="Footprint">s3-1:TestPoint_1.2mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">UART0 TXD test pad</field>
+      </fields>
+      <libsource lib="s3-1" part="TP" description="SMD test point pad"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000002ec</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP6">
+      <value>TP_RXD</value>
+      <footprint>s3-1:TestPoint_1.2mm</footprint>
+      <description>UART0 RXD test pad</description>
+      <fields>
+        <field name="Footprint">s3-1:TestPoint_1.2mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">UART0 RXD test pad</field>
+      </fields>
+      <libsource lib="s3-1" part="TP" description="SMD test point pad"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000002f1</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP7">
+      <value>TP_VBG</value>
+      <footprint>s3-1:TestPoint_1.2mm</footprint>
+      <description>VBG test pad</description>
+      <fields>
+        <field name="Footprint">s3-1:TestPoint_1.2mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">VBG test pad</field>
+      </fields>
+      <libsource lib="s3-1" part="TP" description="SMD test point pad"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000001d2</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP8">
+      <value>TP_AVDD</value>
+      <footprint>s3-1:TestPoint_1.2mm</footprint>
+      <description>AVDD pin test pad (on VDD_ADC rail)</description>
+      <fields>
+        <field name="Footprint">s3-1:TestPoint_1.2mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">AVDD pin test pad (on VDD_ADC rail)</field>
+      </fields>
+      <libsource lib="s3-1" part="TP" description="SMD test point pad"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000001d5</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP9">
+      <value>TP_VBUS</value>
+      <footprint>s3-1:TestPoint_1.2mm</footprint>
+      <description>VIN5V test pad</description>
+      <fields>
+        <field name="Footprint">s3-1:TestPoint_1.2mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">VIN5V test pad</field>
+      </fields>
+      <libsource lib="s3-1" part="TP" description="SMD test point pad"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000313</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP10">
+      <value>TP_3V3</value>
+      <footprint>s3-1:TestPoint_1.2mm</footprint>
+      <description>3V3 test pad</description>
+      <fields>
+        <field name="Footprint">s3-1:TestPoint_1.2mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">3V3 test pad</field>
+      </fields>
+      <libsource lib="s3-1" part="TP" description="SMD test point pad"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000317</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP11">
+      <value>TP_GND</value>
+      <footprint>s3-1:TestPoint_1.2mm</footprint>
+      <description>GND test pad</description>
+      <fields>
+        <field name="Footprint">s3-1:TestPoint_1.2mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">GND test pad</field>
+      </fields>
+      <libsource lib="s3-1" part="TP" description="SMD test point pad"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-00000000031c</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP12">
+      <value>TP_SDA</value>
+      <footprint>s3-1:TestPoint_1.2mm</footprint>
+      <description>SDA test pad</description>
+      <fields>
+        <field name="Footprint">s3-1:TestPoint_1.2mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">SDA test pad</field>
+      </fields>
+      <libsource lib="s3-1" part="TP" description="SMD test point pad"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000321</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP13">
+      <value>TP_SCL</value>
+      <footprint>s3-1:TestPoint_1.2mm</footprint>
+      <description>SCL test pad</description>
+      <fields>
+        <field name="Footprint">s3-1:TestPoint_1.2mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">SCL test pad</field>
+      </fields>
+      <libsource lib="s3-1" part="TP" description="SMD test point pad"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="exclude_from_bom"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000325</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U1">
+      <value>NAU7802SGI</value>
+      <footprint>s3-1:SOIC-16_3.9x9.9mm_P1.27mm</footprint>
+      <datasheet>https://www.nuvoton.com/export/resource-files/en-us--DS_NAU7802_DataSheet_EN_Rev2.6.pdf</datasheet>
+      <description>24-bit bridge ADC, I2C 0x2A</description>
+      <fields>
+        <field name="Footprint">s3-1:SOIC-16_3.9x9.9mm_P1.27mm</field>
+        <field name="Datasheet">https://www.nuvoton.com/export/resource-files/en-us--DS_NAU7802_DataSheet_EN_Rev2.6.pdf</field>
+        <field name="Description">24-bit bridge ADC, I2C 0x2A</field>
+      </fields>
+      <libsource lib="s3-1" part="NAU7802SGI" description="24-bit dual-channel bridge ADC, I2C, PGA 1-128, internal LDO"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000001a0</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+            <pin num="5"/>
+            <pin num="6"/>
+            <pin num="7"/>
+            <pin num="8"/>
+            <pin num="16"/>
+            <pin num="15"/>
+            <pin num="14"/>
+            <pin num="13"/>
+            <pin num="12"/>
+            <pin num="11"/>
+            <pin num="10"/>
+            <pin num="9"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U2">
+      <value>LIS2DW12</value>
+      <footprint>s3-1:LGA-12_2x2mm_P0.5mm_LIS2DW12</footprint>
+      <datasheet>https://www.st.com/resource/en/datasheet/lis2dw12.pdf</datasheet>
+      <description>3-axis accel, I2C 0x18 (SA0=GND), CS high</description>
+      <fields>
+        <field name="Footprint">s3-1:LGA-12_2x2mm_P0.5mm_LIS2DW12</field>
+        <field name="Datasheet">https://www.st.com/resource/en/datasheet/lis2dw12.pdf</field>
+        <field name="Description">3-axis accel, I2C 0x18 (SA0=GND), CS high</field>
+      </fields>
+      <libsource lib="s3-1" part="LIS2DW12" description="3-axis femto accelerometer, I2C/SPI, LGA-12 2x2"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000207</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+            <pin num="5"/>
+            <pin num="6"/>
+            <pin num="7"/>
+            <pin num="8"/>
+            <pin num="12"/>
+            <pin num="11"/>
+            <pin num="10"/>
+            <pin num="9"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U3">
+      <value>TMP102</value>
+      <footprint>s3-1:SOT-563_1.6x1.6mm_P0.5mm</footprint>
+      <datasheet>https://www.ti.com/lit/ds/symlink/tmp102.pdf</datasheet>
+      <description>Temp sensor, I2C 0x48 (ADD0=GND), near load cell</description>
+      <fields>
+        <field name="Footprint">s3-1:SOT-563_1.6x1.6mm_P0.5mm</field>
+        <field name="Datasheet">https://www.ti.com/lit/ds/symlink/tmp102.pdf</field>
+        <field name="Description">Temp sensor, I2C 0x48 (ADD0=GND), near load cell</field>
+      </fields>
+      <libsource lib="s3-1" part="TMP102" description="Digital temperature sensor, SOT-563, I2C"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000244</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="6"/>
+            <pin num="5"/>
+            <pin num="4"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U4">
+      <value>ESP32-S3-WROOM-1-N16R8</value>
+      <footprint>s3-1:ESP32-S3-WROOM-1</footprint>
+      <datasheet>https://documentation.espressif.com/esp32-s3-wroom-1_wroom-1u_datasheet_en.html</datasheet>
+      <description>Wi-Fi4/BLE5 module, ESP32-S3 Xtensa dual-core, 16MB flash + 8MB octal PSRAM</description>
+      <fields>
+        <field name="Footprint">s3-1:ESP32-S3-WROOM-1</field>
+        <field name="Datasheet">https://documentation.espressif.com/esp32-s3-wroom-1_wroom-1u_datasheet_en.html</field>
+        <field name="Description">Wi-Fi4/BLE5 module, ESP32-S3 Xtensa dual-core, 16MB flash + 8MB octal PSRAM</field>
+      </fields>
+      <libsource lib="s3-1" part="ESP32-S3-WROOM-1" description="RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboard antenna, SMD"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <property name="ki_keywords" value="RF Radio BT ESP ESP32-S3 Espressif onboard PCB antenna"/>
+      <property name="ki_fp_filters" value="ESP32?S3?WROOM?1*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000262</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="3"/>
+            <pin num="27"/>
+            <pin num="39"/>
+            <pin num="38"/>
+            <pin num="15"/>
+            <pin num="4"/>
+            <pin num="5"/>
+            <pin num="6"/>
+            <pin num="7"/>
+            <pin num="12"/>
+            <pin num="17"/>
+            <pin num="18"/>
+            <pin num="19"/>
+            <pin num="20"/>
+            <pin num="21"/>
+            <pin num="22"/>
+            <pin num="8"/>
+            <pin num="9"/>
+            <pin num="2"/>
+            <pin num="41"/>
+            <pin num="40"/>
+            <pin num="1"/>
+            <pin num="37"/>
+            <pin num="36"/>
+            <pin num="10"/>
+            <pin num="11"/>
+            <pin num="13"/>
+            <pin num="14"/>
+            <pin num="23"/>
+            <pin num="28"/>
+            <pin num="29"/>
+            <pin num="30"/>
+            <pin num="31"/>
+            <pin num="32"/>
+            <pin num="33"/>
+            <pin num="34"/>
+            <pin num="35"/>
+            <pin num="26"/>
+            <pin num="16"/>
+            <pin num="24"/>
+            <pin num="25"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U5">
+      <value>TP4057-42</value>
+      <footprint>s3-1:SOT-23-6</footprint>
+      <datasheet>https://www.lcsc.com/datasheet/C12044.pdf</datasheet>
+      <description>Li-ion charger, ~370mA via R10=2k7</description>
+      <fields>
+        <field name="Footprint">s3-1:SOT-23-6</field>
+        <field name="Datasheet">https://www.lcsc.com/datasheet/C12044.pdf</field>
+        <field name="Description">Li-ion charger, ~370mA via R10=2k7</field>
+      </fields>
+      <libsource lib="s3-1" part="TP4057" description="Li-ion linear charger 500mA, SOT-23-6"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000093</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="4"/>
+            <pin num="6"/>
+            <pin num="2"/>
+            <pin num="1"/>
+            <pin num="5"/>
+            <pin num="3"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U6">
+      <value>XC6220B331MR-G</value>
+      <footprint>s3-1:SOT-23-5</footprint>
+      <datasheet>https://www.lcsc.com/datasheet/C86539.pdf</datasheet>
+      <description>Main 3.3V LDO, 1A (S3 Wi-Fi peaks + LCD backlight)</description>
+      <fields>
+        <field name="Footprint">s3-1:SOT-23-5</field>
+        <field name="Datasheet">https://www.lcsc.com/datasheet/C86539.pdf</field>
+        <field name="Description">Main 3.3V LDO, 1A (S3 Wi-Fi peaks + LCD backlight)</field>
+      </fields>
+      <libsource lib="s3-1" part="ME6211" description="LDO 3.3V 300mA high-PSRR, SOT-23-5"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-0000000000e3</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="5"/>
+            <pin num="4"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U7">
+      <value>HT7533-1</value>
+      <footprint>s3-1:SOT-89-3</footprint>
+      <datasheet>https://www.holtek.com/documents/10179/116711/HT75xx-1v250.pdf</datasheet>
+      <description>ADC/analog rail LDO VDD_ADC 3.3V 100mA</description>
+      <fields>
+        <field name="Footprint">s3-1:SOT-89-3</field>
+        <field name="Datasheet">https://www.holtek.com/documents/10179/116711/HT75xx-1v250.pdf</field>
+        <field name="Description">ADC/analog rail LDO VDD_ADC 3.3V 100mA</field>
+      </fields>
+      <libsource lib="s3-1" part="HT7533" description="LDO 3.3V 100mA, SOT-89"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000104</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="2"/>
+            <pin num="1"/>
+            <pin num="3"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U8">
+      <value>USBLC6-2SC6</value>
+      <footprint>s3-1:SOT-23-6</footprint>
+      <datasheet>https://www.st.com/resource/en/datasheet/usblc6-2sc6.pdf</datasheet>
+      <description>USB 2.0 low-cap ESD array</description>
+      <fields>
+        <field name="Footprint">s3-1:SOT-23-6</field>
+        <field name="Datasheet">https://www.st.com/resource/en/datasheet/usblc6-2sc6.pdf</field>
+        <field name="Description">USB 2.0 low-cap ESD array</field>
+      </fields>
+      <libsource lib="s3-1" part="USBLC6-2SC6" description="USB 2.0 ESD protection array, low capacitance, SOT-23-6"/>
+      <property name="Sheetname" value="s3.1"/>
+      <property name="Sheetfile" value="s3.1.kicad_sch"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2a10000-0000-4000-8000-000000000053</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="3"/>
+            <pin num="2"/>
+            <pin num="5"/>
+            <pin num="4"/>
+            <pin num="6"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+  </components>
+  <libparts>
+    <libpart lib="s3-1" part="2N7002">
+      <description>N-channel MOSFET 60V 300mA, SOT-23</description>
+      <fields>
+        <field name="Reference">Q</field>
+        <field name="Value">2N7002</field>
+        <field name="Footprint">scale-adc:SOT-23</field>
+        <field name="Datasheet"/>
+        <field name="Description">N-channel MOSFET 60V 300mA, SOT-23</field>
+      </fields>
+      <pins>
+        <pin num="1" name="G" type="input"/>
+        <pin num="2" name="S" type="passive"/>
+        <pin num="3" name="D" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="AO3401A">
+      <description>P-channel MOSFET -30V -4A, SOT-23</description>
+      <docs>https://www.aosmd.com/res/datasheets/AO3401A.pdf</docs>
+      <fields>
+        <field name="Reference">Q</field>
+        <field name="Value">AO3401A</field>
+        <field name="Footprint">scale-adc:SOT-23</field>
+        <field name="Datasheet">https://www.aosmd.com/res/datasheets/AO3401A.pdf</field>
+        <field name="Description">P-channel MOSFET -30V -4A, SOT-23</field>
+      </fields>
+      <pins>
+        <pin num="1" name="G" type="input"/>
+        <pin num="2" name="S" type="passive"/>
+        <pin num="3" name="D" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="BUZZER">
+      <description>Magnetic buzzer transducer, SMT 8.5x8.5</description>
+      <docs>https://www.cuidevices.com/product/resource/pdf/cmt-8540s-smt.pdf</docs>
+      <fields>
+        <field name="Reference">BZ</field>
+        <field name="Value">BUZZER</field>
+        <field name="Footprint">scale-adc:MagneticBuzzer_CUI_CMT-8540S-SMT</field>
+        <field name="Datasheet">https://www.cuidevices.com/product/resource/pdf/cmt-8540s-smt.pdf</field>
+        <field name="Description">Magnetic buzzer transducer, SMT 8.5x8.5</field>
+      </fields>
+      <pins>
+        <pin num="1" name="+" type="passive"/>
+        <pin num="2" name="-" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="C">
+      <description>Unpolarized capacitor</description>
+      <fields>
+        <field name="Reference">C</field>
+        <field name="Value">C</field>
+        <field name="Footprint">scale-adc:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">Unpolarized capacitor</field>
+      </fields>
+      <pins>
+        <pin num="1" name="" type="passive"/>
+        <pin num="2" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="CONN_1x02_BAT">
+      <description>Battery connector JST PH 1x02: 1=BAT+ 2=GND</description>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">CONN_1x02_BAT</field>
+        <field name="Footprint">scale-adc:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical</field>
+        <field name="Datasheet"/>
+        <field name="Description">Battery connector JST PH 1x02: 1=BAT+ 2=GND</field>
+      </fields>
+      <pins>
+        <pin num="1" name="BAT" type="passive"/>
+        <pin num="2" name="GND" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="CONN_1x04_BTN">
+      <description>Button connector JST PH 1x04: 1=GND 2=BTN_TARE 3=BTN_MODE 4=VCC_3V3 (TTP223 touch supply)</description>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">CONN_1x04_BTN</field>
+        <field name="Footprint">s3-1:JST_PH_B4B-PH-K_1x04_P2.00mm_Vertical</field>
+        <field name="Datasheet"/>
+        <field name="Description">Button connector JST PH 1x04: 1=GND 2=BTN_TARE 3=BTN_MODE 4=VCC_3V3 (TTP223 touch supply)</field>
+      </fields>
+      <pins>
+        <pin num="1" name="GND" type="passive"/>
+        <pin num="2" name="BTN_TARE" type="passive"/>
+        <pin num="3" name="BTN_MODE" type="passive"/>
+        <pin num="4" name="VCC_3V3" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="CONN_1x04_VIN2">
+      <description>ADC ch2 connector E+/E-/S2-/S2+ (PT1000 divider or 2nd cell)</description>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">CONN_1x04_VIN2</field>
+        <field name="Footprint">s3-1:PinHeader_1x04_P2.54mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">ADC ch2 connector E+/E-/S2-/S2+ (PT1000 divider or 2nd cell)</field>
+      </fields>
+      <pins>
+        <pin num="1" name="E+" type="passive"/>
+        <pin num="2" name="E-" type="passive"/>
+        <pin num="3" name="S2-" type="passive"/>
+        <pin num="4" name="S2+" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="CONN_1x05_LC">
+      <description>Load cell connector E+/E-/S-/S+/SHLD</description>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">CONN_1x05_LC</field>
+        <field name="Footprint">scale-adc:PinHeader_1x05_P2.54mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">Load cell connector E+/E-/S-/S+/SHLD</field>
+      </fields>
+      <pins>
+        <pin num="1" name="E+" type="passive"/>
+        <pin num="2" name="E-" type="passive"/>
+        <pin num="3" name="S-" type="passive"/>
+        <pin num="4" name="S+" type="passive"/>
+        <pin num="5" name="SHLD" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="CONN_1x08_LCD">
+      <description>LCD connector JST PH 1x08: GND/3V3/SCK/MOSI/CS/DC/RST/BL</description>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">CONN_1x08_LCD</field>
+        <field name="Footprint">scale-adc:JST_PH_B8B-PH-K_1x08_P2.00mm_Vertical</field>
+        <field name="Datasheet"/>
+        <field name="Description">LCD connector JST PH 1x08: GND/3V3/SCK/MOSI/CS/DC/RST/BL</field>
+      </fields>
+      <pins>
+        <pin num="1" name="GND" type="passive"/>
+        <pin num="2" name="VCC_3V3" type="passive"/>
+        <pin num="3" name="LCD_SCK" type="passive"/>
+        <pin num="4" name="LCD_MOSI" type="passive"/>
+        <pin num="5" name="LCD_CS" type="passive"/>
+        <pin num="6" name="LCD_DC" type="passive"/>
+        <pin num="7" name="LCD_RST" type="passive"/>
+        <pin num="8" name="LCD_BL" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="CONN_2x10_EXP">
+      <description>Expansion to machine power/driver board: A row GPIO, B row power+bus</description>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">CONN_2x10_EXP</field>
+        <field name="Footprint">s3-1:PinHeader_2x10_P2.54mm_Vertical</field>
+        <field name="Datasheet"/>
+        <field name="Description">Expansion to machine power/driver board: A row GPIO, B row power+bus</field>
+      </fields>
+      <pins>
+        <pin num="1" name="IO38" type="passive"/>
+        <pin num="2" name="IO39" type="passive"/>
+        <pin num="3" name="IO40" type="passive"/>
+        <pin num="4" name="IO41" type="passive"/>
+        <pin num="5" name="IO42" type="passive"/>
+        <pin num="6" name="IO14" type="passive"/>
+        <pin num="7" name="IO15" type="passive"/>
+        <pin num="8" name="IO17" type="passive"/>
+        <pin num="9" name="IO1" type="passive"/>
+        <pin num="10" name="IO47" type="passive"/>
+        <pin num="11" name="5V" type="passive"/>
+        <pin num="12" name="3V3" type="passive"/>
+        <pin num="13" name="GND" type="passive"/>
+        <pin num="14" name="GND" type="passive"/>
+        <pin num="15" name="GND" type="passive"/>
+        <pin num="16" name="SDA" type="passive"/>
+        <pin num="17" name="SCL" type="passive"/>
+        <pin num="18" name="TXD" type="passive"/>
+        <pin num="19" name="RXD" type="passive"/>
+        <pin num="20" name="EN" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="D">
+      <description>Diode, SOD-123</description>
+      <fields>
+        <field name="Reference">D</field>
+        <field name="Value">D</field>
+        <field name="Footprint">scale-adc:D_SOD-123</field>
+        <field name="Datasheet"/>
+        <field name="Description">Diode, SOD-123</field>
+      </fields>
+      <pins>
+        <pin num="1" name="K" type="passive"/>
+        <pin num="2" name="A" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="D_Schottky">
+      <description>Schottky diode, SOD-123</description>
+      <fields>
+        <field name="Reference">D</field>
+        <field name="Value">D_Schottky</field>
+        <field name="Footprint">scale-adc:D_SOD-123</field>
+        <field name="Datasheet"/>
+        <field name="Description">Schottky diode, SOD-123</field>
+      </fields>
+      <pins>
+        <pin num="1" name="K" type="passive"/>
+        <pin num="2" name="A" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="ESP32-S3-WROOM-1">
+      <description>RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboard antenna, SMD</description>
+      <docs>https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf</docs>
+      <footprints>
+        <fp>ESP32?S3?WROOM?1*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">ESP32-S3-WROOM-1</field>
+        <field name="Footprint">RF_Module:ESP32-S3-WROOM-1</field>
+        <field name="Datasheet">https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf</field>
+        <field name="Description">RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboard antenna, SMD</field>
+      </fields>
+      <pins>
+        <pin num="1" name="GND" type="power_in"/>
+        <pin num="2" name="3V3" type="power_in"/>
+        <pin num="3" name="EN" type="input"/>
+        <pin num="4" name="IO4" type="bidirectional"/>
+        <pin num="5" name="IO5" type="bidirectional"/>
+        <pin num="6" name="IO6" type="bidirectional"/>
+        <pin num="7" name="IO7" type="bidirectional"/>
+        <pin num="8" name="IO15" type="bidirectional"/>
+        <pin num="9" name="IO16" type="bidirectional"/>
+        <pin num="10" name="IO17" type="bidirectional"/>
+        <pin num="11" name="IO18" type="bidirectional"/>
+        <pin num="12" name="IO8" type="bidirectional"/>
+        <pin num="13" name="USB_D-" type="bidirectional"/>
+        <pin num="14" name="USB_D+" type="bidirectional"/>
+        <pin num="15" name="IO3" type="bidirectional"/>
+        <pin num="16" name="IO46" type="bidirectional"/>
+        <pin num="17" name="IO9" type="bidirectional"/>
+        <pin num="18" name="IO10" type="bidirectional"/>
+        <pin num="19" name="IO11" type="bidirectional"/>
+        <pin num="20" name="IO12" type="bidirectional"/>
+        <pin num="21" name="IO13" type="bidirectional"/>
+        <pin num="22" name="IO14" type="bidirectional"/>
+        <pin num="23" name="IO21" type="bidirectional"/>
+        <pin num="24" name="IO47" type="bidirectional"/>
+        <pin num="25" name="IO48" type="bidirectional"/>
+        <pin num="26" name="IO45" type="bidirectional"/>
+        <pin num="27" name="IO0" type="bidirectional"/>
+        <pin num="28" name="IO35" type="bidirectional"/>
+        <pin num="29" name="IO36" type="bidirectional"/>
+        <pin num="30" name="IO37" type="bidirectional"/>
+        <pin num="31" name="IO38" type="bidirectional"/>
+        <pin num="32" name="IO39" type="bidirectional"/>
+        <pin num="33" name="IO40" type="bidirectional"/>
+        <pin num="34" name="IO41" type="bidirectional"/>
+        <pin num="35" name="IO42" type="bidirectional"/>
+        <pin num="36" name="RXD0" type="bidirectional"/>
+        <pin num="37" name="TXD0" type="bidirectional"/>
+        <pin num="38" name="IO2" type="bidirectional"/>
+        <pin num="39" name="IO1" type="bidirectional"/>
+        <pin num="40" name="GND" type="passive"/>
+        <pin num="41" name="GND" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="HT7533">
+      <description>LDO 3.3V 100mA, SOT-89</description>
+      <docs>https://www.holtek.com/documents/10179/116711/HT75xx-1v250.pdf</docs>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">HT7533</field>
+        <field name="Footprint">scale-adc:SOT-89-3</field>
+        <field name="Datasheet">https://www.holtek.com/documents/10179/116711/HT75xx-1v250.pdf</field>
+        <field name="Description">LDO 3.3V 100mA, SOT-89</field>
+      </fields>
+      <pins>
+        <pin num="1" name="GND" type="power_in"/>
+        <pin num="2" name="VIN" type="power_in"/>
+        <pin num="3" name="VOUT" type="power_out"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="LIS2DW12">
+      <description>3-axis femto accelerometer, I2C/SPI, LGA-12 2x2</description>
+      <docs>https://www.st.com/resource/en/datasheet/lis2dw12.pdf</docs>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">LIS2DW12</field>
+        <field name="Footprint">scale-adc:LGA-12_2x2mm_P0.5mm_LIS2DW12</field>
+        <field name="Datasheet">https://www.st.com/resource/en/datasheet/lis2dw12.pdf</field>
+        <field name="Description">3-axis femto accelerometer, I2C/SPI, LGA-12 2x2</field>
+      </fields>
+      <pins>
+        <pin num="1" name="SCL_SPC" type="passive"/>
+        <pin num="2" name="CS" type="passive"/>
+        <pin num="3" name="SDO_SA0" type="passive"/>
+        <pin num="4" name="SDA_SDI_SDO" type="bidirectional"/>
+        <pin num="5" name="NC" type="passive"/>
+        <pin num="6" name="GND" type="power_in"/>
+        <pin num="7" name="RES" type="passive"/>
+        <pin num="8" name="GND" type="power_in"/>
+        <pin num="9" name="VDD" type="power_in"/>
+        <pin num="10" name="VDD_IO" type="power_in"/>
+        <pin num="11" name="INT2" type="output"/>
+        <pin num="12" name="INT1" type="output"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="ME6211">
+      <description>LDO 3.3V 300mA high-PSRR, SOT-23-5</description>
+      <docs>https://www.lcsc.com/datasheet/C82942.pdf</docs>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">ME6211</field>
+        <field name="Footprint">scale-adc:SOT-23-5</field>
+        <field name="Datasheet">https://www.lcsc.com/datasheet/C82942.pdf</field>
+        <field name="Description">LDO 3.3V 300mA high-PSRR, SOT-23-5</field>
+      </fields>
+      <pins>
+        <pin num="1" name="VIN" type="power_in"/>
+        <pin num="2" name="VSS" type="power_in"/>
+        <pin num="3" name="CE" type="input"/>
+        <pin num="4" name="NC" type="no_connect"/>
+        <pin num="5" name="VOUT" type="power_out"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="MOUNT_HOLE">
+      <description>M2 non-plated mounting hole</description>
+      <fields>
+        <field name="Reference">H</field>
+        <field name="Value">MOUNT_HOLE</field>
+        <field name="Footprint">scale-adc:MountingHole_M2_NPTH</field>
+        <field name="Datasheet"/>
+        <field name="Description">M2 non-plated mounting hole</field>
+      </fields>
+    </libpart>
+    <libpart lib="s3-1" part="NAU7802SGI">
+      <description>24-bit dual-channel bridge ADC, I2C, PGA 1-128, internal LDO</description>
+      <docs>https://www.nuvoton.com/export/resource-files/en-us--DS_NAU7802_DataSheet_EN_Rev2.6.pdf</docs>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">NAU7802SGI</field>
+        <field name="Footprint">scale-adc:SOIC-16_3.9x9.9mm_P1.27mm</field>
+        <field name="Datasheet">https://www.nuvoton.com/export/resource-files/en-us--DS_NAU7802_DataSheet_EN_Rev2.6.pdf</field>
+        <field name="Description">24-bit dual-channel bridge ADC, I2C, PGA 1-128, internal LDO</field>
+      </fields>
+      <pins>
+        <pin num="1" name="REFP" type="passive"/>
+        <pin num="2" name="VIN1N" type="passive"/>
+        <pin num="3" name="VIN1P" type="passive"/>
+        <pin num="4" name="VIN2N" type="passive"/>
+        <pin num="5" name="VIN2P" type="passive"/>
+        <pin num="6" name="VBG" type="passive"/>
+        <pin num="7" name="REFN" type="passive"/>
+        <pin num="8" name="AVSS" type="power_in"/>
+        <pin num="9" name="DVSS" type="power_in"/>
+        <pin num="10" name="XIN" type="passive"/>
+        <pin num="11" name="XOUT" type="output"/>
+        <pin num="12" name="DRDY" type="output"/>
+        <pin num="13" name="SCLK" type="passive"/>
+        <pin num="14" name="SDIO" type="bidirectional"/>
+        <pin num="15" name="DVDD" type="power_in"/>
+        <pin num="16" name="AVDD_LDO" type="power_in"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="R">
+      <description>Resistor</description>
+      <fields>
+        <field name="Reference">R</field>
+        <field name="Value">R</field>
+        <field name="Footprint">scale-adc:SMD_0805</field>
+        <field name="Datasheet"/>
+        <field name="Description">Resistor</field>
+      </fields>
+      <pins>
+        <pin num="1" name="" type="passive"/>
+        <pin num="2" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="TMP102">
+      <description>Digital temperature sensor, SOT-563, I2C</description>
+      <docs>https://www.ti.com/lit/ds/symlink/tmp102.pdf</docs>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">TMP102</field>
+        <field name="Footprint">scale-adc:SOT-563_1.6x1.6mm_P0.5mm</field>
+        <field name="Datasheet">https://www.ti.com/lit/ds/symlink/tmp102.pdf</field>
+        <field name="Description">Digital temperature sensor, SOT-563, I2C</field>
+      </fields>
+      <pins>
+        <pin num="1" name="SCL" type="passive"/>
+        <pin num="2" name="GND" type="power_in"/>
+        <pin num="3" name="ALERT" type="output"/>
+        <pin num="4" name="ADD0" type="passive"/>
+        <pin num="5" name="V+" type="power_in"/>
+        <pin num="6" name="SDA" type="bidirectional"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="TP">
+      <description>SMD test point pad</description>
+      <fields>
+        <field name="Reference">TP</field>
+        <field name="Value">TP</field>
+        <field name="Footprint">scale-adc:TestPoint_1.2mm</field>
+        <field name="Datasheet"/>
+        <field name="Description">SMD test point pad</field>
+      </fields>
+      <pins>
+        <pin num="1" name="1" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="TP4057">
+      <description>Li-ion linear charger 500mA, SOT-23-6</description>
+      <docs>https://www.lcsc.com/datasheet/C12044.pdf</docs>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">TP4057</field>
+        <field name="Footprint">scale-adc:SOT-23-6</field>
+        <field name="Datasheet">https://www.lcsc.com/datasheet/C12044.pdf</field>
+        <field name="Description">Li-ion linear charger 500mA, SOT-23-6</field>
+      </fields>
+      <pins>
+        <pin num="1" name="CHRG" type="open_collector"/>
+        <pin num="2" name="GND" type="power_in"/>
+        <pin num="3" name="BAT" type="passive"/>
+        <pin num="4" name="VCC" type="power_in"/>
+        <pin num="5" name="STDBY" type="open_collector"/>
+        <pin num="6" name="PROG" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="USBLC6-2SC6">
+      <description>USB 2.0 ESD protection array, low capacitance, SOT-23-6</description>
+      <docs>https://www.st.com/resource/en/datasheet/usblc6-2sc6.pdf</docs>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">USBLC6-2SC6</field>
+        <field name="Footprint">scale-adc-s3:SOT-23-6</field>
+        <field name="Datasheet">https://www.st.com/resource/en/datasheet/usblc6-2sc6.pdf</field>
+        <field name="Description">USB 2.0 ESD protection array, low capacitance, SOT-23-6</field>
+      </fields>
+      <pins>
+        <pin num="1" name="IO1" type="passive"/>
+        <pin num="2" name="GND" type="power_in"/>
+        <pin num="3" name="IO2" type="passive"/>
+        <pin num="4" name="IO3" type="passive"/>
+        <pin num="5" name="VBUS" type="power_in"/>
+        <pin num="6" name="IO4" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="s3-1" part="USB_C_16P">
+      <description>USB Type-C receptacle 16-pin mid-mount, USB 2.0</description>
+      <docs>http://www.krhro.com/uploads/soft/180320/1-1P320120243.pdf</docs>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">USB_C_16P</field>
+        <field name="Footprint">scale-adc:USB_C_Receptacle_HRO_TYPE-C-31-M-12</field>
+        <field name="Datasheet">http://www.krhro.com/uploads/soft/180320/1-1P320120243.pdf</field>
+        <field name="Description">USB Type-C receptacle 16-pin mid-mount, USB 2.0</field>
+      </fields>
+      <pins>
+        <pin num="A1" name="GND" type="power_out"/>
+        <pin num="A4" name="VBUS" type="passive"/>
+        <pin num="A5" name="CC1" type="passive"/>
+        <pin num="A6" name="DP1" type="bidirectional"/>
+        <pin num="A7" name="DN1" type="bidirectional"/>
+        <pin num="A8" name="SBU1" type="passive"/>
+        <pin num="A9" name="VBUS" type="passive"/>
+        <pin num="A12" name="GND" type="passive"/>
+        <pin num="B1" name="GND" type="passive"/>
+        <pin num="B4" name="VBUS" type="passive"/>
+        <pin num="B5" name="CC2" type="passive"/>
+        <pin num="B6" name="DP2" type="bidirectional"/>
+        <pin num="B7" name="DN2" type="bidirectional"/>
+        <pin num="B8" name="SBU2" type="passive"/>
+        <pin num="B9" name="VBUS" type="passive"/>
+        <pin num="B12" name="GND" type="passive"/>
+        <pin num="SH" name="SHIELD" type="passive"/>
+      </pins>
+    </libpart>
+  </libparts>
+  <libraries>
+    <library logical="s3-1">
+      <uri>${KIPRJMOD}/s3.1.kicad_sym</uri>
+    </library>
+  </libraries>
+  <nets>
+    <net code="1" name="BAT" class="Default">
+      <node ref="C16" pin="1" pintype="passive"/>
+      <node ref="J6" pin="1" pinfunction="BAT_1" pintype="passive"/>
+      <node ref="Q1" pin="3" pinfunction="D_3" pintype="passive"/>
+      <node ref="R13" pin="1" pintype="passive"/>
+      <node ref="U5" pin="3" pinfunction="BAT_3" pintype="passive"/>
+    </net>
+    <net code="2" name="BOOT" class="Default">
+      <node ref="R6" pin="1" pintype="passive"/>
+      <node ref="TP4" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U4" pin="27" pinfunction="IO0_27" pintype="bidirectional"/>
+    </net>
+    <net code="3" name="BTN_MODE" class="Default">
+      <node ref="C19" pin="1" pintype="passive"/>
+      <node ref="J8" pin="3" pinfunction="BTN_MODE_3" pintype="passive"/>
+      <node ref="R16" pin="2" pintype="passive"/>
+      <node ref="U4" pin="11" pinfunction="IO18_11" pintype="bidirectional"/>
+    </net>
+    <net code="4" name="BTN_TARE" class="Default">
+      <node ref="C18" pin="1" pintype="passive"/>
+      <node ref="J8" pin="2" pinfunction="BTN_TARE_2" pintype="passive"/>
+      <node ref="R15" pin="2" pintype="passive"/>
+      <node ref="U4" pin="25" pinfunction="IO48_25" pintype="bidirectional"/>
+    </net>
+    <net code="5" name="BUZZ" class="Default">
+      <node ref="R17" pin="1" pintype="passive"/>
+      <node ref="U4" pin="23" pinfunction="IO21_23" pintype="bidirectional"/>
+    </net>
+    <net code="6" name="BUZZ_SW" class="Default">
+      <node ref="BZ1" pin="2" pinfunction="-_2" pintype="passive"/>
+      <node ref="D2" pin="2" pinfunction="A_2" pintype="passive"/>
+      <node ref="Q2" pin="3" pinfunction="D_3" pintype="passive"/>
+    </net>
+    <net code="7" name="CHRG_STAT" class="Default">
+      <node ref="R11" pin="2" pintype="passive"/>
+      <node ref="U4" pin="12" pinfunction="IO8_12" pintype="bidirectional"/>
+      <node ref="U5" pin="1" pinfunction="CHRG_1" pintype="open_collector"/>
+    </net>
+    <net code="8" name="DRDY" class="Default">
+      <node ref="U1" pin="12" pinfunction="DRDY_12" pintype="output"/>
+      <node ref="U4" pin="20" pinfunction="IO12_20" pintype="bidirectional"/>
+    </net>
+    <net code="9" name="EN" class="Default">
+      <node ref="C14" pin="2" pintype="passive"/>
+      <node ref="J10" pin="20" pinfunction="EN_20" pintype="passive"/>
+      <node ref="R5" pin="2" pintype="passive"/>
+      <node ref="TP3" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U4" pin="3" pinfunction="EN_3" pintype="input"/>
+    </net>
+    <net code="10" name="EXP_5V" class="Default">
+      <node ref="D3" pin="2" pinfunction="A_2" pintype="passive"/>
+      <node ref="J10" pin="11" pinfunction="5V_11" pintype="passive"/>
+    </net>
+    <net code="11" name="EXP_IO1" class="Default">
+      <node ref="J10" pin="9" pinfunction="IO1_9" pintype="passive"/>
+      <node ref="U4" pin="39" pinfunction="IO1_39" pintype="bidirectional"/>
+    </net>
+    <net code="12" name="EXP_IO14" class="Default">
+      <node ref="R29" pin="1" pintype="passive"/>
+      <node ref="U4" pin="22" pinfunction="IO14_22" pintype="bidirectional"/>
+    </net>
+    <net code="13" name="EXP_IO15" class="Default">
+      <node ref="R30" pin="1" pintype="passive"/>
+      <node ref="U4" pin="8" pinfunction="IO15_8" pintype="bidirectional"/>
+    </net>
+    <net code="14" name="EXP_IO17" class="Default">
+      <node ref="R31" pin="1" pintype="passive"/>
+      <node ref="U4" pin="10" pinfunction="IO17_10" pintype="bidirectional"/>
+    </net>
+    <net code="15" name="EXP_IO38" class="Default">
+      <node ref="R24" pin="1" pintype="passive"/>
+      <node ref="U4" pin="31" pinfunction="IO38_31" pintype="bidirectional"/>
+    </net>
+    <net code="16" name="EXP_IO39" class="Default">
+      <node ref="R25" pin="1" pintype="passive"/>
+      <node ref="U4" pin="32" pinfunction="IO39_32" pintype="bidirectional"/>
+    </net>
+    <net code="17" name="EXP_IO40" class="Default">
+      <node ref="R26" pin="1" pintype="passive"/>
+      <node ref="U4" pin="33" pinfunction="IO40_33" pintype="bidirectional"/>
+    </net>
+    <net code="18" name="EXP_IO41" class="Default">
+      <node ref="R27" pin="1" pintype="passive"/>
+      <node ref="U4" pin="34" pinfunction="IO41_34" pintype="bidirectional"/>
+    </net>
+    <net code="19" name="EXP_IO42" class="Default">
+      <node ref="R28" pin="1" pintype="passive"/>
+      <node ref="U4" pin="35" pinfunction="IO42_35" pintype="bidirectional"/>
+    </net>
+    <net code="20" name="EXP_IO47" class="Default">
+      <node ref="J10" pin="10" pinfunction="IO47_10" pintype="passive"/>
+      <node ref="U4" pin="24" pinfunction="IO47_24" pintype="bidirectional"/>
+    </net>
+    <net code="21" name="GND" class="Default">
+      <node ref="C1" pin="2" pintype="passive"/>
+      <node ref="C10" pin="2" pintype="passive"/>
+      <node ref="C11" pin="2" pintype="passive"/>
+      <node ref="C12" pin="2" pintype="passive"/>
+      <node ref="C13" pin="2" pintype="passive"/>
+      <node ref="C14" pin="1" pintype="passive"/>
+      <node ref="C15" pin="2" pintype="passive"/>
+      <node ref="C16" pin="2" pintype="passive"/>
+      <node ref="C17" pin="2" pintype="passive"/>
+      <node ref="C18" pin="2" pintype="passive"/>
+      <node ref="C19" pin="2" pintype="passive"/>
+      <node ref="C2" pin="2" pintype="passive"/>
+      <node ref="C20" pin="2" pintype="passive"/>
+      <node ref="C21" pin="2" pintype="passive"/>
+      <node ref="C22" pin="2" pintype="passive"/>
+      <node ref="C23" pin="2" pintype="passive"/>
+      <node ref="C24" pin="2" pintype="passive"/>
+      <node ref="C25" pin="2" pintype="passive"/>
+      <node ref="C26" pin="2" pintype="passive"/>
+      <node ref="C28" pin="2" pintype="passive"/>
+      <node ref="C29" pin="2" pintype="passive"/>
+      <node ref="C3" pin="2" pintype="passive"/>
+      <node ref="C4" pin="2" pintype="passive"/>
+      <node ref="C6" pin="2" pintype="passive"/>
+      <node ref="C7" pin="2" pintype="passive"/>
+      <node ref="C8" pin="2" pintype="passive"/>
+      <node ref="C9" pin="2" pintype="passive"/>
+      <node ref="J10" pin="13" pinfunction="GND_13" pintype="passive"/>
+      <node ref="J10" pin="14" pinfunction="GND_14" pintype="passive"/>
+      <node ref="J10" pin="15" pinfunction="GND_15" pintype="passive"/>
+      <node ref="J11" pin="2" pinfunction="E-_2" pintype="passive"/>
+      <node ref="J2" pin="2" pinfunction="E-_2" pintype="passive"/>
+      <node ref="J2" pin="5" pinfunction="SHLD_5" pintype="passive"/>
+      <node ref="J5" pin="A1" pinfunction="GND_A1" pintype="power_out"/>
+      <node ref="J5" pin="A12" pinfunction="GND_A12" pintype="passive"/>
+      <node ref="J5" pin="B1" pinfunction="GND_B1" pintype="passive"/>
+      <node ref="J5" pin="B12" pinfunction="GND_B12" pintype="passive"/>
+      <node ref="J5" pin="SH" pinfunction="SHIELD_SH" pintype="passive"/>
+      <node ref="J6" pin="2" pinfunction="GND_2" pintype="passive"/>
+      <node ref="J7" pin="1" pinfunction="GND_1" pintype="passive"/>
+      <node ref="J8" pin="1" pinfunction="GND_1" pintype="passive"/>
+      <node ref="Q2" pin="2" pinfunction="S_2" pintype="passive"/>
+      <node ref="R10" pin="2" pintype="passive"/>
+      <node ref="R12" pin="2" pintype="passive"/>
+      <node ref="R14" pin="2" pintype="passive"/>
+      <node ref="R18" pin="2" pintype="passive"/>
+      <node ref="R32" pin="2" pintype="passive"/>
+      <node ref="R8" pin="2" pintype="passive"/>
+      <node ref="R9" pin="2" pintype="passive"/>
+      <node ref="TP11" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U1" pin="7" pinfunction="REFN_7" pintype="passive"/>
+      <node ref="U1" pin="8" pinfunction="AVSS_8" pintype="power_in"/>
+      <node ref="U1" pin="9" pinfunction="DVSS_9" pintype="power_in"/>
+      <node ref="U2" pin="3" pinfunction="SDO_SA0_3" pintype="passive"/>
+      <node ref="U2" pin="6" pinfunction="GND_6" pintype="power_in"/>
+      <node ref="U2" pin="7" pinfunction="RES_7" pintype="passive"/>
+      <node ref="U2" pin="8" pinfunction="GND_8" pintype="power_in"/>
+      <node ref="U3" pin="2" pinfunction="GND_2" pintype="power_in"/>
+      <node ref="U3" pin="4" pinfunction="ADD0_4" pintype="passive"/>
+      <node ref="U4" pin="1" pinfunction="GND_1" pintype="power_in"/>
+      <node ref="U4" pin="40" pinfunction="GND_40" pintype="passive"/>
+      <node ref="U4" pin="41" pinfunction="GND_41" pintype="passive"/>
+      <node ref="U5" pin="2" pinfunction="GND_2" pintype="power_in"/>
+      <node ref="U6" pin="2" pinfunction="VSS_2" pintype="power_in"/>
+      <node ref="U7" pin="1" pinfunction="GND_1" pintype="power_in"/>
+      <node ref="U8" pin="2" pinfunction="GND_2" pintype="power_in"/>
+    </net>
+    <net code="22" name="INT1" class="Default">
+      <node ref="U2" pin="12" pinfunction="INT1_12" pintype="output"/>
+      <node ref="U4" pin="21" pinfunction="IO13_21" pintype="bidirectional"/>
+    </net>
+    <net code="23" name="LCD_BL" class="Default">
+      <node ref="J7" pin="8" pinfunction="LCD_BL_8" pintype="passive"/>
+      <node ref="U4" pin="9" pinfunction="IO16_9" pintype="bidirectional"/>
+    </net>
+    <net code="24" name="LCD_CS" class="Default">
+      <node ref="J7" pin="5" pinfunction="LCD_CS_5" pintype="passive"/>
+      <node ref="U4" pin="6" pinfunction="IO6_6" pintype="bidirectional"/>
+    </net>
+    <net code="25" name="LCD_DC" class="Default">
+      <node ref="J7" pin="6" pinfunction="LCD_DC_6" pintype="passive"/>
+      <node ref="U4" pin="7" pinfunction="IO7_7" pintype="bidirectional"/>
+    </net>
+    <net code="26" name="LCD_MOSI" class="Default">
+      <node ref="J7" pin="4" pinfunction="LCD_MOSI_4" pintype="passive"/>
+      <node ref="U4" pin="5" pinfunction="IO5_5" pintype="bidirectional"/>
+    </net>
+    <net code="27" name="LCD_RST" class="Default">
+      <node ref="C26" pin="1" pintype="passive"/>
+      <node ref="J7" pin="7" pinfunction="LCD_RST_7" pintype="passive"/>
+      <node ref="R21" pin="1" pintype="passive"/>
+    </net>
+    <net code="28" name="LCD_SCK" class="Default">
+      <node ref="J7" pin="3" pinfunction="LCD_SCK_3" pintype="passive"/>
+      <node ref="U4" pin="4" pinfunction="IO4_4" pintype="bidirectional"/>
+    </net>
+    <net code="29" name="LC_SIG2N" class="Default">
+      <node ref="J11" pin="3" pinfunction="S2-_3" pintype="passive"/>
+      <node ref="R22" pin="1" pintype="passive"/>
+    </net>
+    <net code="30" name="LC_SIG2P" class="Default">
+      <node ref="J11" pin="4" pinfunction="S2+_4" pintype="passive"/>
+      <node ref="R23" pin="1" pintype="passive"/>
+    </net>
+    <net code="31" name="LC_SIGN" class="Default">
+      <node ref="J2" pin="3" pinfunction="S-_3" pintype="passive"/>
+      <node ref="R2" pin="1" pintype="passive"/>
+    </net>
+    <net code="32" name="LC_SIGP" class="Default">
+      <node ref="J2" pin="4" pinfunction="S+_4" pintype="passive"/>
+      <node ref="R1" pin="1" pintype="passive"/>
+    </net>
+    <net code="33" name="Net-(J5-CC1)" class="Default">
+      <node ref="J5" pin="A5" pinfunction="CC1_A5" pintype="passive"/>
+      <node ref="R8" pin="1" pintype="passive"/>
+    </net>
+    <net code="34" name="Net-(J5-CC2)" class="Default">
+      <node ref="J5" pin="B5" pinfunction="CC2_B5" pintype="passive"/>
+      <node ref="R9" pin="1" pintype="passive"/>
+    </net>
+    <net code="35" name="Net-(Q2-G)" class="Default">
+      <node ref="Q2" pin="1" pinfunction="G_1" pintype="input"/>
+      <node ref="R17" pin="2" pintype="passive"/>
+      <node ref="R18" pin="1" pintype="passive"/>
+    </net>
+    <net code="36" name="Net-(U5-PROG)" class="Default">
+      <node ref="R10" pin="1" pintype="passive"/>
+      <node ref="U5" pin="6" pinfunction="PROG_6" pintype="passive"/>
+    </net>
+    <net code="37" name="RXD" class="Default">
+      <node ref="J10" pin="19" pinfunction="RXD_19" pintype="passive"/>
+      <node ref="TP6" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U4" pin="36" pinfunction="RXD0_36" pintype="bidirectional"/>
+    </net>
+    <net code="38" name="SCL" class="Default">
+      <node ref="J10" pin="17" pinfunction="SCL_17" pintype="passive"/>
+      <node ref="R4" pin="2" pintype="passive"/>
+      <node ref="TP13" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U1" pin="13" pinfunction="SCLK_13" pintype="passive"/>
+      <node ref="U2" pin="1" pinfunction="SCL_SPC_1" pintype="passive"/>
+      <node ref="U3" pin="1" pinfunction="SCL_1" pintype="passive"/>
+      <node ref="U4" pin="19" pinfunction="IO11_19" pintype="bidirectional"/>
+    </net>
+    <net code="39" name="SDA" class="Default">
+      <node ref="J10" pin="16" pinfunction="SDA_16" pintype="passive"/>
+      <node ref="R3" pin="2" pintype="passive"/>
+      <node ref="TP12" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U1" pin="14" pinfunction="SDIO_14" pintype="bidirectional"/>
+      <node ref="U2" pin="4" pinfunction="SDA_SDI_SDO_4" pintype="bidirectional"/>
+      <node ref="U3" pin="6" pinfunction="SDA_6" pintype="bidirectional"/>
+      <node ref="U4" pin="18" pinfunction="IO10_18" pintype="bidirectional"/>
+    </net>
+    <net code="40" name="SIG2_N" class="Default">
+      <node ref="C27" pin="2" pintype="passive"/>
+      <node ref="C29" pin="1" pintype="passive"/>
+      <node ref="R22" pin="2" pintype="passive"/>
+      <node ref="U1" pin="4" pinfunction="VIN2N_4" pintype="passive"/>
+    </net>
+    <net code="41" name="SIG2_P" class="Default">
+      <node ref="C27" pin="1" pintype="passive"/>
+      <node ref="C28" pin="1" pintype="passive"/>
+      <node ref="R23" pin="2" pintype="passive"/>
+      <node ref="U1" pin="5" pinfunction="VIN2P_5" pintype="passive"/>
+    </net>
+    <net code="42" name="SIG_N" class="Default">
+      <node ref="C11" pin="1" pintype="passive"/>
+      <node ref="C5" pin="2" pintype="passive"/>
+      <node ref="R2" pin="2" pintype="passive"/>
+      <node ref="U1" pin="2" pinfunction="VIN1N_2" pintype="passive"/>
+    </net>
+    <net code="43" name="SIG_P" class="Default">
+      <node ref="C10" pin="1" pintype="passive"/>
+      <node ref="C5" pin="1" pintype="passive"/>
+      <node ref="R1" pin="2" pintype="passive"/>
+      <node ref="U1" pin="3" pinfunction="VIN1P_3" pintype="passive"/>
+    </net>
+    <net code="44" name="TXD" class="Default">
+      <node ref="J10" pin="18" pinfunction="TXD_18" pintype="passive"/>
+      <node ref="TP5" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U4" pin="37" pinfunction="TXD0_37" pintype="bidirectional"/>
+    </net>
+    <net code="45" name="USB_DM" class="Default">
+      <node ref="J5" pin="A7" pinfunction="DN1_A7" pintype="bidirectional"/>
+      <node ref="J5" pin="B7" pinfunction="DN2_B7" pintype="bidirectional"/>
+      <node ref="R20" pin="1" pintype="passive"/>
+      <node ref="U8" pin="1" pinfunction="IO1_1" pintype="passive"/>
+    </net>
+    <net code="46" name="USB_DM_M" class="Default">
+      <node ref="C24" pin="1" pintype="passive"/>
+      <node ref="R20" pin="2" pintype="passive"/>
+      <node ref="U4" pin="13" pinfunction="USB_D-_13" pintype="bidirectional"/>
+    </net>
+    <net code="47" name="USB_DP" class="Default">
+      <node ref="J5" pin="A6" pinfunction="DP1_A6" pintype="bidirectional"/>
+      <node ref="J5" pin="B6" pinfunction="DP2_B6" pintype="bidirectional"/>
+      <node ref="R19" pin="1" pintype="passive"/>
+      <node ref="U8" pin="3" pinfunction="IO2_3" pintype="passive"/>
+    </net>
+    <net code="48" name="USB_DP_M" class="Default">
+      <node ref="C23" pin="1" pintype="passive"/>
+      <node ref="R19" pin="2" pintype="passive"/>
+      <node ref="U4" pin="14" pinfunction="USB_D+_14" pintype="bidirectional"/>
+    </net>
+    <net code="49" name="USB_VBUS" class="Default">
+      <node ref="C15" pin="1" pintype="passive"/>
+      <node ref="D4" pin="2" pinfunction="A_2" pintype="passive"/>
+      <node ref="J5" pin="A4" pinfunction="VBUS_A4" pintype="passive"/>
+      <node ref="J5" pin="A9" pinfunction="VBUS_A9" pintype="passive"/>
+      <node ref="J5" pin="B4" pinfunction="VBUS_B4" pintype="passive"/>
+      <node ref="J5" pin="B9" pinfunction="VBUS_B9" pintype="passive"/>
+      <node ref="U8" pin="5" pinfunction="VBUS_5" pintype="power_in"/>
+    </net>
+    <net code="50" name="VBAT_SENSE" class="Default">
+      <node ref="C17" pin="1" pintype="passive"/>
+      <node ref="R13" pin="2" pintype="passive"/>
+      <node ref="R14" pin="1" pintype="passive"/>
+      <node ref="U4" pin="17" pinfunction="IO9_17" pintype="bidirectional"/>
+    </net>
+    <net code="51" name="VBG" class="Default">
+      <node ref="C4" pin="1" pintype="passive"/>
+      <node ref="TP7" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U1" pin="6" pinfunction="VBG_6" pintype="passive"/>
+    </net>
+    <net code="52" name="VCC_3V3" class="Default">
+      <node ref="BZ1" pin="1" pinfunction="+_1" pintype="passive"/>
+      <node ref="C12" pin="1" pintype="passive"/>
+      <node ref="C13" pin="1" pintype="passive"/>
+      <node ref="C25" pin="1" pintype="passive"/>
+      <node ref="C7" pin="1" pintype="passive"/>
+      <node ref="C8" pin="1" pintype="passive"/>
+      <node ref="C9" pin="1" pintype="passive"/>
+      <node ref="D2" pin="1" pinfunction="K_1" pintype="passive"/>
+      <node ref="J10" pin="12" pinfunction="3V3_12" pintype="passive"/>
+      <node ref="J7" pin="2" pinfunction="VCC_3V3_2" pintype="passive"/>
+      <node ref="J8" pin="4" pinfunction="VCC_3V3_4" pintype="passive"/>
+      <node ref="R11" pin="1" pintype="passive"/>
+      <node ref="R15" pin="1" pintype="passive"/>
+      <node ref="R16" pin="1" pintype="passive"/>
+      <node ref="R21" pin="2" pintype="passive"/>
+      <node ref="R3" pin="1" pintype="passive"/>
+      <node ref="R4" pin="1" pintype="passive"/>
+      <node ref="R5" pin="1" pintype="passive"/>
+      <node ref="R6" pin="2" pintype="passive"/>
+      <node ref="TP10" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U2" pin="10" pinfunction="VDD_IO_10" pintype="power_in"/>
+      <node ref="U2" pin="2" pinfunction="CS_2" pintype="passive"/>
+      <node ref="U2" pin="9" pinfunction="VDD_9" pintype="power_in"/>
+      <node ref="U4" pin="2" pinfunction="3V3_2" pintype="power_in"/>
+      <node ref="U6" pin="5" pinfunction="VOUT_5" pintype="power_out"/>
+    </net>
+    <net code="53" name="VDD_ADC" class="Default">
+      <node ref="C1" pin="1" pintype="passive"/>
+      <node ref="C2" pin="1" pintype="passive"/>
+      <node ref="C20" pin="1" pintype="passive"/>
+      <node ref="C3" pin="1" pintype="passive"/>
+      <node ref="C6" pin="1" pintype="passive"/>
+      <node ref="J11" pin="1" pinfunction="E+_1" pintype="passive"/>
+      <node ref="J2" pin="1" pinfunction="E+_1" pintype="passive"/>
+      <node ref="TP8" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U1" pin="1" pinfunction="REFP_1" pintype="passive"/>
+      <node ref="U1" pin="15" pinfunction="DVDD_15" pintype="power_in"/>
+      <node ref="U1" pin="16" pinfunction="AVDD_LDO_16" pintype="power_in"/>
+      <node ref="U3" pin="5" pinfunction="V+_5" pintype="power_in"/>
+      <node ref="U7" pin="3" pinfunction="VOUT_3" pintype="power_out"/>
+    </net>
+    <net code="54" name="VIN5V" class="Default">
+      <node ref="D1" pin="2" pinfunction="A_2" pintype="passive"/>
+      <node ref="D3" pin="1" pinfunction="K_1" pintype="passive"/>
+      <node ref="D4" pin="1" pinfunction="K_1" pintype="passive"/>
+      <node ref="Q1" pin="1" pinfunction="G_1" pintype="input"/>
+      <node ref="R12" pin="1" pintype="passive"/>
+      <node ref="TP9" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U5" pin="4" pinfunction="VCC_4" pintype="power_in"/>
+    </net>
+    <net code="55" name="VSYS" class="Default">
+      <node ref="C21" pin="1" pintype="passive"/>
+      <node ref="C22" pin="1" pintype="passive"/>
+      <node ref="D1" pin="1" pinfunction="K_1" pintype="passive"/>
+      <node ref="Q1" pin="2" pinfunction="S_2" pintype="passive"/>
+      <node ref="U6" pin="1" pinfunction="VIN_1" pintype="power_in"/>
+      <node ref="U6" pin="3" pinfunction="CE_3" pintype="input"/>
+      <node ref="U7" pin="2" pinfunction="VIN_2" pintype="power_in"/>
+    </net>
+    <net code="56" name="XIO14" class="Default">
+      <node ref="J10" pin="6" pinfunction="IO14_6" pintype="passive"/>
+      <node ref="R29" pin="2" pintype="passive"/>
+    </net>
+    <net code="57" name="XIO15" class="Default">
+      <node ref="J10" pin="7" pinfunction="IO15_7" pintype="passive"/>
+      <node ref="R30" pin="2" pintype="passive"/>
+      <node ref="R32" pin="1" pintype="passive"/>
+    </net>
+    <net code="58" name="XIO17" class="Default">
+      <node ref="J10" pin="8" pinfunction="IO17_8" pintype="passive"/>
+      <node ref="R31" pin="2" pintype="passive"/>
+    </net>
+    <net code="59" name="XIO38" class="Default">
+      <node ref="J10" pin="1" pinfunction="IO38_1" pintype="passive"/>
+      <node ref="R24" pin="2" pintype="passive"/>
+    </net>
+    <net code="60" name="XIO39" class="Default">
+      <node ref="J10" pin="2" pinfunction="IO39_2" pintype="passive"/>
+      <node ref="R25" pin="2" pintype="passive"/>
+    </net>
+    <net code="61" name="XIO40" class="Default">
+      <node ref="J10" pin="3" pinfunction="IO40_3" pintype="passive"/>
+      <node ref="R26" pin="2" pintype="passive"/>
+    </net>
+    <net code="62" name="XIO41" class="Default">
+      <node ref="J10" pin="4" pinfunction="IO41_4" pintype="passive"/>
+      <node ref="R27" pin="2" pintype="passive"/>
+    </net>
+    <net code="63" name="XIO42" class="Default">
+      <node ref="J10" pin="5" pinfunction="IO42_5" pintype="passive"/>
+      <node ref="R28" pin="2" pintype="passive"/>
+    </net>
+    <net code="64" name="unconnected-(J5-SBU1-PadA8)" class="Default">
+      <node ref="J5" pin="A8" pinfunction="SBU1_A8" pintype="passive+no_connect"/>
+    </net>
+    <net code="65" name="unconnected-(J5-SBU2-PadB8)" class="Default">
+      <node ref="J5" pin="B8" pinfunction="SBU2_B8" pintype="passive+no_connect"/>
+    </net>
+    <net code="66" name="unconnected-(U1-XIN-Pad10)" class="Default">
+      <node ref="U1" pin="10" pinfunction="XIN_10" pintype="passive+no_connect"/>
+    </net>
+    <net code="67" name="unconnected-(U1-XOUT-Pad11)" class="Default">
+      <node ref="U1" pin="11" pinfunction="XOUT_11" pintype="output+no_connect"/>
+    </net>
+    <net code="68" name="unconnected-(U2-INT2-Pad11)" class="Default">
+      <node ref="U2" pin="11" pinfunction="INT2_11" pintype="output+no_connect"/>
+    </net>
+    <net code="69" name="unconnected-(U2-NC-Pad5)" class="Default">
+      <node ref="U2" pin="5" pinfunction="NC_5" pintype="passive+no_connect"/>
+    </net>
+    <net code="70" name="unconnected-(U3-ALERT-Pad3)" class="Default">
+      <node ref="U3" pin="3" pinfunction="ALERT_3" pintype="output+no_connect"/>
+    </net>
+    <net code="71" name="unconnected-(U4-IO2-Pad38)" class="Default">
+      <node ref="U4" pin="38" pinfunction="IO2_38" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="72" name="unconnected-(U4-IO3-Pad15)" class="Default">
+      <node ref="U4" pin="15" pinfunction="IO3_15" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="73" name="unconnected-(U4-IO35-Pad28)" class="Default">
+      <node ref="U4" pin="28" pinfunction="IO35_28" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="74" name="unconnected-(U4-IO36-Pad29)" class="Default">
+      <node ref="U4" pin="29" pinfunction="IO36_29" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="75" name="unconnected-(U4-IO37-Pad30)" class="Default">
+      <node ref="U4" pin="30" pinfunction="IO37_30" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="76" name="unconnected-(U4-IO45-Pad26)" class="Default">
+      <node ref="U4" pin="26" pinfunction="IO45_26" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="77" name="unconnected-(U4-IO46-Pad16)" class="Default">
+      <node ref="U4" pin="16" pinfunction="IO46_16" pintype="bidirectional+no_connect"/>
+    </net>
+    <net code="78" name="unconnected-(U5-STDBY-Pad5)" class="Default">
+      <node ref="U5" pin="5" pinfunction="STDBY_5" pintype="open_collector+no_connect"/>
+    </net>
+    <net code="79" name="unconnected-(U6-NC-Pad4)" class="Default">
+      <node ref="U6" pin="4" pinfunction="NC_4" pintype="no_connect"/>
+    </net>
+    <net code="80" name="unconnected-(U8-IO3-Pad4)" class="Default">
+      <node ref="U8" pin="4" pinfunction="IO3_4" pintype="passive+no_connect"/>
+    </net>
+    <net code="81" name="unconnected-(U8-IO4-Pad6)" class="Default">
+      <node ref="U8" pin="6" pinfunction="IO4_6" pintype="passive+no_connect"/>
+    </net>
+  </nets>
+</export>

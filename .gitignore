@@ -1,0 +1,20 @@
+# Python caches / venvs
+__pycache__/
+*.pyc
+.venv/
+
+# xmake cache / output dirs
+.xmake/
+build/
+
+# mechanical: generated renders + CAD exports (regenerable)
+/mechanical/exports/
+
+# KiCad cruft: lock files, local undo history, plugin caches,
+# freerouting session logs
+~*.lck
+.history/
+fp-info-cache
+pcb/s3.1/en/
+
+# ESP-IDF artifacts — see firmware/.gitignore

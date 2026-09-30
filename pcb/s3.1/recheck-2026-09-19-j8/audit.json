@@ -1,0 +1,77 @@
+{
+  "fresh_export": {
+    "s3.1.drl": false,
+    "s3.1-Edge_Cuts.gm1": true,
+    "s3.1-B_Mask.gbs": false,
+    "s3.1-F_Mask.gts": false,
+    "s3.1-B_Silkscreen.gbo": false,
+    "s3.1-F_Silkscreen.gto": false,
+    "s3.1-B_Paste.gbp": true,
+    "s3.1-F_Paste.gtp": true,
+    "s3.1-B_Cu.gbl": false,
+    "s3.1-F_Cu.gtl": false
+  },
+  "zip": {
+    "s3.1-B_Cu.gbl": false,
+    "s3.1-B_Mask.gbs": false,
+    "s3.1-B_Paste.gbp": false,
+    "s3.1-B_Silkscreen.gbo": false,
+    "s3.1.drl": false,
+    "s3.1-Edge_Cuts.gm1": false,
+    "s3.1-F_Cu.gtl": false,
+    "s3.1-F_Mask.gts": false,
+    "s3.1-F_Paste.gtp": false,
+    "s3.1-F_Silkscreen.gto": false,
+    "s3.1-job.gbrjob": false
+  },
+  "cpl": {
+    "count": 73,
+    "unique": 73,
+    "mismatches": [],
+    "bom_only": [],
+    "cpl_only": []
+  },
+  "j8_pcb": {
+    "1": "GND",
+    "2": "BTN_TARE",
+    "3": "BTN_MODE",
+    "4": "VCC_3V3"
+  },
+  "j8_sch": {
+    "3": "BTN_MODE",
+    "2": "BTN_TARE",
+    "1": "GND",
+    "4": "VCC_3V3"
+  },
+  "backup_identical": true,
+  "changed_inputs": [],
+  "zip_against_fresh_export": {
+    "s3.1-B_Cu.gbl": true,
+    "s3.1-B_Mask.gbs": true,
+    "s3.1-B_Paste.gbp": true,
+    "s3.1-B_Silkscreen.gbo": false,
+    "s3.1.drl": true,
+    "s3.1-Edge_Cuts.gm1": true,
+    "s3.1-F_Cu.gtl": true,
+    "s3.1-F_Mask.gts": true,
+    "s3.1-F_Paste.gtp": true,
+    "s3.1-F_Silkscreen.gto": false
+  },
+  "zip_silkscreen_no_clip": {
+    "s3.1-F_Silkscreen.gto": true,
+    "s3.1-B_Silkscreen.gbo": true
+  },
+  "gerber_directory_matches_previous_revision": {
+    "s3.1.drl": true,
+    "s3.1-job.gbrjob": true,
+    "s3.1-Edge_Cuts.gm1": true,
+    "s3.1-B_Mask.gbs": true,
+    "s3.1-F_Mask.gts": true,
+    "s3.1-B_Silkscreen.gbo": true,
+    "s3.1-F_Silkscreen.gto": true,
+    "s3.1-B_Paste.gbp": true,
+    "s3.1-F_Paste.gtp": true,
+    "s3.1-B_Cu.gbl": true,
+    "s3.1-F_Cu.gtl": true
+  }
+}
