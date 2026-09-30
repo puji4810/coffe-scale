@@ -13,7 +13,7 @@ for f in dist/scale_screen.mjs dist/scale_screen.wasm; do
 done
 
 mkdir -p "$OUT/vendor" "$OUT/dist" "$OUT/icons"
-cp index.html app.js ble.js chart.js manifest.webmanifest sw.js .nojekyll "$OUT/"
+cp index.html app.js ble.js chart.js store.js manifest.webmanifest sw.js .nojekyll "$OUT/"
 cp vendor/uPlot.iife.min.js vendor/uPlot.min.css vendor/logo.woff2 "$OUT/vendor/"
 cp icons/*.png "$OUT/icons/"
 cp dist/scale_screen.mjs dist/scale_screen.wasm "$OUT/dist/"

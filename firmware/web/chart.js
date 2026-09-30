@@ -107,13 +107,26 @@ export class ScaleChart {
         let i = 0;
         while (i < x.length && x[i] < cut) i++;
         if (i) { x.splice(0, i); this.w.splice(0, i); this.f.splice(0, i); }
-        if (this.visible) this.u.setData([x, this.w, this.f]);
+        if (this.visible && !this.saved) this.u.setData([x, this.w, this.f]);
+    }
+
+    /// Show a recorded brew curve in place of the live stream; the live
+    /// buffers keep collecting underneath and resume() restores them.
+    showSaved(x, w, f) {
+        this.saved = true;
+        this.u.setData([x, w, f]);
+    }
+
+    resume() {
+        this.saved = false;
+        this.u.setData([this.x, this.w, this.f]);
     }
 
     clear() {
         this.t0 = null;
         this.lastT = -Infinity;
         this.x.length = this.w.length = this.f.length = 0;
+        this.saved = false;
         this.u.setData([[], [], []]);
         this.tip.style.display = 'none';
     }

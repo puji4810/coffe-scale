@@ -237,6 +237,29 @@
   .chart-panel.off .chart-wrap { grid-template-rows: 0fr; }
   .chart-panel.off #chart { opacity: 0; height: 0; }
 
+  /* --- brew setup + library ------------------------------------------------- */
+  #sel-bean { flex: 1; min-width: 0; text-align: left; }
+  #dose { width: 76px; }
+  .brew-list {
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 260px; overflow-y: auto; margin-top: 6px;
+  }
+  .brew-row {
+    display: flex; align-items: center; gap: 8px; padding: 7px 9px;
+    background: var(--bg3); border: 1px solid var(--line); border-radius: 8px;
+    font-size: 12px;
+  }
+  .brew-row .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .brew-row .who b { color: var(--amber); font-weight: normal; }
+  .brew-row .meta { color: var(--dim); white-space: nowrap; }
+  .brew-row .stars { color: var(--faint); white-space: nowrap; cursor: pointer; }
+  .brew-row .stars .on { color: var(--amber); }
+  .brew-row button { min-height: 0; padding: 3px 7px; font-size: 11px; }
+  .brew-row .fav { border: none; background: none; color: var(--faint); font-size: 14px; }
+  .brew-row .fav.on { color: var(--red); }
+  .bean-list { margin-top: 8px; }
+  .bean-list .brew-row .who { color: var(--fg); }
+
   .chart-tip {
     position: absolute; z-index: 5; pointer-events: none;
     background: rgba(0,0,0,.85); border: 1px solid var(--line2);
@@ -293,6 +316,20 @@
       <button id="btn-rec" class="warn">● rec</button>
       <button id="btn-sleep" class="danger" title="进入低功耗（敲击秤体唤醒）">power off</button>
     </div>
+    <div class="row card">
+      <select id="sel-bean"><option value="">no bean</option></select>
+      <input type="number" id="dose" value="18" min="0" step="0.1" title="咖啡粉量 dose (g)">
+      <span>g</span>
+      <button id="btn-weigh" title="把豆子放秤上，用当前读数作粉量">weigh</button>
+    </div>
+    <details class="card">
+      <summary>beans</summary>
+      <div class="row">
+        <input type="text" id="bean-name" placeholder="bean name" style="flex:1">
+        <button id="btn-addbean">add</button>
+      </div>
+      <div id="bean-list" class="bean-list"></div>
+    </details>
     <details class="card">
       <summary>calibration (two-point)</summary>
       <div class="row">
@@ -308,6 +345,7 @@
     <div id="stats" class="card">
       <div class="cell"><div class="k">weight</div><div class="v" id="v-weight">–</div></div>
       <div class="cell"><div class="k">flow</div><div class="v" id="v-flow">–</div></div>
+      <div class="cell"><div class="k">ratio</div><div class="v" id="v-ratio">–</div></div>
       <div class="cell"><div class="k">timer</div><div class="v" id="v-timer">–</div></div>
       <div class="cell"><div class="k">state</div><div class="v" id="v-state"><span id="stable-dot"></span><span id="v-flags">–</span></div></div>
       <div class="cell"><div class="k">battery</div>
@@ -329,7 +367,18 @@
       <span id="rec-info" style="color:var(--dim)"></span>
       <span class="spacer" style="flex:1"></span>
       <button id="btn-dl" disabled>download jsonl</button>
-      <button id="btn-clear">clear chart</button>
+      <button id="btn-live" hidden>◂ live</button>
+      <button id="btn-clear">clear</button>
+    </div>
+    <div class="panel card">
+      <div class="panel-head">
+        <span class="panel-title">brews</span>
+        <span class="spacer"></span>
+        <button id="btn-export" title="导出全部豆子和冲煮记录">backup</button>
+        <button id="btn-import" title="从备份文件导入">import</button>
+        <button id="btn-clearbrews" class="danger" title="清空全部冲煮记录">clear</button>
+      </div>
+      <div id="brew-list" class="brew-list"></div>
     </div>
   </section>
 </main>

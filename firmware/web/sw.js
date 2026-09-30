@@ -1,13 +1,14 @@
 // coffee-scale service worker — precaches the whole app shell so the PWA
 // opens offline (BLE doesn't need the network). Bump CACHE on every
 // deploy that changes any listed asset.
-const CACHE = 'coffee-scale-v1';
+const CACHE = 'coffee-scale-v2';
 const ASSETS = [
   './',
   './index.html',
   './app.js',
   './ble.js',
   './chart.js',
+  './store.js',
   './manifest.webmanifest',
   './vendor/uPlot.iife.min.js',
   './vendor/uPlot.min.css',

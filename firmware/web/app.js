@@ -8,6 +8,7 @@
 import ScaleScreenFactory from './dist/scale_screen.mjs';
 import { ScaleChart } from './chart.js';
 import { ScaleLink } from './ble.js';
+import * as DB from './store.js';
 
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js');
@@ -41,12 +42,18 @@ const chart = new ScaleChart($('chart'));
 const UNIT_LABEL = ['g', 'oz'];
 const MODE_LABEL = ['WEIGH', 'BREW'];
 
+let lastGrams = 0;
+
 function showFrame(m, tMs) {
     Screen.update(m);                     // canvas mirror
     const s = m.snap;
+    lastGrams = s.grams;
     chart.push(tMs, s.grams, s.flowGps);
     $('v-weight').textContent = `${m.displayValue.toFixed(1)} ${UNIT_LABEL[s.unit]}`;
     $('v-flow').textContent = `${s.flowGps.toFixed(1)} g/s`;
+    const dose = doseVal();
+    $('v-ratio').textContent =
+        dose > 0 ? `1 : ${(s.grams / dose).toFixed(1)}` : '–';
     const ms = s.timerMs;
     $('v-timer').textContent = `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}.${Math.floor(ms / 100) % 10}`;
     $('stable-dot').style.background = s.stable ? '#3dd68c' : '#3a3a3a';
@@ -152,6 +159,9 @@ document.addEventListener('visibilitychange', () => {
 addEventListener('focus', () => link.resume());
 
 // --- recording ---------------------------------------------------------------
+// frames[] holds the raw decoded frames for the jsonl download; on stop()
+// the same data is folded into a compact brew row (t/w/f arrays) and
+// saved into the library bound to the selected bean.
 
 const recorder = {
     frames: [], on: false, auto: false, armed: true,
@@ -167,6 +177,7 @@ const recorder = {
     },
     start(auto = false) {
         this.on = true; this.auto = auto; this.frames = [];
+        this.startedAt = Date.now();
         $('btn-rec').classList.add('rec-on');
         $('rec-info').textContent = auto ? 'auto-recording (brew timer)' : 'recording';
     },
@@ -175,6 +186,8 @@ const recorder = {
         $('btn-rec').classList.remove('rec-on');
         $('rec-info').textContent = `${this.frames.length} frames`;
         $('btn-dl').disabled = this.frames.length === 0;
+        saveBrew(this.frames, this.startedAt)
+            .catch(e => { $('rec-info').textContent = `save failed: ${e}`; });
     },
 };
 
@@ -190,7 +203,191 @@ $('btn-dl').onclick = () => {
     URL.revokeObjectURL(a.href);
 };
 
-$('btn-clear').onclick = () => chart.clear();
+$('btn-clear').onclick = () => { chart.clear(); $('btn-live').hidden = true; };
+
+$('btn-live').onclick = () => { chart.resume(); $('btn-live').hidden = true; };
+
+// --- brew library -----------------------------------------------------------
+
+const beanSel = $('sel-bean');
+const doseIn = $('dose');
+
+function doseVal() { return parseFloat(doseIn.value) || 0; }
+function curBeanId() {
+    const v = beanSel.value;
+    return v === '' ? null : +v;
+}
+
+// Persisted brew defaults — dose follows the selected bean's own default,
+// otherwise the last-typed value sticks across reloads.
+doseIn.value = localStorage.getItem('dose') || '18';
+doseIn.onchange = () => localStorage.setItem('dose', doseIn.value);
+
+$('btn-weigh').onclick = () => {
+    doseIn.value = lastGrams.toFixed(1);
+    doseIn.onchange();
+};
+
+async function saveBrew(frames, startedAt) {
+    if (frames.length < 10) return;         // taps/blips aren't brews
+    const t0 = frames[0].t;
+    const t = [], w = [], f = [];
+    for (const m of frames) {
+        t.push(+((m.t - t0) / 1000).toFixed(2));
+        w.push(+m.snap.grams.toFixed(2));
+        f.push(+m.snap.flowGps.toFixed(2));
+    }
+    const brew = {
+        beanId: curBeanId(),
+        date: new Date(startedAt).toISOString(),
+        durationS: +t[t.length - 1].toFixed(1),
+        dose: doseVal(),
+        liquid: +w[w.length - 1].toFixed(1),
+        rating: 0, fav: false, t, w, f,
+    };
+    await DB.brews.add(brew);
+    let beanTxt = '';
+    if (brew.beanId !== null) {
+        const b = (await DB.beans.list()).find(b => b.id === brew.beanId);
+        if (b) {
+            beanTxt = ` · ${b.name}`;
+            if (b.dose !== brew.dose) { b.dose = brew.dose; await DB.beans.update(b); }
+        }
+    }
+    $('rec-info').textContent =
+        `saved · ${brew.liquid} g in ${fmtDur(brew.durationS)}${beanTxt}`;
+    renderLibrary();
+}
+
+function fmtDur(s) {
+    return `${Math.floor(s / 60)}:${String(Math.round(s) % 60).padStart(2, '0')}`;
+}
+
+let beanCache = [];
+function beanName(id) {
+    const b = beanCache.find(b => b.id === id);
+    return b ? b.name : '?';
+}
+
+function stars(rating, id) {
+    let h = '<span class="stars">';
+    for (let i = 1; i <= 5; i++) {
+        h += `<span data-brew="${id}" data-n="${i}" class="${i <= rating ? 'on' : ''}">★</span>`;
+    }
+    return h + '</span>';
+}
+
+async function renderLibrary() {
+    beanCache = await DB.beans.list();
+    const list = await DB.brews.list();
+    list.sort((a, b) => b.date < a.date ? -1 : 1);   // newest first
+
+    // bean select keeps its value across re-renders
+    const sel = beanSel.value;
+    beanSel.innerHTML = '<option value="">no bean</option>' +
+        beanCache.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+    beanSel.value = sel;
+
+    $('bean-list').innerHTML = beanCache.map(b =>
+        `<div class="brew-row"><span class="who">${b.name}</span>` +
+        `<span class="meta">${b.dose || '–'} g</span>` +
+        `<button data-delbean="${b.id}">✕</button></div>`).join('');
+
+    $('brew-list').innerHTML = list.length === 0
+        ? '<div class="hint" style="padding:8px 2px">冲一次 brew，曲线会自动存在这里。</div>'
+        : list.map(b =>
+            `<div class="brew-row">` +
+            `<button data-view="${b.id}">view</button>` +
+            `<span class="who"><b>${beanName(b.beanId)}</b></span>` +
+            `<span class="meta">${b.date.slice(5, 16).replace('T', ' ')}</span>` +
+            `<span class="meta">${b.dose || '?'}→${b.liquid} g` +
+            `${b.dose ? ` · 1:${(b.liquid / b.dose).toFixed(1)}` : ''}</span>` +
+            stars(b.rating, b.id) +
+            `<button class="fav ${b.fav ? 'on' : ''}" data-fav="${b.id}">♥</button>` +
+            `<button data-delbrew="${b.id}">✕</button></div>`).join('');
+}
+
+$('brew-list').onclick = async e => {
+    const el = e.target.closest('[data-view],[data-fav],[data-delbrew],[data-brew]');
+    if (!el) return;
+    if (el.dataset.brew) {                  // star rating
+        const b = await brewOf(+el.dataset.brew);
+        b.rating = (+el.dataset.n === b.rating) ? 0 : +el.dataset.n;
+        await DB.brews.update(b);
+    } else if (el.dataset.fav) {
+        const b = await brewOf(+el.dataset.fav);
+        b.fav = !b.fav;
+        await DB.brews.update(b);
+    } else if (el.dataset.delbrew) {
+        await DB.brews.del(+el.dataset.delbrew);
+    } else if (el.dataset.view) {
+        const b = await brewOf(+el.dataset.view);
+        chart.showSaved(b.t, b.w, b.f);
+        $('btn-live').hidden = false;
+    }
+    renderLibrary();
+};
+
+async function brewOf(id) {
+    return (await DB.brews.list()).find(b => b.id === id);
+}
+
+$('bean-list').onclick = async e => {
+    const el = e.target.closest('[data-delbean]');
+    if (!el) return;
+    await DB.beans.del(+el.dataset.delbean);
+    renderLibrary();
+};
+
+$('btn-addbean').onclick = async () => {
+    const name = $('bean-name').value.trim();
+    if (!name) return;
+    $('bean-name').value = '';
+    const id = await DB.beans.add(name, doseVal());
+    beanSel.value = String(id);
+    renderLibrary();
+};
+
+beanSel.onchange = async () => {
+    const b = beanCache.find(b => b.id === curBeanId());
+    if (b && b.dose) { doseIn.value = b.dose; doseIn.onchange(); }
+};
+
+// --- backup / clear -----------------------------------------------------------
+
+$('btn-export').onclick = async () => {
+    const body = JSON.stringify(await DB.exportAll(), null, 1);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
+    a.download = `coffee-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+};
+
+$('btn-import').onclick = () => {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.json';
+    inp.onchange = async () => {
+        try {
+            const data = JSON.parse(await inp.files[0].text());
+            const n = await DB.importAll(data);
+            $('rec-info').textContent = `imported ${n.beans} beans, ${n.brews} brews`;
+            renderLibrary();
+        } catch (e) {
+            $('rec-info').textContent = `import failed: ${e.message}`;
+        }
+    };
+    inp.click();
+};
+
+$('btn-clearbrews').onclick = async () => {
+    if (confirm('清空全部冲煮记录？（豆子保留）')) {
+        await DB.brews.clear();
+        renderLibrary();
+    }
+};
+
+renderLibrary().catch(() => {});
 
 // curve on/off — hidden keeps collecting in the background, re-showing
 // flushes the whole backlog in one setData. Choice persists on the device.
