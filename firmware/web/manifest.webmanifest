@@ -1,7 +1,7 @@
 {
   "name": "coffee scale",
   "short_name": "scale",
-  "description": "Web Bluetooth mirror + chart for the ESP32-S3 coffee scale",
+  "description": "通过 Web 蓝牙连接 ESP32-S3 咖啡秤：屏幕镜像、冲煮曲线与豆子记录",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

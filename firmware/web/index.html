@@ -1,23 +1,51 @@
 <!doctype html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#161616">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#DADDD8">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1E2123">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>coffee-scale</title>
+<title>coffee scale</title>
 <link rel="stylesheet" href="./vendor/uPlot.min.css">
 <style>
   :root {
-    color-scheme: dark;
-    --bg: #161616; --bg2: #1c1c1c; --bg3: #262626;
-    --line: #2a2a2a; --line2: #3a3a3a;
-    --fg: #f5f5f5; --dim: #8a8a8a; --faint: #555;
-    --amber: #e8a33d; --green: #3dd68c; --red: #e5534b;
-    --r: 10px;
+    color-scheme: light dark;
+    --plate: #DADDD8; --well: #CDD1CB; --key: #E8EAE6;
+    --ink: #1F2326; --dim: #5E6660; --rule: #B7BCB5;
+    --amber: #B8741A; --amber-fill: #E8A33D;
+    --green: #1F8A52; --red: #B8382F;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --plate: #1E2123; --well: #16181A; --key: #2A2E31;
+      --ink: #E6E8E4; --dim: #8E958F; --rule: #353A3D;
+      --amber: #E8A33D; --amber-fill: #E8A33D;
+      --green: #3DD68C; --red: #E5534B;
+    }
+  }
+  :root {
+    --key-edge: color-mix(in srgb, var(--ink) 25%, var(--key));
+    --sans: 'Barlow Semi Condensed', 'PingFang SC', 'Noto Sans CJK SC',
+            'Microsoft YaHei', system-ui, sans-serif;
+  }
+  @font-face {
+    font-family: 'Barlow Semi Condensed'; font-weight: 400; font-style: normal;
+    src: url('./vendor/barlow-semi-condensed-latin-400-normal.woff2') format('woff2');
+    font-display: swap; size-adjust: 108%;
+  }
+  @font-face {
+    font-family: 'Barlow Semi Condensed'; font-weight: 500; font-style: normal;
+    src: url('./vendor/barlow-semi-condensed-latin-500-normal.woff2') format('woff2');
+    font-display: swap; size-adjust: 108%;
+  }
+  @font-face {
+    font-family: 'Barlow Semi Condensed'; font-weight: 600; font-style: normal;
+    src: url('./vendor/barlow-semi-condensed-latin-600-normal.woff2') format('woff2');
+    font-display: swap; size-adjust: 108%;
   }
   /* wordmark: Ms Madi subset — only the glyphs in "coffee scale" */
   @font-face {
@@ -26,12 +54,20 @@
     font-display: swap;
   }
   * { box-sizing: border-box; }
+  html { height: 100%; }
   body {
     margin: 0; min-height: 100vh;
-    background: radial-gradient(1200px 600px at 50% -10%, #1d1a14 0%, var(--bg) 60%);
-    color: var(--fg);
-    font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: var(--plate); color: var(--ink);
+    font: 15px/1.55 var(--sans);
+    font-variant-numeric: tabular-nums;
     -webkit-tap-highlight-color: transparent;
+  }
+  h1 { font-size: 24px; font-weight: 600; margin: 0 0 14px; }
+  .spacer { flex: 1; min-width: 4px; }
+  .dim { color: var(--dim); }
+  .sr {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
   }
 
   /* --- header ------------------------------------------------------------- */
@@ -40,172 +76,159 @@
     display: flex; gap: 10px; align-items: center;
     padding: 10px calc(16px + env(safe-area-inset-right))
              10px calc(16px + env(safe-area-inset-left));
-    background: rgba(22,22,22,.85); backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--plate) 85%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--rule);
   }
   header .logo {
     font-family: 'Ms Madi', 'Snell Roundhand', 'Segoe Script', cursive;
-    font-size: 32px; line-height: 1.1; color: var(--amber);
+    font-size: 30px; line-height: 1.1; color: var(--ink);
     white-space: nowrap; padding-right: 4px;
   }
-  #conn {
-    color: var(--dim); font-size: 12px; white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 40vw;
-    transition: color .3s;
-  }
-  #conn::before {
-    content: ''; display: inline-block; width: 8px; height: 8px;
-    border-radius: 50%; background: var(--line2); margin-right: 6px;
-    transition: background .3s, box-shadow .3s;
-  }
-  #conn.live { color: var(--green); }
-  #conn.live::before { background: var(--green); box-shadow: 0 0 8px var(--green); }
-  header .spacer { flex: 1; min-width: 4px; }
+  @media (prefers-color-scheme: dark) { header .logo { color: var(--amber); } }
 
-  /* --- drawer (left edge swipe / ☰) ------------------------------------------ */
-  #backdrop {
-    position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,.55);
-    opacity: 0; pointer-events: none; transition: opacity .25s;
+  /* connection pill */
+  #btn-ble { min-width: 96px; font-weight: 500; }
+  #btn-ble.st-idle { background: var(--ink); color: var(--plate);
+                     border-color: var(--ink);
+                     border-bottom-color: var(--ink); }
+  #btn-ble.st-live {
+    background: transparent; color: var(--ink);
+    display: inline-flex; align-items: center; gap: 7px;
   }
-  #backdrop.on { opacity: 1; pointer-events: auto; }
-  #drawer {
-    position: fixed; top: 0; bottom: 0; left: 0; width: 230px; z-index: 40;
-    display: flex; flex-direction: column; padding: 12px 10px;
-    background: #141414; border-right: 1px solid var(--line);
-    transform: translateX(-103%);
-    transition: transform .28s cubic-bezier(.2,.7,.3,1);
+  #btn-ble.st-live::before {
+    content: ''; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 6px var(--green); flex: none;
   }
-  #drawer.open { transform: none; }
-  #drawer nav { display: flex; flex-direction: column; gap: 2px; }
-  #drawer nav a {
-    padding: 10px 12px; border-radius: 8px; cursor: pointer;
-    color: var(--dim); transition: background .15s, color .15s;
+  #btn-ble.st-reconnecting {
+    background: transparent; color: var(--ink);
+    display: inline-flex; align-items: center; gap: 7px;
   }
-  #drawer nav a:hover { color: var(--fg); }
-  #drawer nav a.active { background: var(--bg3); color: var(--amber); }
-  #drawer .foot { margin-top: auto; padding: 8px 12px; color: var(--faint); font-size: 11px; }
-  #btn-menu { padding: 6px 11px; min-height: 36px; }
+  #btn-ble.st-reconnecting::before {
+    content: ''; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--amber); flex: none;
+  }
+  #btn-ble.st-connecting { opacity: .6; }
+  #btn-ble.arming { background: var(--red); border-color: var(--red);
+                    color: #fff; }
 
-  /* --- pages ---------------------------------------------------------------- */
+  /* --- tab bar / left rail ------------------------------------------------- */
+  #tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
+    display: flex;
+    background: var(--plate); border-top: 1px solid var(--rule);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  #tabbar a {
+    flex: 1; position: relative; text-align: center;
+    padding: 12px 4px; min-height: 48px;
+    color: var(--dim); text-decoration: none; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #tabbar a.active { color: var(--ink); font-weight: 500; }
+  #tabbar a.active::before {
+    content: ''; position: absolute; top: 0; left: 20%; right: 20%;
+    height: 2px; background: var(--amber-fill); border-radius: 0 0 2px 2px;
+  }
+  #tabbar .logo { display: none; }
+
+  /* --- pages / layout ------------------------------------------------------ */
   .page { display: none; }
   .page.active { display: block; }
-
-  /* --- layout ------------------------------------------------------------- */
   main {
     padding: 16px;
     padding-left: calc(16px + env(safe-area-inset-left));
     padding-right: calc(16px + env(safe-area-inset-right));
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    max-width: 1200px; margin: 0 auto;
   }
   #page-weigh.active {
-    display: grid;
-    grid-template-columns: minmax(300px, 640px) minmax(0, 1fr);
+    display: grid; grid-template-columns: 1fr;
     gap: 16px; align-items: start;
   }
-  @media (max-width: 960px) { #page-weigh.active { grid-template-columns: 1fr; } }
-  section { min-width: 0; }
-  .narrow { max-width: 560px; margin: 0 auto; }
+  .narrow { max-width: 560px; }
+  .wide { max-width: 720px; }
 
-  @keyframes rise {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: none; }
+  /* --- material: raised keys / recessed wells ------------------------------- */
+  button, select, input[type=text], input[type=number], input:not([type]) {
+    background: var(--key); color: var(--ink);
+    border: 1px solid var(--rule); border-bottom: 3px solid var(--key-edge);
+    border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer;
+    min-height: 40px;
+    transition: background .15s, border-color .15s, color .15s,
+                transform .06s ease, opacity .15s;
   }
-  .card { animation: rise .45s cubic-bezier(.2,.7,.3,1) backwards; }
-  main > section:nth-child(2) .card { animation-delay: .08s; }
+  input[type=text], input[type=number], input:not([type]) {
+    cursor: text; background: var(--well);
+    border-bottom-width: 1px;
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / .12);
+  }
+  button:active:not(:disabled) {
+    transform: translateY(2px); border-bottom-width: 1px;
+  }
+  button:disabled { opacity: .4; cursor: default; }
+  select { appearance: none; text-align: center; }
+  button.textbtn {
+    background: none; border: none; border-bottom-width: 0;
+    min-height: 32px; padding: 4px 8px; color: var(--dim);
+  }
+  button.textbtn:active:not(:disabled) { transform: none; }
+  button.danger-text { color: var(--red); }
+  button.arming {
+    background: var(--red) !important; border-color: var(--red) !important;
+    color: #fff !important;
+  }
 
-  /* --- screen mirror -------------------------------------------------------- */
+  .well {
+    background: var(--well); border-radius: 8px;
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / .12);
+    padding: 10px 12px;
+  }
+
+  /* --- screen mirror --------------------------------------------------------- */
+  .bezel {
+    position: relative;
+    background: #000; border-radius: 16px; padding: 10px;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06);
+  }
   #screen {
     width: 100%; aspect-ratio: 320 / 172; display: block;
-    image-rendering: pixelated; background: #0b0b0b;
-    border-radius: var(--r); outline: 1px solid #333;
-    box-shadow: 0 8px 30px rgba(0,0,0,.45);
+    image-rendering: pixelated; border-radius: 6px;
   }
+  .screen-off {
+    position: absolute; inset: 10px; border-radius: 6px;
+    display: flex; flex-direction: column; gap: 12px;
+    align-items: center; justify-content: center;
+    background: rgb(0 0 0 / .72); color: #b8bcb8; font-size: 15px;
+    text-align: center; padding: 12px;
+  }
+  .screen-off .screen-off-msg { max-width: 34ch; }
+  #btn-off-connect { min-width: 110px; background: var(--ink); color: var(--plate);
+                     border-color: var(--ink); }
+  .bezel.live .screen-off { display: none; }
+  .bezel:not(.live) #screen { opacity: .12; filter: blur(2px); }
 
-  /* --- controls: fixed grid, buttons can't shuffle or wrap ------------------ */
-  .controls {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 8px; margin-top: 12px;
+  /* --- instrument strip -------------------------------------------------------- */
+  .strip {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    margin-top: 10px; padding: 7px 12px; font-size: 13px;
+    background: var(--well); border-radius: 8px;
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / .12);
+    color: var(--dim);
   }
-  .controls > * { width: 100%; min-width: 0; }
-
-  button, select, input[type=text], input[type=number] {
-    background: var(--bg3); color: var(--fg); border: 1px solid var(--line2);
-    border-radius: 8px; padding: 9px 12px; font: inherit; cursor: pointer;
-    min-height: 40px;
-    transition: transform .08s ease, background .15s, border-color .15s,
-                box-shadow .15s, color .15s, opacity .15s;
-  }
-  input[type=text], input[type=number] { cursor: text; }
-  button:hover { background: #303030; border-color: #4a4a4a; }
-  button:active { transform: scale(.94); }
-  button:disabled { opacity: .35; cursor: default; }
-  button:disabled:active { transform: none; }
-  button.warn { border-color: var(--amber); color: var(--amber); }
-  button.danger { border-color: #5a3a37; color: var(--red); }
-  button.danger:hover { border-color: var(--red); background: #2a1d1c; }
-  button.rec-on {
-    border-color: var(--red); color: var(--red);
-    animation: recpulse 1.2s ease-in-out infinite;
-  }
-  @keyframes recpulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(229,83,75,.35); }
-    50%      { box-shadow: 0 0 0 6px rgba(229,83,75,0); }
-  }
-  select { appearance: none; text-align: center; }
-
-  details { margin-top: 12px; }
-  summary {
-    cursor: pointer; color: var(--dim); list-style: none;
-    padding: 6px 2px; transition: color .15s;
-  }
-  summary::before {
-    content: '▸'; display: inline-block; margin-right: 6px;
-    transition: transform .25s;
-  }
-  details[open] summary::before { transform: rotate(90deg); }
-  summary:hover { color: var(--fg); }
-  details .row { padding-top: 8px; }
-
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
-
-  /* --- stats: fixed-height cells + tabular numbers -> zero layout shift ----- */
-  #stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
-    gap: 8px; margin-bottom: 12px;
-  }
-  #stats .cell {
-    background: var(--bg2); border: 1px solid var(--line);
-    border-radius: var(--r); padding: 10px 12px;
-    min-height: 68px; display: flex; flex-direction: column;
-    justify-content: center; gap: 2px;
-    transition: border-color .2s;
-  }
-  #stats .k { color: var(--dim); font-size: 11px; white-space: nowrap; }
-  #stats .v {
-    font-size: clamp(18px, 5.5vw, 26px); white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis;
-    font-variant-numeric: tabular-nums;
-    font-feature-settings: 'tnum';
-    min-height: 1.4em;
-  }
-  #v-weight { font-size: clamp(24px, 8vw, 34px); }
-  #v-flow, #v-timer { color: var(--amber); }
-  #v-state .v { font-size: 14px; }
+  .ins { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   #stable-dot {
-    display: inline-block; width: 10px; height: 10px; border-radius: 50%;
-    background: var(--line2); vertical-align: middle; margin-right: 6px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--rule); flex: none;
     transition: background .3s, box-shadow .3s;
   }
-  #stable-dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); }
-
-  /* battery icon: outline + tip + fill set inline by pct/colour */
-  .batt-v { display: flex; align-items: center; gap: 8px; }
+  #stable-dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
   .batt-body {
-    position: relative; width: 22px; height: 12px; flex: none;
+    position: relative; width: 20px; height: 11px; flex: none;
     border: 1px solid var(--dim); border-radius: 3px;
   }
-  .batt-body::after {           /* tip nub */
-    content: ''; position: absolute; top: 3px; right: -4px;
+  .batt-body::after {
+    content: ''; position: absolute; top: 2px; right: -4px;
     width: 2px; height: 4px; background: var(--dim); border-radius: 0 1px 1px 0;
   }
   #batt-fill {
@@ -213,12 +236,9 @@
     width: 0%; border-radius: 1px; background: var(--green);
     transition: width .4s ease, background .4s;
   }
-
-  /* level bubble: ring + wandering dot, mirrors the on-device indicator */
-  .level-v { display: flex; align-items: center; gap: 10px; }
   .bubble {
-    position: relative; width: 22px; height: 22px; flex: none;
-    border: 1px solid var(--dim); border-radius: 50%; opacity: .7;
+    position: relative; width: 20px; height: 20px; flex: none;
+    border: 1px solid var(--dim); border-radius: 50%; opacity: .75;
   }
   #bubble-dot {
     position: absolute; left: 50%; top: 50%;
@@ -226,24 +246,103 @@
     background: var(--dim);
     transition: transform .2s ease, background .3s;
   }
+  #cal-state.warn { color: var(--amber); }
+  #btn-sleep { margin-left: auto; }
 
-  /* --- chart panel with collapse switch ------------------------------------- */
-  .panel {
-    border: 1px solid var(--line); border-radius: var(--r);
-    background: var(--bg2); padding: 10px 12px;
+  /* --- keys -------------------------------------------------------------------- */
+  .keys {
+    display: grid; grid-template-columns: 2fr 1.5fr 1fr;
+    gap: 8px; margin-top: 10px;
   }
+  .keys .key {
+    height: 56px; border-radius: 12px; font-size: 15px; font-weight: 500;
+  }
+
+  /* --- segmented controls ------------------------------------------------------ */
+  .segrow {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .seg-label { color: var(--dim); font-size: 13px; }
+  .seg {
+    position: relative; display: inline-flex;
+    background: var(--well); border-radius: 10px; padding: 3px;
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / .12);
+  }
+  .seg .thumb {
+    position: absolute; top: 3px; bottom: 3px; left: 3px;
+    width: calc(50% - 3px); border-radius: 7px;
+    background: var(--key); border: 1px solid var(--rule);
+    opacity: 0; transform: translateX(0);
+    transition: transform .22s cubic-bezier(.2,.7,.3,1), opacity .2s;
+    pointer-events: none;
+  }
+  .seg[data-active] .thumb { opacity: 1; }
+  .seg[data-active="1"] .thumb { transform: translateX(100%); }
+  .seg button {
+    position: relative; z-index: 1;
+    background: none; border: none; border-bottom-width: 0;
+    min-height: 34px; min-width: 64px; padding: 4px 14px;
+    color: var(--dim); font-size: 14px;
+    border-radius: 7px;
+  }
+  .seg button:active:not(:disabled) { transform: none; }
+  .seg button[aria-checked="true"] { color: var(--ink); font-weight: 500; }
+
+  /* --- brew setup ---------------------------------------------------------------- */
+  .setup {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  #sel-bean { flex: 1 1 120px; min-width: 0; text-align: left; min-height: 40px; }
+  #dose { width: 72px; }
+  #v-ratio { font-size: 24px; font-weight: 500;
+             font-variant-numeric: tabular-nums; }
+  @media (max-width: 600px) {
+    #sel-bean { flex-basis: 100%; }
+    .ratio { margin-left: auto; }
+  }
+
+  /* --- chart panel ----------------------------------------------------------------- */
   .panel-head {
-    display: flex; align-items: center; gap: 10px;
-    padding-bottom: 6px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding-bottom: 8px;
   }
-  .panel-title { color: var(--dim); font-size: 12px; }
-  .panel-head .spacer { flex: 1; }
+  .panel-title { font-size: 15px; font-weight: 500; }
+  .legend { display: contents; }
+  @media (max-width: 600px) {
+    /* legend chips drop to a second line; rec + switch stay on row 1 */
+    .legend {
+      order: 5; flex-basis: 100%;
+      display: flex; gap: 12px; padding-left: 2px;
+    }
+  }
+  .chip { display: inline-flex; align-items: center; gap: 6px;
+          color: var(--dim); font-size: 12px; white-space: nowrap; }
+  .chip-line { width: 14px; height: 0; border-top: 2px solid; flex: none; }
+  .chip-line.ink { border-color: var(--ink); }
+  .chip-line.amber { border-color: var(--amber-fill); }
+  #btn-rec { display: inline-flex; align-items: center; gap: 7px; min-height: 34px;
+             padding: 4px 12px; font-size: 14px; }
+  .rec-dot {
+    width: 9px; height: 9px; border-radius: 50%; flex: none;
+    border: 1.5px solid var(--red);
+  }
+  #btn-rec.rec-on .rec-dot {
+    background: var(--red);
+    animation: recpulse 1.2s ease-in-out infinite;
+  }
+  @keyframes recpulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgb(229 83 75 / .4); }
+    50%      { box-shadow: 0 0 0 5px rgb(229 83 75 / 0); }
+  }
+  #rec-elapsed { color: var(--red); font-size: 13px; }
 
   .switch { position: relative; display: inline-block; width: 40px; height: 22px; flex: none; }
   .switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
   .switch .knob {
     position: absolute; inset: 0; border-radius: 999px;
-    background: var(--bg3); border: 1px solid var(--line2);
+    background: var(--plate); border: 1px solid var(--rule);
     transition: background .25s, border-color .25s;
   }
   .switch .knob::after {
@@ -252,12 +351,11 @@
     background: var(--dim);
     transition: transform .25s cubic-bezier(.2,.7,.3,1.3), background .25s;
   }
-  .switch input:checked + .knob { background: #2e3f35; border-color: var(--green); }
+  .switch input:checked + .knob { background: var(--well); border-color: var(--green); }
   .switch input:checked + .knob::after { transform: translateX(18px); background: var(--green); }
 
-  /* smooth collapse: animated grid-row trick */
   .chart-wrap {
-    display: grid; grid-template-rows: 1fr;
+    display: grid; grid-template-rows: 1fr; position: relative;
     transition: grid-template-rows .35s cubic-bezier(.2,.7,.3,1);
   }
   .chart-wrap > #chart {
@@ -265,72 +363,134 @@
     height: clamp(200px, 38vh, 380px);
     transition: opacity .25s;
   }
-  .chart-panel.off { padding-bottom: 6px; }
-  .chart-panel.off .panel-head { padding-bottom: 0; }
+  #chart-empty {
+    position: absolute; inset: 0; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--dim); font-size: 13px; pointer-events: none;
+  }
+  #chart-empty[hidden] { display: none; }
   .chart-panel.off .chart-wrap { grid-template-rows: 0fr; }
   .chart-panel.off #chart { opacity: 0; height: 0; }
-
-  /* --- brew setup + bean library -------------------------------------------- */
-  #sel-bean { flex: 1; min-width: 0; text-align: left; }
-  #dose { width: 76px; }
-  #bean-name { width: 150px; }
-
-  /* bean accordion: bean card -> brew rows -> inline curve+data detail */
-  .bean {
-    border: 1px solid var(--line); border-radius: var(--r);
-    background: var(--bg2); margin-top: 8px;
+  .panel-foot {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding-top: 8px;
   }
-  .bean-head, .brew-head {
-    display: flex; align-items: center; gap: 8px;
-    cursor: pointer; user-select: none;
+  #rec-info { color: var(--dim); font-size: 13px; min-height: 1.4em; }
+  .panel-foot button { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+
+  /* --- beans ------------------------------------------------------------------------ */
+  #bean-form { display: flex; gap: 8px; margin-bottom: 12px; }
+  #bean-form input { flex: 1; min-width: 0; }
+  .bean-list { padding: 0; }
+  .bean + .bean { border-top: 1px solid var(--rule); }
+  .bean:first-child { border-top: none; }
+  .bean-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; cursor: pointer; user-select: none;
+    border-radius: 8px;
   }
-  .bean-head { padding: 10px 12px; }
-  .bean-head b { font-weight: normal; }
-  .bean-head .meta, .brew-head .meta { color: var(--dim); font-size: 12px; }
-  .tw { color: var(--dim); transition: transform .2s; flex: none; }
+  .bean-head .bname { font-size: 19px; font-weight: 500; }
+  .bean-head .meta { color: var(--dim); font-size: 13px; white-space: nowrap; }
+  .tw { color: var(--dim); transition: transform .2s; flex: none; font-size: 12px; }
   .bean.open > .bean-head .tw,
   .brew.open > .brew-head .tw { transform: rotate(90deg); }
-  .bean-body { border-top: 1px solid var(--line); padding: 10px 12px; }
+  .bean-body { padding: 0 14px 14px; }
   .bean-meta {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 8px 10px; margin-bottom: 10px;
+    gap: 8px 10px; margin-bottom: 12px;
   }
-  .bean-meta label { color: var(--dim); font-size: 11px; display: block; }
+  .bean-meta label { color: var(--dim); font-size: 12px; display: block; }
   .bean-meta input { width: 100%; margin-top: 3px; min-height: 34px; padding: 5px 9px; }
   .bean-meta .wide { grid-column: 1 / -1; }
-  .bean-meta .danger { align-self: end; }
+  .bean-meta .danger-text { align-self: end; justify-self: start; }
 
-  .brew { border-top: 1px solid var(--line); }
-  .brew-head { padding: 8px 4px; font-size: 12px; }
-  .brew-head .stars, .stars { color: var(--faint); white-space: nowrap; cursor: pointer; letter-spacing: 1px; }
-  .stars .on { color: var(--amber); }
-  .fav { border: none; background: none; color: var(--faint);
-         font-size: 14px; min-height: 0; padding: 0 4px; }
+  .brew { border-top: 1px solid var(--rule); }
+  .brew-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 2px; font-size: 13px; cursor: pointer; user-select: none;
+    border-radius: 6px;
+  }
+  .brew-head .meta { color: var(--dim); white-space: nowrap; }
+  .brew-meta {
+    display: flex; flex-wrap: wrap; gap: 4px 10px;
+    align-items: center; min-width: 0; flex: 1;
+  }
+  .brew-side { flex: none; display: flex; align-items: center; gap: 2px; }
+  .stars { color: var(--rule); white-space: nowrap; cursor: pointer; letter-spacing: 1px; }
+  .stars .on { color: var(--amber-fill); }
+  .stars [data-rate] { display: inline-block; min-width: 20px; text-align: center; }
+  .fav { border: none; background: none; color: var(--rule);
+         font-size: 15px; min-height: 0; padding: 2px 6px; }
+  .fav:active:not(:disabled) { transform: none; }
   .fav.on { color: var(--red); }
 
-  /* expanded brew: curve left, data right */
   .brew-detail {
     display: grid; grid-template-columns: minmax(0,1fr) 230px;
     gap: 14px; padding: 4px 4px 12px;
   }
   @media (max-width: 700px) { .brew-detail { grid-template-columns: 1fr; } }
-  .bd-data { color: var(--dim); font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
-  .bd-data .v { color: var(--fg); }
-  .bd-data .note { width: 100%; font-size: 12px; min-height: 32px; padding: 5px 9px; }
-  .bd-data button { min-height: 32px; padding: 4px 10px; font-size: 12px; }
+  .bd-data { color: var(--dim); font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+  .bd-data .v { color: var(--ink); }
+  .bd-data .note { width: 100%; font-size: 13px; min-height: 32px; padding: 5px 9px; }
+  .bd-data button { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+  .empty { color: var(--dim); font-size: 14px; padding: 18px 14px; }
+
+  /* --- calibrate ----------------------------------------------------------------------- */
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  .step {
+    display: flex; gap: 12px; padding: 12px 14px;
+    border-radius: 8px; background: var(--well);
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / .12);
+  }
+  .step .num {
+    flex: none; width: 26px; height: 26px; border-radius: 50%;
+    border: 1.5px solid var(--dim); color: var(--dim); opacity: .55;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500; margin-top: 2px;
+    transition: border-color .2s, color .2s, background .2s, opacity .2s;
+  }
+  .step.current .num { border-color: var(--amber); color: var(--amber);
+                       opacity: 1; }
+  .step.done .num { border-color: var(--green); background: var(--green);
+                    color: var(--plate); opacity: 1; }
+  .step:not(.current) b { color: var(--dim); }
+  .step b { font-weight: 500; transition: color .2s; }
+  .step p { margin: 2px 0 10px; color: var(--dim); font-size: 13px; }
+  #cal-chip { font-size: 13px; font-weight: 500; margin-left: 8px; vertical-align: middle; }
+  #cal-chip.ok { color: var(--green); }
+  #cal-chip.warn { color: var(--amber); }
+  .step .row { display: flex; align-items: center; gap: 8px; }
+  #cal-mass { width: 84px; }
+
+  /* --- data page ------------------------------------------------------------------------ */
+  .dsec { margin-bottom: 20px; }
+  .dsec h2 { font-size: 15px; font-weight: 500; margin: 0 0 6px; }
+  .dsec p { color: var(--dim); font-size: 13px; margin: 0 0 10px; }
+  .dsec .row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* --- toast ---------------------------------------------------------------------------- */
+  #toast {
+    position: fixed; left: 50%; bottom: calc(64px + env(safe-area-inset-bottom));
+    transform: translate(-50%, 8px); z-index: 60;
+    background: var(--ink); color: var(--plate);
+    padding: 9px 16px; border-radius: 8px; font-size: 14px;
+    opacity: 0; pointer-events: none; max-width: min(90vw, 420px);
+    transition: opacity .25s, transform .25s;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
 
   .chart-tip {
     position: absolute; z-index: 5; pointer-events: none;
-    background: rgba(0,0,0,.85); border: 1px solid var(--line2);
-    border-radius: 4px; color: #e0e0e0; font: 12px/1.4 monospace;
-    padding: 3px 7px; white-space: nowrap;
+    background: var(--ink); color: var(--plate);
+    border-radius: 6px; font-size: 12px; line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+    padding: 4px 8px; white-space: nowrap;
   }
-  .hint { color: var(--faint); font-size: 12px; padding: 8px 16px 16px; }
-  .u-legend { font-size: 11px; }
-  .u-cursor-x, .u-cursor-y { border-color: #666 !important; }
+  .u-legend { font-size: 11px; color: var(--dim); }
+  .u-cursor-x, .u-cursor-y { border-color: var(--dim) !important; }
 
   :focus-visible {
-    outline: 2px solid var(--amber); outline-offset: 2px; border-radius: 4px;
+    outline: 2px solid var(--amber-fill); outline-offset: 2px; border-radius: 4px;
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -339,145 +499,215 @@
     }
   }
 
-  /* very small / short screens: tighten everything, nothing may overflow */
-  @media (max-width: 420px) {
-    main { padding: 10px; gap: 12px; }
-    header { padding: 8px 10px; }
-    header .logo { font-size: 14px; }
-    .controls { gap: 6px; }
-    button, select { padding: 8px 6px; font-size: 13px; }
+  /* --- desktop rail ≥ 960px --------------------------------------------------------- */
+  @media (min-width: 960px) {
+    body { padding-left: 200px; }
+    #tabbar {
+      top: 0; right: auto; bottom: 0; width: 200px;
+      flex-direction: column; align-items: stretch;
+      border-top: none; border-right: 1px solid var(--rule);
+      padding: 14px 10px; padding-left: calc(10px + env(safe-area-inset-left));
+    }
+    #tabbar .logo {
+      display: block;
+      font-family: 'Ms Madi', 'Snell Roundhand', 'Segoe Script', cursive;
+      font-size: 32px; line-height: 1.15; color: var(--ink);
+      padding: 4px 10px 18px; white-space: nowrap;
+    }
+    @media (prefers-color-scheme: dark) { #tabbar .logo { color: var(--amber); } }
+    #tabbar a {
+      flex: none; justify-content: flex-start; text-align: left;
+      padding: 11px 12px; border-radius: 8px; font-size: 15px;
+      min-height: 44px;
+    }
+    #tabbar a.active { background: var(--well); }
+    #tabbar a.active::before {
+      top: 20%; bottom: 20%; left: 0; right: auto;
+      width: 2px; height: auto; border-radius: 0 2px 2px 0;
+    }
+    header .logo { display: none; }
+    main { padding-bottom: 24px; max-width: none; }
+    #page-weigh.active {
+      grid-template-columns: minmax(300px, 640px) minmax(0, 1fr);
+    }
+    #toast { bottom: 28px; }
   }
-  @media (max-height: 500px) {
-    #stats .cell { min-height: 52px; }
-    .chart-wrap > #chart { height: clamp(160px, 50vh, 380px); }
+
+  @media (max-width: 420px) {
+    main { padding: 10px; padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+    header { padding: 8px 10px; }
+    header .logo { font-size: 24px; }
+    .keys .key { font-size: 14px; }
   }
 </style>
 </head>
 <body>
-<div id="backdrop"></div>
-<aside id="drawer">
-  <nav>
-    <a data-page="weigh" class="active">weigh</a>
-    <a data-page="beans">beans</a>
-    <a data-page="cal">calibrate</a>
-    <a data-page="data">data</a>
-  </nav>
-  <div class="foot">coffee-scale · web bluetooth</div>
-</aside>
 
 <header>
-  <button id="btn-menu" title="menu">☰</button>
   <span class="logo">coffee scale</span>
-  <span id="conn">offline</span>
   <span class="spacer"></span>
-  <button id="btn-ble">Connect scale</button>
+  <button id="btn-ble" class="st-idle">连接秤</button>
 </header>
 
+<nav id="tabbar" aria-label="页面">
+  <span class="logo">coffee scale</span>
+  <a href="#weigh" data-page="weigh" class="active" aria-current="page">称重</a>
+  <a href="#beans" data-page="beans">豆子</a>
+  <a href="#cal" data-page="cal">校准</a>
+  <a href="#data" data-page="data">数据</a>
+</nav>
+
 <main>
-  <!-- ==================== weigh ==================== -->
+  <!-- ==================== 称重 ==================== -->
   <section class="page active" id="page-weigh">
     <section>
-      <canvas id="screen" width="320" height="172" class="card"></canvas>
-      <div class="controls card">
-        <button id="btn-tare">Tare</button>
-        <button id="btn-long">Timer</button>
-        <button id="btn-mode">Mode</button>
-        <select id="sel-unit">
-          <option value="0">g</option>
-          <option value="1">oz</option>
-        </select>
-        <button id="btn-rec" class="warn">● rec</button>
-        <button id="btn-sleep" class="danger" title="进入低功耗（敲击秤体唤醒）">power off</button>
+      <div class="bezel" id="bezel">
+        <canvas id="screen" width="320" height="172" role="img" aria-label="秤屏幕镜像"></canvas>
+        <div class="screen-off" id="screen-off">
+          <span class="screen-off-msg" id="off-msg">秤未连接</span>
+          <button id="btn-off-connect">连接秤</button>
+        </div>
       </div>
-      <div class="row card">
-        <select id="sel-bean"><option value="">no bean</option></select>
-        <input type="number" id="dose" value="18" min="0" step="0.1" title="咖啡粉量 dose (g)">
-        <span>g</span>
-        <button id="btn-weigh" title="把豆子放秤上，用当前读数作粉量">weigh</button>
+
+      <div class="strip" id="instruments">
+        <span class="ins"><i id="stable-dot"></i><span id="v-flags">–</span></span>
+        <span class="ins"><span class="batt-body"><i id="batt-fill"></i></span><span id="v-batt">–</span></span>
+        <span class="ins"><span class="bubble"><i id="bubble-dot"></i></span><span id="v-tilt">–</span></span>
+        <span class="ins"><span id="cal-state">–</span></span>
+        <button id="btn-sleep" class="textbtn danger-text" disabled
+                title="关屏并关闭蓝牙，双击秤体或按 MODE 键唤醒">关机</button>
       </div>
+
+      <div class="keys">
+        <button id="btn-tare" class="key" title="快捷键 T" disabled>去皮</button>
+        <button id="btn-long" class="key" title="快捷键 L" disabled>开始计时</button>
+        <button id="btn-reset" class="key" disabled>复位</button>
+      </div>
+
+      <div class="segrow">
+        <span class="seg-label">模式</span>
+        <div class="seg" id="seg-mode" role="radiogroup" aria-label="模式">
+          <span class="thumb"></span>
+          <button role="radio" data-v="0" aria-checked="false" disabled>称重</button>
+          <button role="radio" data-v="1" aria-checked="false" disabled>冲煮</button>
+        </div>
+        <span class="seg-label">单位</span>
+        <div class="seg" id="seg-unit" role="radiogroup" aria-label="单位">
+          <span class="thumb"></span>
+          <button role="radio" data-v="0" aria-checked="false" disabled>g</button>
+          <button role="radio" data-v="1" aria-checked="false" disabled>oz</button>
+        </div>
+      </div>
+
+      <div class="well setup">
+        <select id="sel-bean" aria-label="豆子"><option value="">不选豆子</option></select>
+        <input type="number" id="dose" value="18" min="0" step="0.1" aria-label="粉量">
+        <span class="dim">g</span>
+        <button id="btn-weigh" disabled
+                title="把咖啡粉放上秤后点此，用当前读数作粉量">用读数</button>
+        <span class="ratio"><span class="dim">粉水比</span> <span id="v-ratio">–</span></span>
+      </div>
+      <span id="sr-live" class="sr" aria-live="polite"></span>
     </section>
 
     <section>
-      <div id="stats" class="card">
-        <div class="cell"><div class="k">weight</div><div class="v" id="v-weight">–</div></div>
-        <div class="cell"><div class="k">flow</div><div class="v" id="v-flow">–</div></div>
-        <div class="cell"><div class="k">ratio</div><div class="v" id="v-ratio">–</div></div>
-        <div class="cell"><div class="k">timer</div><div class="v" id="v-timer">–</div></div>
-        <div class="cell"><div class="k">state</div><div class="v" id="v-state"><span id="stable-dot"></span><span id="v-flags">–</span></div></div>
-        <div class="cell"><div class="k">battery</div>
-          <div class="v batt-v"><span class="batt-body"><i id="batt-fill"></i></span><span id="v-batt">–</span></div></div>
-        <div class="cell"><div class="k">level</div>
-          <div class="v level-v"><span class="bubble"><i id="bubble-dot"></i></span><span id="v-tilt" style="font-size:15px">–</span></div></div>
-      </div>
-      <div class="panel chart-panel card">
+      <div class="well chart-panel">
         <div class="panel-head">
-          <span class="panel-title">curve · weight / flow</span>
+          <span class="panel-title">曲线</span>
+          <span class="legend">
+            <span class="chip"><i class="chip-line ink"></i>重量 g</span>
+            <span class="chip"><i class="chip-line amber"></i>流速 g/s</span>
+          </span>
           <span class="spacer"></span>
-          <label class="switch" title="绘制曲线">
+          <span id="rec-elapsed" hidden></span>
+          <button id="btn-rec"><i class="rec-dot"></i><span id="rec-label">录制</span></button>
+          <label class="switch" title="显示曲线">
             <input type="checkbox" id="chart-toggle" checked><span class="knob"></span>
           </label>
         </div>
-        <div class="chart-wrap"><div id="chart"></div></div>
-      </div>
-      <div class="row card">
-        <span id="rec-info" style="color:var(--dim)"></span>
-        <span class="spacer" style="flex:1"></span>
-        <button id="btn-dl" disabled>download jsonl</button>
-        <button id="btn-clear">clear</button>
+        <div class="chart-wrap"><div id="chart"></div><div id="chart-empty">连接秤后显示实时曲线</div></div>
+        <div class="panel-foot">
+          <span id="rec-info"></span>
+          <span class="spacer"></span>
+          <button id="btn-dl" disabled>下载原始数据</button>
+          <button id="btn-clear">清空曲线</button>
+        </div>
       </div>
     </section>
   </section>
 
-  <!-- ==================== beans ==================== -->
+  <!-- ==================== 豆子 ==================== -->
   <section class="page" id="page-beans">
-    <div class="panel card">
-      <div class="panel-head">
-        <span class="panel-title">bean library</span>
-        <span class="spacer"></span>
-        <input type="text" id="bean-name" placeholder="+ new bean">
-        <button id="btn-addbean">add</button>
-      </div>
-      <div id="bean-accordion"></div>
+    <div class="wide">
+      <h1>豆子</h1>
+      <form id="bean-form">
+        <input type="text" id="bean-name" placeholder="新豆子名称" autocomplete="off">
+        <button type="submit" id="btn-addbean" disabled>添加</button>
+      </form>
+      <div class="well bean-list" id="bean-accordion"></div>
     </div>
   </section>
 
-  <!-- ==================== calibrate ==================== -->
+  <!-- ==================== 校准 ==================== -->
   <section class="page" id="page-cal">
-    <div class="panel card narrow">
-      <div class="panel-head"><span class="panel-title">calibration (two-point)</span></div>
-      <div class="row">
-        <button id="btn-calzero">1. empty pan → cal zero</button>
-        <input type="number" id="cal-mass" value="100" min="1" step="0.1" style="width:80px"> g
-        <button id="btn-calspan">2. weight on → cal span</button>
-        <span id="cal-state"></span>
-      </div>
-      <div class="hint" style="padding-left:2px">
-        清空秤盘 → cal zero；放上已知重量（建议 ≥100 g）→ 填重量 → cal span。
-      </div>
+    <div class="narrow">
+      <h1>校准<span id="cal-chip" class="chip">–</span></h1>
+      <ol class="steps">
+        <li class="step current" id="step-zero">
+          <span class="num">1</span>
+          <div>
+            <b>清空秤盘</b>
+            <p>移走秤盘上的所有东西，等读数稳定。</p>
+            <button id="btn-calzero" disabled>记录零点</button>
+          </div>
+        </li>
+        <li class="step" id="step-span">
+          <span class="num">2</span>
+          <div>
+            <b>放上砝码</b>
+            <p>放上已知质量的砝码（建议 100 g 以上），填写质量。</p>
+            <div class="row">
+              <input type="number" id="cal-mass" value="100" min="1" step="0.1" aria-label="砝码质量">
+              <span class="dim">g</span>
+              <button id="btn-calspan" disabled>记录量程</button>
+            </div>
+          </div>
+        </li>
+      </ol>
+      <p class="dim" id="cal-off">连接秤后才能校准。</p>
     </div>
   </section>
 
-  <!-- ==================== data ==================== -->
+  <!-- ==================== 数据 ==================== -->
   <section class="page" id="page-data">
-    <div class="panel card narrow">
-      <div class="panel-head"><span class="panel-title">library backup</span></div>
-      <div class="row">
-        <button id="btn-export">export json</button>
-        <button id="btn-import">import json</button>
-        <button id="btn-clearbrews" class="danger">clear all brews</button>
+    <div class="narrow">
+      <h1>数据</h1>
+      <div class="dsec">
+        <h2>备份</h2>
+        <p>导出全部豆子与冲煮记录为一个 JSON 文件。导入时按 id 合并，同 id 的记录会被覆盖。</p>
+        <div class="row">
+          <button id="btn-export">导出备份</button>
+          <button id="btn-import">导入备份</button>
+        </div>
       </div>
-      <div class="hint" style="padding-left:2px">
-        备份导出全部豆子与冲煮记录为一个 JSON 文件；import 按 id 合并覆盖。
+      <div class="dsec">
+        <h2>清除</h2>
+        <div class="row">
+          <button id="btn-clearbrews" class="danger-text">清空全部冲煮记录</button>
+        </div>
+      </div>
+      <div class="dsec">
+        <h2>关于</h2>
+        <p>通过 Web 蓝牙连接，需要 Chrome 或 Edge；Linux 需开启
+           chrome://flags/#enable-experimental-web-platform-features。
+           授权过的秤会自动重连。冲煮计时开始时自动录制。<br>
+           快捷键：T 去皮，L 计时，M 切换模式。</p>
       </div>
     </div>
   </section>
 </main>
 
-<div class="hint">
-  Web 蓝牙：点 Connect scale 选择本秤；已授权过的设备会自动重连，断线也会自动找回。
-  需要 Chrome / Edge（Linux 需开启 chrome://flags/#enable-experimental-web-platform-features）。
-  快捷键 T/L/M。brew 计时器启动会自动开始记录。
-</div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script src="./vendor/uPlot.iife.min.js"></script>
 <script type="module" src="./app.js"></script>
