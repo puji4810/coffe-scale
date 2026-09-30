@@ -1,0 +1,4 @@
+build123d==0.10.0
+ocp-gordon==0.1.18
+matplotlib==3.11.2
+sexpdata==1.0.2

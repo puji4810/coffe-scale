@@ -1,0 +1,1383 @@
+{
+  "source": "pcb/scale-adc-s3/scale-adc-s3.kicad_pcb",
+  "sha256": "e73e32f7bf9a52d882affaa53008e27e2d4c2059895e2c6f3d3852744153c337",
+  "captured_utc": "2026-09-16T04:47:21.141386+00:00",
+  "outline": [
+    0,
+    0,
+    75,
+    40
+  ],
+  "width": 75,
+  "depth": 40,
+  "thickness": 1.6,
+  "mounting_holes": [
+    {
+      "reference": "MH1",
+      "at": [
+        4.0,
+        4.0
+      ],
+      "drill_mm": 2.2,
+      "plated": false
+    },
+    {
+      "reference": "MH2",
+      "at": [
+        18.0,
+        37.5
+      ],
+      "drill_mm": 2.2,
+      "plated": false
+    },
+    {
+      "reference": "MH3",
+      "at": [
+        71.0,
+        37.0
+      ],
+      "drill_mm": 2.2,
+      "plated": false
+    }
+  ],
+  "components": [
+    {
+      "reference": "J2",
+      "value": "LOADCELL",
+      "footprint": "scale-adc-s3:PinHeader_1x05_P2.54mm_H",
+      "at": [
+        4,
+        36.5
+      ],
+      "side": "F",
+      "bbox": [
+        2.85,
+        35.35,
+        15.31,
+        37.65
+      ],
+      "height_envelope": 8.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R2",
+      "value": "1k",
+      "footprint": "scale-adc-s3:SMD_0805_VR",
+      "at": [
+        9.08,
+        33.3
+      ],
+      "side": "F",
+      "bbox": [
+        8.46,
+        32.3,
+        9.7,
+        34.3
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R1",
+      "value": "1k",
+      "footprint": "scale-adc-s3:SMD_0805_VR",
+      "at": [
+        11.62,
+        33.3
+      ],
+      "side": "F",
+      "bbox": [
+        11.0,
+        32.3,
+        12.239999999999998,
+        34.3
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C11",
+      "value": "1n",
+      "footprint": "scale-adc-s3:SMD_0805_F",
+      "at": [
+        8.13,
+        30.5
+      ],
+      "side": "F",
+      "bbox": [
+        7.130000000000001,
+        29.88,
+        9.13,
+        31.12
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C10",
+      "value": "1n",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        12.57,
+        30.5
+      ],
+      "side": "F",
+      "bbox": [
+        11.57,
+        29.88,
+        13.57,
+        31.12
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C5",
+      "value": "100n",
+      "footprint": "scale-adc-s3:SMD_0805_VR",
+      "at": [
+        15.45,
+        17.46
+      ],
+      "side": "F",
+      "bbox": [
+        14.83,
+        16.46,
+        16.07,
+        18.46
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "U1",
+      "value": "NAU7802SGI",
+      "footprint": "scale-adc-s3:SOIC-16_3.9x9.9mm_P1.27mm",
+      "at": [
+        20,
+        20
+      ],
+      "side": "F",
+      "bbox": [
+        18.05,
+        15.05,
+        21.95,
+        24.95
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C4",
+      "value": "100n",
+      "footprint": "scale-adc-s3:SMD_0805_VR",
+      "at": [
+        15.3,
+        21.3
+      ],
+      "side": "F",
+      "bbox": [
+        14.680000000000001,
+        20.3,
+        15.92,
+        22.3
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "TP7",
+      "value": "TP_VBG",
+      "footprint": "scale-adc-s3:TestPoint_1.2mm",
+      "at": [
+        15.3,
+        24.4
+      ],
+      "side": "F",
+      "bbox": [
+        14.200000000000001,
+        23.299999999999997,
+        16.400000000000002,
+        25.5
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C1",
+      "value": "100n",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        25.3,
+        16.825
+      ],
+      "side": "F",
+      "bbox": [
+        24.3,
+        16.205,
+        26.3,
+        17.445
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C2",
+      "value": "100n",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        25.3,
+        14.9
+      ],
+      "side": "F",
+      "bbox": [
+        24.3,
+        14.280000000000001,
+        26.3,
+        15.52
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C3",
+      "value": "1u",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        25.3,
+        13.3
+      ],
+      "side": "F",
+      "bbox": [
+        24.3,
+        12.680000000000001,
+        26.3,
+        13.92
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "TP8",
+      "value": "TP_AVDD",
+      "footprint": "scale-adc-s3:TestPoint_1.2mm",
+      "at": [
+        22.6,
+        13.3
+      ],
+      "side": "F",
+      "bbox": [
+        21.5,
+        12.200000000000001,
+        23.700000000000003,
+        14.4
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "U7",
+      "value": "HT7533-1",
+      "footprint": "scale-adc-s3:SOT-89-3",
+      "at": [
+        24.5,
+        9.7
+      ],
+      "side": "F",
+      "bbox": [
+        23.25,
+        7.449999999999999,
+        25.75,
+        11.95
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C20",
+      "value": "10u",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        19.5,
+        10.8
+      ],
+      "side": "F",
+      "bbox": [
+        18.5,
+        10.180000000000001,
+        20.5,
+        11.42
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C22",
+      "value": "10u",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        28.9,
+        9.7
+      ],
+      "side": "F",
+      "bbox": [
+        27.9,
+        9.08,
+        29.9,
+        10.319999999999999
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "U3",
+      "value": "TMP102",
+      "footprint": "scale-adc-s3:SOT-563_1.6x1.6mm_P0.5mm",
+      "at": [
+        18,
+        32.5
+      ],
+      "side": "F",
+      "bbox": [
+        17.2,
+        31.7,
+        18.8,
+        33.3
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C6",
+      "value": "100n",
+      "footprint": "scale-adc-s3:SMD_0805_V",
+      "at": [
+        20.4,
+        34.5
+      ],
+      "side": "F",
+      "bbox": [
+        19.779999999999998,
+        33.5,
+        21.02,
+        35.5
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C17",
+      "value": "100n",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        22.9,
+        33.6
+      ],
+      "side": "F",
+      "bbox": [
+        21.9,
+        32.980000000000004,
+        23.9,
+        34.22
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R13",
+      "value": "100k",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        22.9,
+        35.6
+      ],
+      "side": "F",
+      "bbox": [
+        21.9,
+        34.980000000000004,
+        23.9,
+        36.22
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R14",
+      "value": "100k",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        22.9,
+        37.7
+      ],
+      "side": "F",
+      "bbox": [
+        21.9,
+        37.080000000000005,
+        23.9,
+        38.32
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "J7",
+      "value": "LCD",
+      "footprint": "scale-adc-s3:JST_PH_B8B-PH-K_1x08_P2.00mm_Vertical",
+      "at": [
+        26,
+        3.5
+      ],
+      "side": "F",
+      "bbox": [
+        23.64,
+        1.3900000000000001,
+        41.95,
+        6.3
+      ],
+      "height_envelope": 12,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "J8",
+      "value": "BTN",
+      "footprint": "scale-adc-s3:JST_PH_B3B-PH-K_1x03_P2.00mm_Vertical",
+      "at": [
+        45.2,
+        3.5
+      ],
+      "side": "F",
+      "bbox": [
+        42.84,
+        1.3900000000000001,
+        51.150000000000006,
+        6.3
+      ],
+      "height_envelope": 12,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R15",
+      "value": "10k",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        43.3,
+        10.7
+      ],
+      "side": "F",
+      "bbox": [
+        42.3,
+        10.08,
+        44.3,
+        11.319999999999999
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C18",
+      "value": "100n",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        43.3,
+        12.65
+      ],
+      "side": "F",
+      "bbox": [
+        42.3,
+        12.030000000000001,
+        44.3,
+        13.27
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R16",
+      "value": "10k",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        46.5,
+        10.7
+      ],
+      "side": "F",
+      "bbox": [
+        45.5,
+        10.08,
+        47.5,
+        11.319999999999999
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C19",
+      "value": "100n",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        46.5,
+        12.65
+      ],
+      "side": "F",
+      "bbox": [
+        45.5,
+        12.030000000000001,
+        47.5,
+        13.27
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "U2",
+      "value": "LIS2DW12",
+      "footprint": "scale-adc-s3:LGA-12_2x2mm_P0.5mm_LIS2DW12",
+      "at": [
+        33,
+        15
+      ],
+      "side": "F",
+      "bbox": [
+        32.0,
+        14.0,
+        34.0,
+        16.0
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C7",
+      "value": "100n",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        30,
+        12.3
+      ],
+      "side": "F",
+      "bbox": [
+        29.0,
+        11.680000000000001,
+        31.0,
+        12.92
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C8",
+      "value": "4u7",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        30,
+        16
+      ],
+      "side": "F",
+      "bbox": [
+        29.0,
+        15.38,
+        31.0,
+        16.62
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R3",
+      "value": "4k7",
+      "footprint": "scale-adc-s3:SMD_0805_F",
+      "at": [
+        36.5,
+        12.5
+      ],
+      "side": "F",
+      "bbox": [
+        35.5,
+        11.88,
+        37.5,
+        13.12
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R4",
+      "value": "4k7",
+      "footprint": "scale-adc-s3:SMD_0805_F",
+      "at": [
+        36.5,
+        14.7
+      ],
+      "side": "F",
+      "bbox": [
+        35.5,
+        14.08,
+        37.5,
+        15.319999999999999
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "BZ1",
+      "value": "MLT-8530",
+      "footprint": "scale-adc-s3:MagneticBuzzer_CUI_CMT-8540S-SMT",
+      "at": [
+        43,
+        21.5
+      ],
+      "side": "F",
+      "bbox": [
+        38.75,
+        17.25,
+        47.25,
+        25.75
+      ],
+      "height_envelope": 4,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "D2",
+      "value": "1N4148W",
+      "footprint": "scale-adc-s3:D_SOD-123",
+      "at": [
+        43,
+        14.7
+      ],
+      "side": "F",
+      "bbox": [
+        41.6,
+        13.799999999999999,
+        44.4,
+        15.6
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "Q2",
+      "value": "2N7002",
+      "footprint": "scale-adc-s3:SOT-23",
+      "at": [
+        35.8,
+        20
+      ],
+      "side": "F",
+      "bbox": [
+        33.87,
+        18.3,
+        37.73,
+        21.7
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R17",
+      "value": "1k",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        32.2,
+        19
+      ],
+      "side": "F",
+      "bbox": [
+        31.200000000000003,
+        18.38,
+        33.2,
+        19.62
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R18",
+      "value": "100k",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        32,
+        22.3
+      ],
+      "side": "F",
+      "bbox": [
+        31.0,
+        21.68,
+        33.0,
+        22.92
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R11",
+      "value": "10k",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        33.6,
+        29.3
+      ],
+      "side": "F",
+      "bbox": [
+        32.6,
+        28.68,
+        34.6,
+        29.92
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "U5",
+      "value": "TP4057-42",
+      "footprint": "scale-adc-s3:SOT-23-6",
+      "at": [
+        37.5,
+        32
+      ],
+      "side": "F",
+      "bbox": [
+        35.45,
+        30.3,
+        39.55,
+        33.7
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R10",
+      "value": "2k7",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        39,
+        34.7
+      ],
+      "side": "F",
+      "bbox": [
+        38.0,
+        34.080000000000005,
+        40.0,
+        35.32
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R12",
+      "value": "100k",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        37.6,
+        28.3
+      ],
+      "side": "F",
+      "bbox": [
+        36.6,
+        27.68,
+        38.6,
+        28.92
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C16",
+      "value": "10u",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        31,
+        33
+      ],
+      "side": "F",
+      "bbox": [
+        30.0,
+        32.38,
+        32.0,
+        33.62
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C15",
+      "value": "10u",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        35.8,
+        35.5
+      ],
+      "side": "F",
+      "bbox": [
+        34.8,
+        34.88,
+        36.8,
+        36.12
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "J6",
+      "value": "BAT",
+      "footprint": "scale-adc-s3:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical",
+      "at": [
+        28,
+        36.5
+      ],
+      "side": "F",
+      "bbox": [
+        25.64,
+        34.39,
+        31.95,
+        39.3
+      ],
+      "height_envelope": 12,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "D1",
+      "value": "B5819W",
+      "footprint": "scale-adc-s3:D_SOD-123",
+      "at": [
+        43,
+        27.9
+      ],
+      "side": "F",
+      "bbox": [
+        41.6,
+        27.0,
+        44.4,
+        28.799999999999997
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "Q1",
+      "value": "AO3401A",
+      "footprint": "scale-adc-s3:SOT-23",
+      "at": [
+        34,
+        26
+      ],
+      "side": "F",
+      "bbox": [
+        32.07,
+        24.3,
+        35.93,
+        27.7
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "U6",
+      "value": "XC6220B331MR-G",
+      "footprint": "scale-adc-s3:SOT-23-5",
+      "at": [
+        29.5,
+        26
+      ],
+      "side": "F",
+      "bbox": [
+        27.45,
+        24.3,
+        31.55,
+        27.7
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C21",
+      "value": "10u",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        28.8,
+        22.5
+      ],
+      "side": "F",
+      "bbox": [
+        27.8,
+        21.88,
+        29.8,
+        23.12
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C9",
+      "value": "10u",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        30.5,
+        30
+      ],
+      "side": "F",
+      "bbox": [
+        29.5,
+        29.38,
+        31.5,
+        30.62
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "J5",
+      "value": "TYPE-C-31-M-12",
+      "footprint": "scale-adc-s3:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
+      "at": [
+        46,
+        35
+      ],
+      "side": "F",
+      "bbox": [
+        41.53,
+        31.35,
+        50.47,
+        38.65
+      ],
+      "height_envelope": 3.2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R8",
+      "value": "5k1",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        50.3,
+        28
+      ],
+      "side": "F",
+      "bbox": [
+        49.3,
+        27.38,
+        51.3,
+        28.62
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R9",
+      "value": "5k1",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        49.8,
+        25.3
+      ],
+      "side": "F",
+      "bbox": [
+        48.8,
+        24.68,
+        50.8,
+        25.92
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "U8",
+      "value": "USBLC6-2SC6",
+      "footprint": "scale-adc-s3:SOT-23-6",
+      "at": [
+        54,
+        30.9
+      ],
+      "side": "F",
+      "bbox": [
+        51.95,
+        29.2,
+        56.05,
+        32.6
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R20",
+      "value": "22R",
+      "footprint": "scale-adc-s3:SMD_0805_V",
+      "at": [
+        50.8,
+        21.3,
+        180
+      ],
+      "side": "F",
+      "bbox": [
+        50.18,
+        20.3,
+        51.419999999999995,
+        22.3
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R19",
+      "value": "22R",
+      "footprint": "scale-adc-s3:SMD_0805_V",
+      "at": [
+        53.2,
+        23.9,
+        180
+      ],
+      "side": "F",
+      "bbox": [
+        52.580000000000005,
+        22.9,
+        53.82,
+        24.9
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C23",
+      "value": "DNP",
+      "footprint": "scale-adc-s3:SMD_0805_V",
+      "at": [
+        56.3,
+        26.3
+      ],
+      "side": "F",
+      "bbox": [
+        55.68,
+        25.3,
+        56.919999999999995,
+        27.3
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "U4",
+      "value": "ESP32-S3-WROOM-1-N16R8",
+      "footprint": "scale-adc-s3:ESP32-S3-WROOM-1",
+      "at": [
+        64,
+        11
+      ],
+      "side": "F",
+      "bbox": [
+        55.0,
+        -1.75,
+        73.0,
+        23.75
+      ],
+      "height_envelope": 3.1,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C12",
+      "value": "100n",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        52.5,
+        8.5,
+        180
+      ],
+      "side": "F",
+      "bbox": [
+        51.5,
+        7.88,
+        53.5,
+        9.12
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C13",
+      "value": "10u",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        60,
+        26.5
+      ],
+      "side": "F",
+      "bbox": [
+        59.0,
+        25.88,
+        61.0,
+        27.12
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C25",
+      "value": "1u",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        63.5,
+        26.5
+      ],
+      "side": "F",
+      "bbox": [
+        62.5,
+        25.88,
+        64.5,
+        27.12
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R5",
+      "value": "10k",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        50.8,
+        14.4
+      ],
+      "side": "F",
+      "bbox": [
+        49.8,
+        13.780000000000001,
+        51.8,
+        15.02
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C14",
+      "value": "1u",
+      "footprint": "scale-adc-s3:SMD_0805_V",
+      "at": [
+        50.8,
+        17.2
+      ],
+      "side": "F",
+      "bbox": [
+        50.18,
+        16.2,
+        51.419999999999995,
+        18.2
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "TP3",
+      "value": "TP_EN",
+      "footprint": "scale-adc-s3:TestPoint_1.2mm",
+      "at": [
+        47.8,
+        15
+      ],
+      "side": "F",
+      "bbox": [
+        46.699999999999996,
+        13.9,
+        48.9,
+        16.1
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R6",
+      "value": "10k",
+      "footprint": "scale-adc-s3:SMD_0805",
+      "at": [
+        70,
+        26.8,
+        180
+      ],
+      "side": "F",
+      "bbox": [
+        69.0,
+        26.18,
+        71.0,
+        27.42
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "TP4",
+      "value": "TP_BOOT",
+      "footprint": "scale-adc-s3:TestPoint_1.2mm",
+      "at": [
+        73.2,
+        26.2
+      ],
+      "side": "F",
+      "bbox": [
+        72.10000000000001,
+        25.099999999999998,
+        74.3,
+        27.3
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "TP5",
+      "value": "TP_TXD",
+      "footprint": "scale-adc-s3:TestPoint_1.2mm",
+      "at": [
+        73.2,
+        28.7
+      ],
+      "side": "F",
+      "bbox": [
+        72.10000000000001,
+        27.599999999999998,
+        74.3,
+        29.8
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "TP6",
+      "value": "TP_RXD",
+      "footprint": "scale-adc-s3:TestPoint_1.2mm",
+      "at": [
+        73.2,
+        31.2
+      ],
+      "side": "F",
+      "bbox": [
+        72.10000000000001,
+        30.099999999999998,
+        74.3,
+        32.3
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "TP9",
+      "value": "TP_VBUS",
+      "footprint": "scale-adc-s3:TestPoint_1.2mm",
+      "at": [
+        34.2,
+        38.5
+      ],
+      "side": "F",
+      "bbox": [
+        33.1,
+        37.4,
+        35.300000000000004,
+        39.6
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "TP10",
+      "value": "TP_3V3",
+      "footprint": "scale-adc-s3:TestPoint_1.2mm",
+      "at": [
+        36.9,
+        38.5
+      ],
+      "side": "F",
+      "bbox": [
+        35.8,
+        37.4,
+        38.0,
+        39.6
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "TP11",
+      "value": "TP_GND",
+      "footprint": "scale-adc-s3:TestPoint_1.2mm",
+      "at": [
+        39.4,
+        38.5
+      ],
+      "side": "F",
+      "bbox": [
+        38.3,
+        37.4,
+        40.5,
+        39.6
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "TP12",
+      "value": "TP_SDA",
+      "footprint": "scale-adc-s3:TestPoint_1.2mm",
+      "at": [
+        37.3,
+        23.5
+      ],
+      "side": "F",
+      "bbox": [
+        36.199999999999996,
+        22.4,
+        38.4,
+        24.6
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "TP13",
+      "value": "TP_SCL",
+      "footprint": "scale-adc-s3:TestPoint_1.2mm",
+      "at": [
+        37.3,
+        25.9
+      ],
+      "side": "F",
+      "bbox": [
+        36.199999999999996,
+        24.799999999999997,
+        38.4,
+        27.0
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "R21",
+      "value": "10k",
+      "footprint": "scale-adc-s3:SMD_0805_V_OE",
+      "at": [
+        14.0,
+        4.0,
+        90
+      ],
+      "side": "F",
+      "bbox": [
+        13.0,
+        3.38,
+        15.0,
+        4.62
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed, not a vendor STEP"
+    },
+    {
+      "reference": "C26",
+      "value": "100n",
+      "footprint": "scale-adc-s3:SMD_0805_V_OW",
+      "at": [
+        17.5,
+        4.0,
+        90
+      ],
+      "side": "F",
+      "bbox": [
+        16.5,
+        3.38,
+        18.5,
+        4.62
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed, not a vendor STEP"
+    }
+  ]
+}

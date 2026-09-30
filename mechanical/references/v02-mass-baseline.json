@@ -1,0 +1,9 @@
+{
+  "source": "v0.2 rectangle validation.json; nominal CAD volumes, no fasteners",
+  "density_g_mm3": 0.0027,
+  "volumes_mm3": {
+    "upper_spider": 63567.9,
+    "weighing_plate": 46983.02,
+    "moving_spacer": 1954.73
+  }
+}

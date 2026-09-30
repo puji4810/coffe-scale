@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+exports/**/*.step
+exports/**/*.stl
+exports/**/*.glb

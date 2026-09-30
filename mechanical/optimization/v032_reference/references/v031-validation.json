@@ -1,0 +1,504 @@
+{
+  "status": "PASS",
+  "scope": "Nominal CAD fit only. Seals are compressed envelopes; no leakage, seal pressure, FEA, thermal or weighing validation. USB/cable supplier and routing not selected.",
+  "invalid_solids": [],
+  "disconnected_parts": [],
+  "all_part_collisions_mm3": [],
+  "antenna_metal_keepout_hits": [],
+  "rigid_downward_sweep_mm": [
+    0.4,
+    0.8
+  ],
+  "rigid_downward_sweep_collisions_mm3": [],
+  "upper_support_to_sensor_mm": 4.0,
+  "upper_support_to_sensor_at_stop_mm": 3.2,
+  "moving_M6_head_to_plate_mm": {
+    "moving_M6_1": 0.5,
+    "moving_M6_2": 0.5
+  },
+  "skirt_to_fixed_rim_radial_mm": 2,
+  "skirt_overlap_mm": 2.5,
+  "skirt_to_fixed_ledge_vertical_mm": 3,
+  "roof_to_fixed_rim_mm": 2.5,
+  "plate_to_shell_minimum_mm": 2.0,
+  "stop_to_plate_gaps_mm": {
+    "stop_tip_1": 0.8,
+    "stop_tip_2": 0.8,
+    "stop_tip_3": 0.8,
+    "stop_tip_4": 0.8
+  },
+  "pcb_mounts_native_mm": {
+    "MH1": [
+      4,
+      4
+    ],
+    "MH2": [
+      18,
+      37.5
+    ],
+    "MH3": [
+      71,
+      37
+    ]
+  },
+  "pcb_mounts_mech_mm": {
+    "MH1": [
+      61,
+      -41
+    ],
+    "MH2": [
+      47,
+      -7.5
+    ],
+    "MH3": [
+      -6,
+      -8
+    ]
+  },
+  "overall_mm": [
+    164,
+    140,
+    53.3
+  ],
+  "pan_mm": [
+    160,
+    113,
+    11
+  ],
+  "pcb_source_sha256": "cd34faa6cd33bcb3ad4bc3d490a0c589bef19feb1fe995ee621d8178b93b0f09",
+  "part_count": 83,
+  "parts": {
+    "lower_frame": {
+      "material": "6061-T6; four local boss reliefs added",
+      "group": "fixed",
+      "volume_mm3": 38850.89
+    },
+    "fixed_spacer": {
+      "material": "aluminium",
+      "group": "fixed",
+      "volume_mm3": 1954.73
+    },
+    "LC1330_ENVELOPE": {
+      "material": "vendor part; M6 holes simplified",
+      "group": "sensor",
+      "volume_mm3": 82789.35
+    },
+    "load_adapter": {
+      "material": "6061-T6; LC1330 M6 to underside M4 attachment",
+      "group": "moving",
+      "volume_mm3": 5741.28
+    },
+    "integrated_pan": {
+      "material": "6061-T6 monolithic pan; unpierced roof and skirt",
+      "group": "moving",
+      "volume_mm3": 90305.51
+    },
+    "fixed_M6_1": {
+      "material": "M6x16 countersunk envelope; verify engagement",
+      "group": "fixed",
+      "volume_mm3": 541.39
+    },
+    "moving_M6_1": {
+      "material": "M6x12 socket head; nominal sensor engagement 8 mm",
+      "group": "moving",
+      "volume_mm3": 788.29
+    },
+    "fixed_M6_2": {
+      "material": "M6x16 countersunk envelope; verify engagement",
+      "group": "fixed",
+      "volume_mm3": 541.39
+    },
+    "moving_M6_2": {
+      "material": "M6x12 socket head; nominal sensor engagement 8 mm",
+      "group": "moving",
+      "volume_mm3": 788.29
+    },
+    "pan_M4_1": {
+      "material": "M4x10 from below; nominal pan engagement 6 mm; thread core simplified",
+      "group": "moving",
+      "volume_mm3": 234.36
+    },
+    "pan_M4_2": {
+      "material": "M4x10 from below; nominal pan engagement 6 mm; thread core simplified",
+      "group": "moving",
+      "volume_mm3": 234.36
+    },
+    "pan_M4_3": {
+      "material": "M4x10 from below; nominal pan engagement 6 mm; thread core simplified",
+      "group": "moving",
+      "volume_mm3": 234.36
+    },
+    "pan_M4_4": {
+      "material": "M4x10 from below; nominal pan engagement 6 mm; thread core simplified",
+      "group": "moving",
+      "volume_mm3": 234.36
+    },
+    "printed_shell": {
+      "material": "PETG/ASA; sealed flange and blind mounting bosses; finish sealing lands",
+      "group": "fixed",
+      "volume_mm3": 66514.34
+    },
+    "front_cover_bond": {
+      "material": "closed perimeter adhesive ring, material/process TBD",
+      "group": "fixed",
+      "volume_mm3": 139.94
+    },
+    "front_cover_film": {
+      "material": "continuous PC overlay; membrane key action and adhesive require prototype",
+      "group": "fixed",
+      "volume_mm3": 1274.48
+    },
+    "screen_ENVELOPE": {
+      "material": "1.47 inch ST7789 module; connector envelope TBD",
+      "group": "fixed",
+      "volume_mm3": 4235.0
+    },
+    "battery_ENVELOPE": {
+      "material": "1S pouch battery envelope; exact SKU TBD",
+      "group": "fixed",
+      "volume_mm3": 9700.53
+    },
+    "battery_tray": {
+      "material": "PETG / ASA",
+      "group": "fixed",
+      "volume_mm3": 3784.0
+    },
+    "tray_post_-28_-47": {
+      "material": "nylon M3 spacer",
+      "group": "fixed",
+      "volume_mm3": 62.2
+    },
+    "tray_post_-28_-6": {
+      "material": "nylon M3 spacer",
+      "group": "fixed",
+      "volume_mm3": 62.2
+    },
+    "tray_post_70_-47": {
+      "material": "nylon M3 spacer",
+      "group": "fixed",
+      "volume_mm3": 62.2
+    },
+    "tray_post_70_-6": {
+      "material": "nylon M3 spacer",
+      "group": "fixed",
+      "volume_mm3": 62.2
+    },
+    "pcb_carrier": {
+      "material": "PETG / ASA; edge seats require underside check",
+      "group": "fixed",
+      "volume_mm3": 4241.4
+    },
+    "PCB_ENVELOPE": {
+      "material": "FR4 outline from read-only KiCad snapshot",
+      "group": "fixed",
+      "volume_mm3": 4781.75
+    },
+    "pcb_M2_1": {
+      "material": "M2x8 self-tapping envelope; thread core simplified",
+      "group": "fixed",
+      "volume_mm3": 29.29
+    },
+    "pcb_M2_2": {
+      "material": "M2x8 self-tapping envelope; thread core simplified",
+      "group": "fixed",
+      "volume_mm3": 29.29
+    },
+    "pcb_M2_3": {
+      "material": "M2x8 self-tapping envelope; thread core simplified",
+      "group": "fixed",
+      "volume_mm3": 29.29
+    },
+    "J2_ENVELOPE": {
+      "material": "approximate component + mated-connector envelope",
+      "group": "fixed",
+      "volume_mm3": 243.59
+    },
+    "U1_ENVELOPE": {
+      "material": "approximate component + mated-connector envelope",
+      "group": "fixed",
+      "volume_mm3": 77.22
+    },
+    "J7_ENVELOPE": {
+      "material": "approximate component + mated-connector envelope",
+      "group": "fixed",
+      "volume_mm3": 1078.83
+    },
+    "J8_ENVELOPE": {
+      "material": "approximate component + mated-connector envelope",
+      "group": "fixed",
+      "volume_mm3": 489.63
+    },
+    "BZ1_ENVELOPE": {
+      "material": "approximate component + mated-connector envelope",
+      "group": "fixed",
+      "volume_mm3": 289.0
+    },
+    "J6_ENVELOPE": {
+      "material": "approximate component + mated-connector envelope",
+      "group": "fixed",
+      "volume_mm3": 371.79
+    },
+    "J5_ENVELOPE": {
+      "material": "approximate component + mated-connector envelope",
+      "group": "fixed",
+      "volume_mm3": 208.84
+    },
+    "U4_ENVELOPE": {
+      "material": "approximate component + mated-connector envelope",
+      "group": "fixed",
+      "volume_mm3": 1422.9
+    },
+    "foot_1": {
+      "material": "rubber pad bonded to metal shoulder",
+      "group": "fixed",
+      "volume_mm3": 452.39
+    },
+    "foot_2": {
+      "material": "rubber pad bonded to metal shoulder",
+      "group": "fixed",
+      "volume_mm3": 452.39
+    },
+    "foot_3": {
+      "material": "rubber pad bonded to metal shoulder",
+      "group": "fixed",
+      "volume_mm3": 452.39
+    },
+    "foot_4": {
+      "material": "rubber pad bonded to metal shoulder",
+      "group": "fixed",
+      "volume_mm3": 452.39
+    },
+    "stop_post_1": {
+      "material": "metal threaded post; locknut required",
+      "group": "fixed",
+      "volume_mm3": 778.22
+    },
+    "stop_tip_1": {
+      "material": "adjustable M4 screw, thread simplified",
+      "group": "fixed",
+      "volume_mm3": 93.31
+    },
+    "stop_post_2": {
+      "material": "metal threaded post; locknut required",
+      "group": "fixed",
+      "volume_mm3": 778.22
+    },
+    "stop_tip_2": {
+      "material": "adjustable M4 screw, thread simplified",
+      "group": "fixed",
+      "volume_mm3": 93.31
+    },
+    "stop_post_3": {
+      "material": "metal threaded post; locknut required",
+      "group": "fixed",
+      "volume_mm3": 778.22
+    },
+    "stop_tip_3": {
+      "material": "adjustable M4 screw, thread simplified",
+      "group": "fixed",
+      "volume_mm3": 93.31
+    },
+    "stop_post_4": {
+      "material": "metal threaded post; locknut required",
+      "group": "fixed",
+      "volume_mm3": 778.22
+    },
+    "stop_tip_4": {
+      "material": "adjustable M4 screw, thread simplified",
+      "group": "fixed",
+      "volume_mm3": 93.31
+    },
+    "pan_glass_bond": {
+      "material": "continuous compliant adhesive; glass-to-pan only, grade/process TBD",
+      "group": "moving",
+      "volume_mm3": 3556.41
+    },
+    "pan_glass": {
+      "material": "1.1 mm cover glass, polished edges; strength/heat process TBD",
+      "group": "moving",
+      "volume_mm3": 19560.24
+    },
+    "bottom_perimeter_gasket": {
+      "material": "closed silicone gasket, 1 mm free / 0.8 mm assembled assumption",
+      "group": "fixed",
+      "volume_mm3": 923.41
+    },
+    "lid_screw_seal_1": {
+      "material": "compressed annular face seal; grade TBD",
+      "group": "fixed",
+      "volume_mm3": 9.05
+    },
+    "lid_M3_1": {
+      "material": "M3x10 flanged head envelope; blind pilot and head seal",
+      "group": "fixed",
+      "volume_mm3": 122.21
+    },
+    "lid_screw_seal_2": {
+      "material": "compressed annular face seal; grade TBD",
+      "group": "fixed",
+      "volume_mm3": 9.05
+    },
+    "lid_M3_2": {
+      "material": "M3x10 flanged head envelope; blind pilot and head seal",
+      "group": "fixed",
+      "volume_mm3": 122.21
+    },
+    "lid_screw_seal_3": {
+      "material": "compressed annular face seal; grade TBD",
+      "group": "fixed",
+      "volume_mm3": 9.05
+    },
+    "lid_M3_3": {
+      "material": "M3x10 flanged head envelope; blind pilot and head seal",
+      "group": "fixed",
+      "volume_mm3": 122.21
+    },
+    "lid_screw_seal_4": {
+      "material": "compressed annular face seal; grade TBD",
+      "group": "fixed",
+      "volume_mm3": 9.05
+    },
+    "lid_M3_4": {
+      "material": "M3x10 flanged head envelope; blind pilot and head seal",
+      "group": "fixed",
+      "volume_mm3": 122.21
+    },
+    "foot_spacer_1": {
+      "material": "metal shoulder spacer, blind M3; supports frame directly",
+      "group": "fixed",
+      "volume_mm3": 217.75
+    },
+    "foot_seal_1": {
+      "material": "compressed annular face seal above spacer flange",
+      "group": "fixed",
+      "volume_mm3": 18.85
+    },
+    "foot_M3_1": {
+      "material": "M3x6 socket head, simplified thread core",
+      "group": "fixed",
+      "volume_mm3": 98.42
+    },
+    "foot_spacer_2": {
+      "material": "metal shoulder spacer, blind M3; supports frame directly",
+      "group": "fixed",
+      "volume_mm3": 217.75
+    },
+    "foot_seal_2": {
+      "material": "compressed annular face seal above spacer flange",
+      "group": "fixed",
+      "volume_mm3": 18.85
+    },
+    "foot_M3_2": {
+      "material": "M3x6 socket head, simplified thread core",
+      "group": "fixed",
+      "volume_mm3": 98.42
+    },
+    "foot_spacer_3": {
+      "material": "metal shoulder spacer, blind M3; supports frame directly",
+      "group": "fixed",
+      "volume_mm3": 217.75
+    },
+    "foot_seal_3": {
+      "material": "compressed annular face seal above spacer flange",
+      "group": "fixed",
+      "volume_mm3": 18.85
+    },
+    "foot_M3_3": {
+      "material": "M3x6 socket head, simplified thread core",
+      "group": "fixed",
+      "volume_mm3": 98.42
+    },
+    "foot_spacer_4": {
+      "material": "metal shoulder spacer, blind M3; supports frame directly",
+      "group": "fixed",
+      "volume_mm3": 217.75
+    },
+    "foot_seal_4": {
+      "material": "compressed annular face seal above spacer flange",
+      "group": "fixed",
+      "volume_mm3": 18.85
+    },
+    "foot_M3_4": {
+      "material": "M3x6 socket head, simplified thread core",
+      "group": "fixed",
+      "volume_mm3": 98.42
+    },
+    "service_M2_1": {
+      "material": "M2x3 hatch screw; blind lid hole outside hatch seal",
+      "group": "fixed",
+      "volume_mm3": 22.31
+    },
+    "service_M2_2": {
+      "material": "M2x3 hatch screw; blind lid hole outside hatch seal",
+      "group": "fixed",
+      "volume_mm3": 22.31
+    },
+    "service_M2_3": {
+      "material": "M2x3 hatch screw; blind lid hole outside hatch seal",
+      "group": "fixed",
+      "volume_mm3": 22.31
+    },
+    "service_M2_4": {
+      "material": "M2x3 hatch screw; blind lid hole outside hatch seal",
+      "group": "fixed",
+      "volume_mm3": 22.31
+    },
+    "service_hatch": {
+      "material": "removable fixed-M6 tool access cover",
+      "group": "fixed",
+      "volume_mm3": 1642.6
+    },
+    "service_hatch_gasket": {
+      "material": "closed compressed face gasket, material TBD",
+      "group": "fixed",
+      "volume_mm3": 76.68
+    },
+    "bottom_cover": {
+      "material": "printed polymer; sealing faces finished; 2.5 mm nominal",
+      "group": "fixed",
+      "volume_mm3": 53892.8
+    },
+    "usb_panel_gasket": {
+      "material": "compressed face gasket; supplier-dependent",
+      "group": "fixed",
+      "volume_mm3": 52.71
+    },
+    "usb_M2_1": {
+      "material": "M2x6 countersunk envelope; screws outside panel seal",
+      "group": "fixed",
+      "volume_mm3": 17.28
+    },
+    "usb_M2_2": {
+      "material": "M2x6 countersunk envelope; screws outside panel seal",
+      "group": "fixed",
+      "volume_mm3": 17.28
+    },
+    "usb_cassette_ENVELOPE": {
+      "material": "potted USB-C data+power extension cassette; custom envelope, not vendor model",
+      "group": "fixed",
+      "volume_mm3": 1287.42
+    },
+    "usb_sealing_cap": {
+      "material": "removable silicone cap, closed compressed state; retention fit TBD",
+      "group": "fixed",
+      "volume_mm3": 352.42
+    }
+  },
+  "version": "v0.3.1",
+  "body_plan_mm": [
+    160,
+    140
+  ],
+  "USB_closed_cap_protrusion_mm": 4,
+  "glass_mm": [
+    159,
+    112,
+    1.1
+  ],
+  "glass_mass_g_at_density_2_5": 48.9,
+  "bottom_continuous_gasket_and_bearing_lands": "PASS",
+  "all_parts_single_solid": "PASS",
+  "fixed_M6_tool_access_with_service_hatch_removed": "PASS",
+  "bottom_outer_relief_mm": 0.3,
+  "moving_mass_estimate_g": 331.87
+}

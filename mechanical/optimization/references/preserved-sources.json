@@ -1,0 +1,8 @@
+{
+  "assembly.py": "64963288c7fa8d6e5187ff6da1db2f2716907b2455f63121336be1b509ad0109",
+  "sealed_assembly.py": "28c53dc56cc12319720eefcdfbb0b0a10f3ae7e6dab429be40b46d670991e65f",
+  "dimensions.py": "59fd030835fb1907e3e277f634f616f194c95058e29ac964f34b2d55cb664f6d",
+  "integrated_pan.py": "0a614800dd1bffa952788cef989e1d5cb86955286458b108b7c737299b388030",
+  "pcb_snapshot.py": "7e1cdf052713176b75fbfbdc959f98bafa1430bb4ee6d5f9310f9fdf1eb93454",
+  "references/pcb-snapshot.json": "101f11c2ef39f16edb1ed6847103bad0d0fc38ccc3341fc021e4c82d12eb0563"
+}

@@ -1,0 +1,884 @@
+{
+  "version": "0.3.2",
+  "status": "PASS",
+  "invalid_solids": [],
+  "disconnected_parts": [],
+  "all_part_collisions_mm3": [],
+  "rigid_downward_sweep_mm": [
+    0.4,
+    0.8
+  ],
+  "rigid_downward_sweep_collisions_mm3": [],
+  "antenna_metal_keepout_hits": [],
+  "sweep_excluded_mating_interface": [
+    "moving_spacer",
+    "LC1330_ENVELOPE"
+  ],
+  "underside_M4_tool_access_before_electronics_hits": [],
+  "continuous_top_2mm_skin": "PASS",
+  "bottom_seal_and_lands": "PASS",
+  "stop_to_cover_mm": {
+    "stop_tip_1": 0.8,
+    "stop_tip_2": 0.8,
+    "stop_tip_3": 0.8,
+    "stop_tip_4": 0.8
+  },
+  "support_to_cell_mm": 3.0,
+  "support_to_cell_at_stop_mm": 2.2,
+  "pcb_mounts": [
+    {
+      "reference": "MH1",
+      "native_xy": [
+        4.0,
+        4.0
+      ],
+      "assembly_xy": [
+        61.0,
+        -41.0
+      ],
+      "drill_mm": 2.2
+    },
+    {
+      "reference": "MH2",
+      "native_xy": [
+        18.0,
+        37.5
+      ],
+      "assembly_xy": [
+        47.0,
+        -7.5
+      ],
+      "drill_mm": 2.2
+    },
+    {
+      "reference": "MH3",
+      "native_xy": [
+        71.0,
+        37.0
+      ],
+      "assembly_xy": [
+        -6.0,
+        -8.0
+      ],
+      "drill_mm": 2.2
+    }
+  ],
+  "pcb_box_mm": [
+    75,
+    40,
+    1.6
+  ],
+  "pcb_lower_surface_z": 11,
+  "pcb_to_floor_mm": 4,
+  "pcb_source_sha256": "e73e32f7bf9a52d882affaa53008e27e2d4c2059895e2c6f3d3852744153c337",
+  "part_count": 157,
+  "body_mm": [
+    160,
+    140,
+    53.3
+  ],
+  "with_USB_cap_mm": [
+    164,
+    140,
+    53.3
+  ],
+  "wide_support_nominal_mm": [
+    138,
+    84,
+    9
+  ],
+  "mount_span_mm": [
+    118,
+    60
+  ],
+  "moving_aluminium_g": 319.84,
+  "v031_moving_aluminium_g": 259.33,
+  "scope": "CAD fit and nominal rigid translation only; no stiffness or weighing accuracy proof. Reference image has no thickness or material. All electronics heights are provisional.",
+  "parts": {
+    "lower_frame": {
+      "material": "6061-T6; retained rectangle base, four carrier holes now M3 pilots",
+      "group": "fixed",
+      "volume_mm3": 38917.62
+    },
+    "fixed_spacer": {
+      "material": "aluminium",
+      "group": "fixed",
+      "volume_mm3": 1954.73
+    },
+    "LC1330_ENVELOPE": {
+      "material": "vendor part; M6 holes simplified",
+      "group": "sensor",
+      "volume_mm3": 82789.35
+    },
+    "fixed_M6_1": {
+      "material": "M6x16 countersunk envelope; verify engagement",
+      "group": "fixed",
+      "volume_mm3": 541.39
+    },
+    "moving_M6_1": {
+      "material": "M6x12 socket head; nominal cell engagement 6.5 mm",
+      "group": "moving",
+      "volume_mm3": 788.29
+    },
+    "fixed_M6_2": {
+      "material": "M6x16 countersunk envelope; verify engagement",
+      "group": "fixed",
+      "volume_mm3": 541.39
+    },
+    "moving_M6_2": {
+      "material": "M6x12 socket head; nominal cell engagement 6.5 mm",
+      "group": "moving",
+      "volume_mm3": 788.29
+    },
+    "printed_shell": {
+      "material": "PETG/ASA; sealed flange and blind mounting bosses; finish sealing lands",
+      "group": "fixed",
+      "volume_mm3": 66514.34
+    },
+    "front_cover_bond": {
+      "material": "closed perimeter adhesive ring, material/process TBD",
+      "group": "fixed",
+      "volume_mm3": 139.94
+    },
+    "front_cover_film": {
+      "material": "continuous PC overlay; membrane key action and adhesive require prototype",
+      "group": "fixed",
+      "volume_mm3": 1274.48
+    },
+    "screen_ENVELOPE": {
+      "material": "1.47 inch ST7789 module; connector envelope TBD",
+      "group": "fixed",
+      "volume_mm3": 4235.0
+    },
+    "battery_ENVELOPE": {
+      "material": "1S pouch battery envelope; exact SKU TBD",
+      "group": "fixed",
+      "volume_mm3": 9700.53
+    },
+    "battery_tray": {
+      "material": "PETG / ASA",
+      "group": "fixed",
+      "volume_mm3": 3784.0
+    },
+    "foot_1": {
+      "material": "rubber pad bonded to metal shoulder",
+      "group": "fixed",
+      "volume_mm3": 452.39
+    },
+    "foot_2": {
+      "material": "rubber pad bonded to metal shoulder",
+      "group": "fixed",
+      "volume_mm3": 452.39
+    },
+    "foot_3": {
+      "material": "rubber pad bonded to metal shoulder",
+      "group": "fixed",
+      "volume_mm3": 452.39
+    },
+    "foot_4": {
+      "material": "rubber pad bonded to metal shoulder",
+      "group": "fixed",
+      "volume_mm3": 452.39
+    },
+    "stop_post_1": {
+      "material": "metal threaded post; locknut required",
+      "group": "fixed",
+      "volume_mm3": 778.22
+    },
+    "stop_tip_1": {
+      "material": "adjustable M4 screw, thread simplified",
+      "group": "fixed",
+      "volume_mm3": 93.31
+    },
+    "stop_post_2": {
+      "material": "metal threaded post; locknut required",
+      "group": "fixed",
+      "volume_mm3": 778.22
+    },
+    "stop_tip_2": {
+      "material": "adjustable M4 screw, thread simplified",
+      "group": "fixed",
+      "volume_mm3": 93.31
+    },
+    "stop_post_3": {
+      "material": "metal threaded post; locknut required",
+      "group": "fixed",
+      "volume_mm3": 778.22
+    },
+    "stop_tip_3": {
+      "material": "adjustable M4 screw, thread simplified",
+      "group": "fixed",
+      "volume_mm3": 93.31
+    },
+    "stop_post_4": {
+      "material": "metal threaded post; locknut required",
+      "group": "fixed",
+      "volume_mm3": 778.22
+    },
+    "stop_tip_4": {
+      "material": "adjustable M4 screw, thread simplified",
+      "group": "fixed",
+      "volume_mm3": 93.31
+    },
+    "pan_glass_bond": {
+      "material": "continuous compliant adhesive; glass-to-pan only, grade/process TBD",
+      "group": "moving",
+      "volume_mm3": 3556.41
+    },
+    "pan_glass": {
+      "material": "1.1 mm cover glass, polished edges; strength/heat process TBD",
+      "group": "moving",
+      "volume_mm3": 19560.24
+    },
+    "bottom_perimeter_gasket": {
+      "material": "closed silicone gasket, 1 mm free / 0.8 mm assembled assumption",
+      "group": "fixed",
+      "volume_mm3": 923.41
+    },
+    "lid_screw_seal_1": {
+      "material": "compressed annular face seal; grade TBD",
+      "group": "fixed",
+      "volume_mm3": 9.05
+    },
+    "lid_M3_1": {
+      "material": "M3x10 flanged head envelope; blind pilot and head seal",
+      "group": "fixed",
+      "volume_mm3": 122.21
+    },
+    "lid_screw_seal_2": {
+      "material": "compressed annular face seal; grade TBD",
+      "group": "fixed",
+      "volume_mm3": 9.05
+    },
+    "lid_M3_2": {
+      "material": "M3x10 flanged head envelope; blind pilot and head seal",
+      "group": "fixed",
+      "volume_mm3": 122.21
+    },
+    "lid_screw_seal_3": {
+      "material": "compressed annular face seal; grade TBD",
+      "group": "fixed",
+      "volume_mm3": 9.05
+    },
+    "lid_M3_3": {
+      "material": "M3x10 flanged head envelope; blind pilot and head seal",
+      "group": "fixed",
+      "volume_mm3": 122.21
+    },
+    "lid_screw_seal_4": {
+      "material": "compressed annular face seal; grade TBD",
+      "group": "fixed",
+      "volume_mm3": 9.05
+    },
+    "lid_M3_4": {
+      "material": "M3x10 flanged head envelope; blind pilot and head seal",
+      "group": "fixed",
+      "volume_mm3": 122.21
+    },
+    "foot_spacer_1": {
+      "material": "metal shoulder spacer, blind M3; supports frame directly",
+      "group": "fixed",
+      "volume_mm3": 217.75
+    },
+    "foot_seal_1": {
+      "material": "compressed annular face seal above spacer flange",
+      "group": "fixed",
+      "volume_mm3": 18.85
+    },
+    "foot_M3_1": {
+      "material": "M3x6 socket head, simplified thread core",
+      "group": "fixed",
+      "volume_mm3": 98.42
+    },
+    "foot_spacer_2": {
+      "material": "metal shoulder spacer, blind M3; supports frame directly",
+      "group": "fixed",
+      "volume_mm3": 217.75
+    },
+    "foot_seal_2": {
+      "material": "compressed annular face seal above spacer flange",
+      "group": "fixed",
+      "volume_mm3": 18.85
+    },
+    "foot_M3_2": {
+      "material": "M3x6 socket head, simplified thread core",
+      "group": "fixed",
+      "volume_mm3": 98.42
+    },
+    "foot_spacer_3": {
+      "material": "metal shoulder spacer, blind M3; supports frame directly",
+      "group": "fixed",
+      "volume_mm3": 217.75
+    },
+    "foot_seal_3": {
+      "material": "compressed annular face seal above spacer flange",
+      "group": "fixed",
+      "volume_mm3": 18.85
+    },
+    "foot_M3_3": {
+      "material": "M3x6 socket head, simplified thread core",
+      "group": "fixed",
+      "volume_mm3": 98.42
+    },
+    "foot_spacer_4": {
+      "material": "metal shoulder spacer, blind M3; supports frame directly",
+      "group": "fixed",
+      "volume_mm3": 217.75
+    },
+    "foot_seal_4": {
+      "material": "compressed annular face seal above spacer flange",
+      "group": "fixed",
+      "volume_mm3": 18.85
+    },
+    "foot_M3_4": {
+      "material": "M3x6 socket head, simplified thread core",
+      "group": "fixed",
+      "volume_mm3": 98.42
+    },
+    "service_M2_1": {
+      "material": "M2x3 hatch screw; blind lid hole outside hatch seal",
+      "group": "fixed",
+      "volume_mm3": 22.31
+    },
+    "service_M2_2": {
+      "material": "M2x3 hatch screw; blind lid hole outside hatch seal",
+      "group": "fixed",
+      "volume_mm3": 22.31
+    },
+    "service_M2_3": {
+      "material": "M2x3 hatch screw; blind lid hole outside hatch seal",
+      "group": "fixed",
+      "volume_mm3": 22.31
+    },
+    "service_M2_4": {
+      "material": "M2x3 hatch screw; blind lid hole outside hatch seal",
+      "group": "fixed",
+      "volume_mm3": 22.31
+    },
+    "service_hatch": {
+      "material": "removable fixed-M6 tool access cover",
+      "group": "fixed",
+      "volume_mm3": 1642.6
+    },
+    "service_hatch_gasket": {
+      "material": "closed compressed face gasket, material TBD",
+      "group": "fixed",
+      "volume_mm3": 76.68
+    },
+    "bottom_cover": {
+      "material": "printed polymer; sealing faces finished; 2.5 mm nominal",
+      "group": "fixed",
+      "volume_mm3": 53892.8
+    },
+    "usb_panel_gasket": {
+      "material": "compressed face gasket; supplier-dependent",
+      "group": "fixed",
+      "volume_mm3": 52.71
+    },
+    "usb_M2_1": {
+      "material": "M2x6 countersunk envelope; screws outside panel seal",
+      "group": "fixed",
+      "volume_mm3": 17.28
+    },
+    "usb_M2_2": {
+      "material": "M2x6 countersunk envelope; screws outside panel seal",
+      "group": "fixed",
+      "volume_mm3": 17.28
+    },
+    "usb_cassette_ENVELOPE": {
+      "material": "potted USB-C data+power extension cassette; custom envelope, not vendor model",
+      "group": "fixed",
+      "volume_mm3": 1287.42
+    },
+    "usb_sealing_cap": {
+      "material": "removable silicone cap, closed compressed state; retention fit TBD",
+      "group": "fixed",
+      "volume_mm3": 352.42
+    },
+    "wide_support": {
+      "material": "6061-T6; continuous 9 mm plate with 5 mm underside pocket",
+      "group": "moving",
+      "volume_mm3": 54983.96
+    },
+    "pan_cover": {
+      "material": "6061-T6; 3 mm roof, skirt and four integral blind-thread bosses",
+      "group": "moving",
+      "volume_mm3": 61520.93
+    },
+    "moving_spacer": {
+      "material": "aluminium 24x30x3, loading end only",
+      "group": "moving",
+      "volume_mm3": 1954.73
+    },
+    "pan_M4_1": {
+      "material": "M4x8 from below; 4 mm cover boss engagement",
+      "group": "moving",
+      "volume_mm3": 218.28
+    },
+    "pan_M4_2": {
+      "material": "M4x8 from below; 4 mm cover boss engagement",
+      "group": "moving",
+      "volume_mm3": 218.28
+    },
+    "pan_M4_3": {
+      "material": "M4x8 from below; 4 mm cover boss engagement",
+      "group": "moving",
+      "volume_mm3": 218.28
+    },
+    "pan_M4_4": {
+      "material": "M4x8 from below; 4 mm cover boss engagement",
+      "group": "moving",
+      "volume_mm3": 218.28
+    },
+    "carrier_spacer_1": {
+      "material": "nylon M3 spacer, 2 mm",
+      "group": "fixed",
+      "volume_mm3": 31.1
+    },
+    "carrier_M3_1": {
+      "material": "M3x6, chassis blind-side engagement 3 mm; thread simplified",
+      "group": "fixed",
+      "volume_mm3": 98.42
+    },
+    "carrier_spacer_2": {
+      "material": "nylon M3 spacer, 2 mm",
+      "group": "fixed",
+      "volume_mm3": 31.1
+    },
+    "carrier_M3_2": {
+      "material": "M3x6, chassis blind-side engagement 3 mm; thread simplified",
+      "group": "fixed",
+      "volume_mm3": 98.42
+    },
+    "carrier_spacer_3": {
+      "material": "nylon M3 spacer, 2 mm",
+      "group": "fixed",
+      "volume_mm3": 31.1
+    },
+    "carrier_M3_3": {
+      "material": "M3x6, chassis blind-side engagement 3 mm; thread simplified",
+      "group": "fixed",
+      "volume_mm3": 98.42
+    },
+    "carrier_spacer_4": {
+      "material": "nylon M3 spacer, 2 mm",
+      "group": "fixed",
+      "volume_mm3": 31.1
+    },
+    "carrier_M3_4": {
+      "material": "M3x6, chassis blind-side engagement 3 mm; thread simplified",
+      "group": "fixed",
+      "volume_mm3": 98.42
+    },
+    "pcb_insert_MH1": {
+      "material": "M2 brass insert target OD3.2x4; actual insert/press-fit TBD",
+      "group": "fixed",
+      "volume_mm3": 24.13
+    },
+    "pcb_M2_MH1": {
+      "material": "M2x6; board 1.6 mm, nominal 4 mm insert engagement",
+      "group": "fixed",
+      "volume_mm3": 24.85
+    },
+    "pcb_insert_MH2": {
+      "material": "M2 brass insert target OD3.2x4; actual insert/press-fit TBD",
+      "group": "fixed",
+      "volume_mm3": 24.13
+    },
+    "pcb_M2_MH2": {
+      "material": "M2x6; board 1.6 mm, nominal 4 mm insert engagement",
+      "group": "fixed",
+      "volume_mm3": 24.85
+    },
+    "pcb_insert_MH3": {
+      "material": "M2 brass insert target OD3.2x4; actual insert/press-fit TBD",
+      "group": "fixed",
+      "volume_mm3": 24.13
+    },
+    "pcb_M2_MH3": {
+      "material": "M2x6; board 1.6 mm, nominal 4 mm insert engagement",
+      "group": "fixed",
+      "volume_mm3": 24.85
+    },
+    "pcb_carrier": {
+      "material": "printed carrier; three M2 insert bosses, 4 mm board underside clearance",
+      "group": "fixed",
+      "volume_mm3": 3992.6
+    },
+    "PCB_ENVELOPE": {
+      "material": "actual PCB outline and three NPTH holes, read-only snapshot",
+      "group": "fixed",
+      "volume_mm3": 4781.75
+    },
+    "J2_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 243.59
+    },
+    "R2_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "R1_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "C11_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "C10_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "C5_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "U1_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 77.22
+    },
+    "C4_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "TP7_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 9.68
+    },
+    "C1_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "C2_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "C3_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "TP8_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 9.68
+    },
+    "U7_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 22.5
+    },
+    "C20_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "C22_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "U3_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 5.12
+    },
+    "C6_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "C17_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "R13_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "R14_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "J7_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1078.83
+    },
+    "J8_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 489.63
+    },
+    "R15_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "C18_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "R16_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "C19_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "U2_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 8.0
+    },
+    "C7_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "C8_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "R3_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "R4_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "BZ1_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 289.0
+    },
+    "D2_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 7.56
+    },
+    "Q2_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 19.69
+    },
+    "R17_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "R18_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "R11_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "U5_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 27.88
+    },
+    "R10_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "R12_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "C16_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "C15_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "J6_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 371.79
+    },
+    "D1_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 7.56
+    },
+    "Q1_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 19.69
+    },
+    "U6_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 27.88
+    },
+    "C21_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "C9_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "J5_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 208.84
+    },
+    "R8_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "R9_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "U8_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 27.88
+    },
+    "R20_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "R19_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "C23_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "U4_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1422.9
+    },
+    "C12_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "C13_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "C25_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "R5_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "C14_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    },
+    "TP3_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 9.68
+    },
+    "R6_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "TP4_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 9.68
+    },
+    "TP5_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 9.68
+    },
+    "TP6_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 9.68
+    },
+    "TP9_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 9.68
+    },
+    "TP10_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 9.68
+    },
+    "TP11_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 9.68
+    },
+    "TP12_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 9.68
+    },
+    "TP13_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 9.68
+    },
+    "R21_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 1.98
+    },
+    "C26_ENVELOPE": {
+      "material": "component Fab rectangle; height assumed, not vendor STEP",
+      "group": "fixed",
+      "volume_mm3": 3.72
+    }
+  }
+}

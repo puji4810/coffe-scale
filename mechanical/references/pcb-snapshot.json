@@ -1,0 +1,611 @@
+{
+  "source": "pcb/scale-adc-s3/scale-adc-s3.kicad_pcb",
+  "sha256": "cd34faa6cd33bcb3ad4bc3d490a0c589bef19feb1fe995ee621d8178b93b0f09",
+  "captured_utc": "2026-09-15T15:57:43.205649+00:00",
+  "outline": [
+    0,
+    0,
+    75,
+    40
+  ],
+  "width": 75,
+  "depth": 40,
+  "thickness": 1.6,
+  "mounting_holes": [
+    {
+      "reference": "MH1",
+      "at": [
+        4,
+        4
+      ]
+    },
+    {
+      "reference": "MH2",
+      "at": [
+        18,
+        37.5
+      ]
+    },
+    {
+      "reference": "MH3",
+      "at": [
+        71,
+        37
+      ]
+    }
+  ],
+  "components": [
+    {
+      "reference": "J2",
+      "value": "LOADCELL",
+      "at": [
+        4,
+        36.5
+      ],
+      "bbox": [
+        2.85,
+        35.35,
+        15.31,
+        37.65
+      ],
+      "height_envelope": 8.5,
+      "pads": [
+        {
+          "pin": "1",
+          "net": "AVDD"
+        },
+        {
+          "pin": "2",
+          "net": "GND"
+        },
+        {
+          "pin": "3",
+          "net": "LC_SIGN"
+        },
+        {
+          "pin": "4",
+          "net": "LC_SIGP"
+        },
+        {
+          "pin": "5",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "reference": "U1",
+      "value": "NAU7802SGI",
+      "at": [
+        20,
+        20
+      ],
+      "bbox": [
+        18.05,
+        15.05,
+        21.95,
+        24.95
+      ],
+      "height_envelope": 2.0,
+      "pads": [
+        {
+          "pin": "1",
+          "net": "AVDD"
+        },
+        {
+          "pin": "2",
+          "net": "SIG_N"
+        },
+        {
+          "pin": "3",
+          "net": "SIG_P"
+        },
+        {
+          "pin": "4",
+          "net": "GND"
+        },
+        {
+          "pin": "5",
+          "net": "GND"
+        },
+        {
+          "pin": "6",
+          "net": "VBG"
+        },
+        {
+          "pin": "7",
+          "net": "GND"
+        },
+        {
+          "pin": "8",
+          "net": "GND"
+        },
+        {
+          "pin": "9",
+          "net": "GND"
+        },
+        {
+          "pin": "10",
+          "net": "unconnected-(U1-XIN-Pad10)"
+        },
+        {
+          "pin": "11",
+          "net": "unconnected-(U1-XOUT-Pad11)"
+        },
+        {
+          "pin": "12",
+          "net": "DRDY"
+        },
+        {
+          "pin": "13",
+          "net": "SCL"
+        },
+        {
+          "pin": "14",
+          "net": "SDA"
+        },
+        {
+          "pin": "15",
+          "net": "VDD_ADC"
+        },
+        {
+          "pin": "16",
+          "net": "AVDD"
+        }
+      ]
+    },
+    {
+      "reference": "J7",
+      "value": "LCD",
+      "at": [
+        26,
+        3.5
+      ],
+      "bbox": [
+        23.64,
+        1.3900000000000001,
+        41.95,
+        6.3
+      ],
+      "height_envelope": 12,
+      "pads": [
+        {
+          "pin": "1",
+          "net": "GND"
+        },
+        {
+          "pin": "2",
+          "net": "VCC_3V3"
+        },
+        {
+          "pin": "3",
+          "net": "LCD_SCK"
+        },
+        {
+          "pin": "4",
+          "net": "LCD_MOSI"
+        },
+        {
+          "pin": "5",
+          "net": "LCD_CS"
+        },
+        {
+          "pin": "6",
+          "net": "LCD_DC"
+        },
+        {
+          "pin": "7",
+          "net": "LCD_RST"
+        },
+        {
+          "pin": "8",
+          "net": "LCD_BL"
+        }
+      ]
+    },
+    {
+      "reference": "J8",
+      "value": "BTN",
+      "at": [
+        45.2,
+        3.5
+      ],
+      "bbox": [
+        42.84,
+        1.3900000000000001,
+        51.150000000000006,
+        6.3
+      ],
+      "height_envelope": 12,
+      "pads": [
+        {
+          "pin": "1",
+          "net": "GND"
+        },
+        {
+          "pin": "2",
+          "net": "BTN_TARE"
+        },
+        {
+          "pin": "3",
+          "net": "BTN_MODE"
+        }
+      ]
+    },
+    {
+      "reference": "BZ1",
+      "value": "MLT-8530",
+      "at": [
+        43,
+        21.5
+      ],
+      "bbox": [
+        38.75,
+        17.25,
+        47.25,
+        25.75
+      ],
+      "height_envelope": 4,
+      "pads": [
+        {
+          "pin": "1",
+          "net": "VCC_3V3"
+        },
+        {
+          "pin": "2",
+          "net": "BUZZ_SW"
+        }
+      ]
+    },
+    {
+      "reference": "J6",
+      "value": "BAT",
+      "at": [
+        28,
+        36.5
+      ],
+      "bbox": [
+        25.64,
+        34.39,
+        31.95,
+        39.3
+      ],
+      "height_envelope": 12,
+      "pads": [
+        {
+          "pin": "1",
+          "net": "BAT"
+        },
+        {
+          "pin": "2",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "reference": "J5",
+      "value": "TYPE-C-31-M-12",
+      "at": [
+        46,
+        35
+      ],
+      "bbox": [
+        41.53,
+        31.35,
+        50.47,
+        38.65
+      ],
+      "height_envelope": 3.2,
+      "pads": [
+        {
+          "pin": "A1",
+          "net": "GND"
+        },
+        {
+          "pin": "A4",
+          "net": "VBUS"
+        },
+        {
+          "pin": "A5",
+          "net": "Net-(J5-CC1)"
+        },
+        {
+          "pin": "A6",
+          "net": "USB_DP"
+        },
+        {
+          "pin": "A7",
+          "net": "USB_DM"
+        },
+        {
+          "pin": "A8",
+          "net": "unconnected-(J5-SBU1-PadA8)"
+        },
+        {
+          "pin": "A9",
+          "net": "VBUS"
+        },
+        {
+          "pin": "A12",
+          "net": "GND"
+        },
+        {
+          "pin": "B1",
+          "net": "GND"
+        },
+        {
+          "pin": "B4",
+          "net": "VBUS"
+        },
+        {
+          "pin": "B5",
+          "net": "Net-(J5-CC2)"
+        },
+        {
+          "pin": "B6",
+          "net": "USB_DP"
+        },
+        {
+          "pin": "B7",
+          "net": "USB_DM"
+        },
+        {
+          "pin": "B8",
+          "net": "unconnected-(J5-SBU2-PadB8)"
+        },
+        {
+          "pin": "B9",
+          "net": "VBUS"
+        },
+        {
+          "pin": "B12",
+          "net": "GND"
+        },
+        {
+          "pin": "SH",
+          "net": "GND"
+        },
+        {
+          "pin": "SH",
+          "net": "GND"
+        },
+        {
+          "pin": "SH",
+          "net": "GND"
+        },
+        {
+          "pin": "SH",
+          "net": "GND"
+        }
+      ]
+    },
+    {
+      "reference": "U4",
+      "value": "ESP32-S3-WROOM-1-N16R8",
+      "at": [
+        64,
+        11
+      ],
+      "bbox": [
+        55.0,
+        -1.75,
+        73.0,
+        23.75
+      ],
+      "height_envelope": 3.1,
+      "pads": [
+        {
+          "pin": "1",
+          "net": "GND"
+        },
+        {
+          "pin": "2",
+          "net": "VCC_3V3"
+        },
+        {
+          "pin": "3",
+          "net": "EN"
+        },
+        {
+          "pin": "4",
+          "net": "LCD_SCK"
+        },
+        {
+          "pin": "5",
+          "net": "LCD_MOSI"
+        },
+        {
+          "pin": "6",
+          "net": "LCD_CS"
+        },
+        {
+          "pin": "7",
+          "net": "LCD_DC"
+        },
+        {
+          "pin": "8",
+          "net": "IO15"
+        },
+        {
+          "pin": "9",
+          "net": "LCD_BL"
+        },
+        {
+          "pin": "10",
+          "net": "unconnected-(U4-IO17-Pad10)"
+        },
+        {
+          "pin": "11",
+          "net": "BTN_MODE"
+        },
+        {
+          "pin": "12",
+          "net": "CHRG_STAT"
+        },
+        {
+          "pin": "13",
+          "net": "USB_DM_M"
+        },
+        {
+          "pin": "14",
+          "net": "USB_DP_M"
+        },
+        {
+          "pin": "15",
+          "net": "unconnected-(U4-IO3-Pad15)"
+        },
+        {
+          "pin": "16",
+          "net": "BTN_TARE"
+        },
+        {
+          "pin": "17",
+          "net": "VBAT_SENSE"
+        },
+        {
+          "pin": "18",
+          "net": "SDA"
+        },
+        {
+          "pin": "19",
+          "net": "SCL"
+        },
+        {
+          "pin": "20",
+          "net": "DRDY"
+        },
+        {
+          "pin": "21",
+          "net": "INT1"
+        },
+        {
+          "pin": "22",
+          "net": "unconnected-(U4-IO14-Pad22)"
+        },
+        {
+          "pin": "23",
+          "net": "BUZZ"
+        },
+        {
+          "pin": "24",
+          "net": "IO47"
+        },
+        {
+          "pin": "25",
+          "net": "IO48"
+        },
+        {
+          "pin": "26",
+          "net": "unconnected-(U4-IO45-Pad26)"
+        },
+        {
+          "pin": "27",
+          "net": "BOOT"
+        },
+        {
+          "pin": "28",
+          "net": "unconnected-(U4-IO35-Pad28)"
+        },
+        {
+          "pin": "29",
+          "net": "unconnected-(U4-IO36-Pad29)"
+        },
+        {
+          "pin": "30",
+          "net": "unconnected-(U4-IO37-Pad30)"
+        },
+        {
+          "pin": "31",
+          "net": "IO38"
+        },
+        {
+          "pin": "32",
+          "net": "IO39"
+        },
+        {
+          "pin": "33",
+          "net": "IO40"
+        },
+        {
+          "pin": "34",
+          "net": "IO41"
+        },
+        {
+          "pin": "35",
+          "net": "IO42"
+        },
+        {
+          "pin": "36",
+          "net": "RXD"
+        },
+        {
+          "pin": "37",
+          "net": "TXD"
+        },
+        {
+          "pin": "38",
+          "net": "unconnected-(U4-IO2-Pad38)"
+        },
+        {
+          "pin": "39",
+          "net": "unconnected-(U4-IO1-Pad39)"
+        },
+        {
+          "pin": "40",
+          "net": "GND"
+        },
+        {
+          "pin": "41",
+          "net": "GND"
+        },
+        {
+          "pin": "41",
+          "net": "GND"
+        },
+        {
+          "pin": "41",
+          "net": "GND"
+        },
+        {
+          "pin": "41",
+          "net": "GND"
+        },
+        {
+          "pin": "41",
+          "net": "GND"
+        },
+        {
+          "pin": "41",
+          "net": "GND"
+        },
+        {
+          "pin": "41",
+          "net": "GND"
+        },
+        {
+          "pin": "41",
+          "net": "GND"
+        },
+        {
+          "pin": "41",
+          "net": "GND"
+        },
+        {
+          "pin": "41",
+          "net": "GND"
+        },
+        {
+          "pin": "41",
+          "net": "GND"
+        },
+        {
+          "pin": "41",
+          "net": "GND"
+        },
+        {
+          "pin": "41",
+          "net": "GND"
+        }
+      ]
+    }
+  ]
+}
