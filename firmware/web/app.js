@@ -9,6 +9,10 @@ import ScaleScreenFactory from './dist/scale_screen.mjs';
 import { ScaleChart } from './chart.js';
 import { ScaleLink } from './ble.js';
 
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js');
+}
+
 const Screen = await ScaleScreenFactory();
 Screen.init();
 
