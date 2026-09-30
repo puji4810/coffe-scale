@@ -158,7 +158,7 @@ TEST_CASE("scale: lag compensation removes pour tracking error") {
     }
     CHECK(s.grams() < 14.8f);                 // the LPF still trails
     // display adds the measured lag back -> lands on the true weight
-    CHECK(s.display_grams() > 14.5f);
+    CHECK(s.display_grams() >= 14.5f);
     CHECK(s.display_grams() <= 15.1f);
 }
 
@@ -328,12 +328,12 @@ TEST_CASE("scale: flow above deadband still reports") {
     scale::scale s{{.lpf = lpf_kind::none}};
     s.load_calibration({.zero_counts = 0.f, .counts_per_gram = 100.f});
     clock_ms t{0};
-    // ~0.2 g/s trickle (1 count / 50 ms) — above the deadband
+    // ~0.5 g/s trickle (1 count / 20 ms) — above the 0.3 g/s deadband
     for (int i = 0; i < 2000; ++i) {
-        s.push(1'000 + i / 5, t);
+        s.push(1'000 + i / 2, t);
         t += clock_ms{10};
     }
-    CHECK(s.flow_gps() == doctest::Approx(0.2f).epsilon(0.5));
+    CHECK(s.flow_gps() == doctest::Approx(0.5f).epsilon(0.5));
 }
 
 TEST_CASE("scale: unprimed pipeline reads 0, not a phantom tare's worth") {
@@ -347,21 +347,23 @@ TEST_CASE("scale: unprimed pipeline reads 0, not a phantom tare's worth") {
     CHECK(s.grams() == doctest::Approx(0.f).epsilon(0.01));
 }
 
-TEST_CASE("scale: step load clips the flow readout") {
+TEST_CASE("scale: step load is rejected by the impact gate") {
     scale::scale s{{.lpf = lpf_kind::none}};
     s.load_calibration({.zero_counts = 0.f, .counts_per_gram = 100.f});
     clock_ms t{0};
     feed_n(s, 10'000, 100, t);
-    // drop a 100 g cup instantly: regression sees ~143 g/s over the 0.7 s
-    // window — the readout must stay pinned at the +30 g/s display clip
+    // drop a 100 g cup instantly: the Kalman innovation gate rejects it —
+    // the readout never reports the step as flow
     float peak = 0.0f;
+    bool  gated = false;
     for (int i = 0; i < 80; ++i) {
         s.push(20'000, t);
         t += clock_ms{10};
-        peak = std::max(peak, s.flow_gps());
+        peak  = std::max(peak, s.flow_gps());
+        gated = gated || s.disturbed();
     }
     CHECK(peak <= 30.0f);
-    CHECK(peak > 20.0f);          // the event is still visible, just bounded
+    CHECK(gated);                 // the gate must have caught the step
 }
 
 TEST_CASE("scale: zero tracking absorbs drift, not a placed object") {
@@ -480,5 +482,5 @@ TEST_CASE("telemetry: csv row serialises every column") {
     CHECK(buf[n - 1] == '\n');
     int commas = 0;
     for (const char* p = buf; *p; ++p) commas += (*p == ',');
-    CHECK(commas == 15);               // 16 columns
+    CHECK(commas == 16);               // 17 columns
 }

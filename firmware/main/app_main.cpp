@@ -3,10 +3,13 @@
 /// Threads:
 ///   adc_task     waits on NAU7802 DRDY (IO12), reads the conversion, feeds
 ///                the app model; prints telemetry CSV when enabled
-///   accel_task   polls LIS2DW12 at ~20 Hz -> tilt/motion gate
+///   accel_task   polls LIS2DW12 at 100 Hz; feed_accel/motion decimated
+///                to 20 Hz; raw 'A' lines go out on every sample
 ///   button_task  debounces TARE (IO48) / MODE (IO18) -> app model
 ///   battery_task samples VBAT on ADC1_CH8 + charge status + TMP102, ~2 s
-///   console_task USB-serial commands: 't' = CSV telemetry, 'z' = tare
+///   console_task USB-serial commands: 't' = CSV telemetry, 'z' = tare,
+///                'r' = raw capture stream (full-rate W/A lines + events —
+///                the input format for tools/replay)
 ///   power_task   tracks "new activity" (weight steps, motion, buttons,
 ///                taps, BLE link events); after kIdleTimeoutMs of quiet it
 ///                powers down LCD/backlight/BLE/NAU7802, arms LIS2DW12
@@ -22,6 +25,7 @@
 
 #include <atomic>
 #include <cmath>
+#include <cstdio>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -45,9 +49,13 @@
 
 #include "driver/gpio.h"
 #include "driver/i2c_master.h"
+#include "driver/usb_serial_jtag.h"
+#include "driver/usb_serial_jtag_vfs.h"
+#include "driver/temperature_sensor.h"
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
 #include "esp_adc/adc_oneshot.h"
+#include "esp_app_desc.h"
 #include "esp_log.h"
 #include "esp_sleep.h"
 #include "esp_timer.h"
@@ -66,6 +74,20 @@ scale::app      g_app;
 std::atomic<int>  g_battery_pct{-1};
 std::atomic<bool> g_charging{false};
 std::atomic<bool> g_telemetry{false};
+std::atomic<bool> g_raw{false};   // 'r' console key: raw capture stream
+
+/// Raw-capture event line `E,<t_us>,<name>` — emitted from every command
+/// dispatch site (buttons, console, BLE) so a host replay sees the same
+/// sequence of model calls the live firmware made.
+void raw_event(const char* name) {
+    if (!g_raw.load(std::memory_order_relaxed)) {
+        return;
+    }
+    char line[64];
+    snprintf(line, sizeof(line), "E,%lld,%s\n",
+             static_cast<long long>(esp_timer_get_time()), name);
+    fputs(line, stdout);
+}
 
 // ---- activity / power management ----------------------------------------------
 // "New activity" is deliberately noise-aware: the idle timer is refreshed
@@ -187,6 +209,13 @@ void adc_task(void*) {
             continue;
         }
         err_streak = 0;
+        if (g_raw.load(std::memory_order_relaxed)) {
+            char line[64];
+            snprintf(line, sizeof(line), "W,%lld,%ld\n",
+                     static_cast<long long>(esp_timer_get_time()),
+                     static_cast<long>(*v));
+            fputs(line, stdout);
+        }
         // Activity = a step away from a slowly-following count baseline:
         // pouring or a load placed/removed trips it instantly, while
         // thermal creep and quiet-state noise just move the baseline.
@@ -215,7 +244,10 @@ void adc_task(void*) {
 
 void accel_task(void*) {
     drv::lis2dw12<bus::i2c_dev_esp>::vec3 prev{};
-    bool primed = false;
+    bool primed  = false;
+    int  decim   = 0;   // feed_accel/motion run on every 5th sample (20 Hz
+                        // effective — same meaning as before the rate bump)
+    TickType_t last = xTaskGetTickCount();
     for (;;) {
         if (ulTaskNotifyTake(pdTRUE, 0) != 0) {
             // A tap/motion event latched INT1 — clear the source regs so the
@@ -225,25 +257,39 @@ void accel_task(void*) {
         }
         if (s_acc) {
             if (auto a = s_acc->read_mg(); a) {
-                // Motion = change between samples: static offset and a
-                // permanently tilted mount cancel out; bumps and handling
-                // show up as a delta of tens-hundreds of mg at 20 Hz.
-                if (primed &&
-                    std::fabs(a->x - prev.x) + std::fabs(a->y - prev.y) +
-                            std::fabs(a->z - prev.z) > kMotionThreshMg) {
-                    mark_activity();
+                if (g_raw.load(std::memory_order_relaxed)) {
+                    char line[96];
+                    snprintf(line, sizeof(line), "A,%lld,%.1f,%.1f,%.1f\n",
+                             static_cast<long long>(esp_timer_get_time()),
+                             static_cast<double>(a->x),
+                             static_cast<double>(a->y),
+                             static_cast<double>(a->z));
+                    fputs(line, stdout);
                 }
-                prev   = *a;
-                primed = true;
-                std::lock_guard lk(g_mtx);
-                g_app.feed_accel(a->x, a->y, a->z);
+                if (++decim >= 5) {
+                    decim = 0;
+                    // Motion = change between samples: static offset and a
+                    // permanently tilted mount cancel out; bumps and
+                    // handling show up as a delta of tens-hundreds of mg
+                    // between the 20 Hz-decimated samples.
+                    if (primed &&
+                        std::fabs(a->x - prev.x) + std::fabs(a->y - prev.y) +
+                                std::fabs(a->z - prev.z) > kMotionThreshMg) {
+                        mark_activity();
+                    }
+                    prev   = *a;
+                    primed = true;
+                    std::lock_guard lk(g_mtx);
+                    g_app.feed_accel(a->x, a->y, a->z);
+                }
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(50));   // ~20 Hz
+        vTaskDelayUntil(&last, pdMS_TO_TICKS(10));   // 100 Hz (tick = 10 ms)
     }
 }
 
-/// Minimal console: 't' toggles the per-sample CSV stream, 'z' = tare.
+/// Minimal console: 't' toggles the per-sample CSV stream, 'z' = tare,
+/// 'r' toggles the raw capture stream (W/A/E lines for tools/replay).
 void console_task(void*) {
     fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
     for (;;) {
@@ -256,7 +302,24 @@ void console_task(void*) {
                 if (on) {
                     printf("%s\n", scale::kDiagCsvHeader);
                 }
+            } else if (c == 'r') {
+                const bool on = !g_raw.load();
+                g_raw         = on;
+                if (on) {
+                    double cpg, zero, tare;
+                    {
+                        std::lock_guard lk(g_mtx);
+                        const auto& cal = g_app.inner().calibration_data();
+                        cpg             = cal.counts_per_gram;
+                        zero            = cal.zero_counts;
+                        tare            = g_app.inner().tare_counts();
+                    }
+                    printf("# coffee-scale raw v1 cpg=%.6f zero=%.1f "
+                           "tare=%.1f fw=%s\n", cpg, zero, tare,
+                           esp_app_get_description()->version);
+                }
             } else if (c == 'z') {
+                raw_event("tare");
                 std::lock_guard lk(g_mtx);
                 g_app.tare();
             }
@@ -299,9 +362,16 @@ void button_task(void*) {
         {
             std::lock_guard lk(g_mtx);
             if (pin == board::pins::btn_tare) {
-                if (held >= 800) g_app.tare_long(); else g_app.tare();
+                if (held >= 800) {
+                    g_app.tare_long();
+                    raw_event("tare_long");
+                } else {
+                    g_app.tare();
+                    raw_event("tare");
+                }
             } else if (held < 800) {
                 g_app.next_mode();
+                raw_event("mode");
             }
         }
         beep(40);
@@ -468,6 +538,19 @@ void battery_task(void*) {
     int          raws[kSamples] = {};
     float        pct_f = -1.f;
 
+    // Internal chip temperature — raw-capture 'C' lines alongside the
+    // TMP102 'T' lines on the same ~2 s cadence.
+    temperature_sensor_handle_t chip_ts = nullptr;
+    {
+        const temperature_sensor_config_t ts_cfg =
+            TEMPERATURE_SENSOR_CONFIG_DEFAULT(-10, 80);
+        if (temperature_sensor_install(&ts_cfg, &chip_ts) != ESP_OK ||
+            temperature_sensor_enable(chip_ts) != ESP_OK) {
+            ESP_LOGW(kTag, "chip temp sensor unavailable; no C lines");
+            chip_ts = nullptr;
+        }
+    }
+
     for (;;) {
         for (int i = 0; i < kSamples; ++i) {
             adc_oneshot_read(adc, ADC_CHANNEL_8, &raws[i]);
@@ -502,6 +585,23 @@ void battery_task(void*) {
             if (auto t = s_tmp->read_celsius(); t) {
                 std::lock_guard lk(g_mtx);
                 g_app.set_temperature(*t);
+                if (g_raw.load(std::memory_order_relaxed)) {
+                    char line[40];
+                    snprintf(line, sizeof(line), "T,%lld,%.3f\n",
+                             static_cast<long long>(esp_timer_get_time()),
+                             static_cast<double>(*t));
+                    fputs(line, stdout);
+                }
+            }
+        }
+        if (chip_ts && g_raw.load(std::memory_order_relaxed)) {
+            float chip_c = 0.f;
+            if (temperature_sensor_get_celsius(chip_ts, &chip_c) == ESP_OK) {
+                char line[40];
+                snprintf(line, sizeof(line), "C,%lld,%.2f\n",
+                         static_cast<long long>(esp_timer_get_time()),
+                         static_cast<double>(chip_c));
+                fputs(line, stdout);
             }
         }
         vTaskDelay(pdMS_TO_TICKS(2000));
@@ -564,27 +664,34 @@ void ble_command(void*, const proto::command& cmd) {
     switch (cmd.o) {
         case proto::op::tare:
             g_app.tare();
+            raw_event("tare");
             break;
         case proto::op::timer_toggle:
             g_app.tare_long();   // long-press equivalent: toggles brew timer
+            raw_event("timer_toggle");
             break;
         case proto::op::timer_reset:
             g_app.timer_reset();
+            raw_event("timer_reset");
             break;
         case proto::op::mode:
             g_app.next_mode();
+            raw_event("mode");
             break;
         case proto::op::unit:
             g_app.set_unit(cmd.arg == 1 ? scale::unit::ounce
                                         : scale::unit::gram);
+            raw_event("unit");
             break;
         case proto::op::cal_zero:
             // Calibration wizard: empty-pan zero capture, persisted to NVS.
             g_app.cal_zero();
+            raw_event("cal_zero");
             save_calibration(g_app.inner().calibration_data());
             ESP_LOGI(kTag, "cal zero saved");
             break;
         case proto::op::cal_span:
+            raw_event("cal_span");
             if (g_app.cal_span(cmd.arg / 100.0f)) {   // arg is centigrams
                 save_calibration(g_app.inner().calibration_data());
                 ESP_LOGI(kTag, "cal span saved: %.1f g -> %.1f counts/g",
@@ -603,6 +710,19 @@ void ble_command(void*, const proto::command& cmd) {
 } // namespace
 
 extern "C" void app_main() {
+    // USB-Serial-JTAG console: install the real driver (interrupt-driven
+    // RX/TX ring buffers) and point stdio at it — without this the VFS
+    // never drains host->device RX, so console keys ('t'/'z'/'r') are
+    // dead. TX safety on a stalled/absent host is in the VFS layer
+    // itself: a full tx buffer blocks once ≤50 ms then drops bytes until
+    // space frees; is_connected()==false fails writes immediately, so
+    // the scale never stalls when running on battery.
+    usb_serial_jtag_driver_config_t usj_cfg =
+        USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
+    usj_cfg.tx_buffer_size = 4096;   // raw stream: ~180 B/s W + ~150 B/s A
+    ESP_ERROR_CHECK(usb_serial_jtag_driver_install(&usj_cfg));
+    usb_serial_jtag_vfs_use_driver();
+
     if (const esp_err_t e = nvs_flash_init();
         e == ESP_ERR_NVS_NO_FREE_PAGES || e == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         nvs_flash_erase();
@@ -657,9 +777,15 @@ extern "C" void app_main() {
             ESP_LOGE(kTag, "LIS2DW12 init failed: errc %d", static_cast<int>(r.error()));
         }
     }
+    // Probe the TMP102 once: s3.1 does not fit it, and polling a dead
+    // address every 2 s just burns bus time. Boards that have it get the
+    // full drift-comp path; boards that don't read it never again.
     if (s_tmp) {
         if (auto t = s_tmp->read_celsius(); t) {
             ESP_LOGI(kTag, "TMP102 %.2f C", static_cast<double>(*t));
+        } else {
+            ESP_LOGW(kTag, "TMP102 not fitted — thermal comp off");
+            s_tmp.reset();
         }
     }
 
@@ -694,7 +820,7 @@ extern "C" void app_main() {
     xTaskCreate(battery_task, "batt", 3072, nullptr, 3, nullptr);
     xTaskCreate(console_task, "console", 3072, nullptr, 2, nullptr);
     xTaskCreate(power_task, "power", 3072, nullptr, 2, nullptr);
-    ESP_LOGI(kTag, "console: 't' = CSV telemetry, 'z' = tare");
+    ESP_LOGI(kTag, "console: 't' = CSV telemetry, 'z' = tare, 'r' = raw capture");
 
     gpio_install_isr_service(0);
     gpio_set_intr_type(static_cast<gpio_num_t>(board::pins::adc_drdy), GPIO_INTR_POSEDGE);

@@ -27,6 +27,7 @@ includes("components/nau7802")
 includes("components/lis2dw12")
 includes("components/tmp102")
 includes("tests")
+includes("tools")
 
 if has_config("ui_preview") then
     includes("components/ui")

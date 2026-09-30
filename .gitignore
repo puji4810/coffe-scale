@@ -22,3 +22,6 @@ pcb/s3.1/en/
 # GitHub Pages site assembled by firmware/web/site.sh (any _site dir —
 # the output path depends on the caller's cwd)
 _site/
+
+# raw scale captures — large local data files, not source
+firmware/captures/

@@ -48,33 +48,35 @@ idf.py -B build-esp32s3 build flash
   the last `snap_window` samples, so slow pours don't qualify — plus LPF
   still trailing -> jump the filter state to the input mean; lagging
   filters only), stability, tare,
-  two-point calibration, units, brew timer, regression flow rate,
+  two-point calibration, units, brew timer, Kalman flow rate,
   zero tracker, thermal drift model, tilt (IMU quiet + pitch/roll),
   `diag` telemetry snapshot + CSV format, `scale::app` state,
-  display deadbands (0.05 g on `grams()`, 0.1 g/s on `flow_gps()` —
+  display deadbands (0.05 g on `grams()`, 0.3 g/s on `flow_gps()` —
   pin sub-division noise to exact 0, kill the "-0.0" flicker) + a
-  ±30 g/s flow clip (step loads otherwise report ~200 g/s while the
-  regression window walks past the step) + a display quantiser with
+  ±30 g/s flow clip + a display quantiser with
   hysteresis (`display_grams()`/`display_value()`, 0.1 g steps that only
   re-round past half-step + 0.02 g; `grams()` stays continuous for
   flow/telemetry) + pour-lag compensation (display adds the
-  regression-fit-vs-LPF lag back — the fit evaluated at the newest
-  timestamp — gated on |flow| 0.3→1 g/s and only while the fit leads the
-  filter along the flow direction) + a display latch
+  Kalman-weight-vs-LPF lag back, gated on |flow| 0.3→1 g/s and only while
+  the estimate leads the filter along the flow direction) + a display latch
   (freezes the shown weight after 300 ms of system-stable OR 300 ms with
   the quantised readout itself calm — the latter keeps a bench fan's
   vibration from flickering the digit; the value-calm path is suppressed
   above |flow| 0.5 g/s; releases the moment the continuous value drifts
   past the same half-step + hysteresis bound, so a stale digit can't
   survive — e.g. the residual zero-track pulls back to 0;
-  `latch_hold <= 0` disables). Flow
-  regresses the median-domain weight over a fixed 1.0 s window (~0.85 s
-  rise / ~0.9 s stop tail — the adaptive-window mechanism remains but
-  ships disabled, min span == span: short windows spiked the readout at
-  high pour rates). Unfed pipelines
+  `latch_hold <= 0` disables). Flow (`flow_kf`) is a constant-velocity
+  Kalman filter on the median-domain weight prefiltered by two cascaded
+  8 Hz Butterworth biquads (q=5, r=1); |innovation| > 4 g trips an impact
+  gate that rewinds the state 0.1 s, reports the pre-impact flow for
+  1.0 s then 0, and re-anchors (x=[level, f0]) once a 0.3 s trailing line
+  fit of the prefiltered signal is calm (<1.5 g max residual) — f0 is the
+  held flow if it still predicts the level within 5 g, else 0. Step
+  loads and knocks therefore never appear on the flow readout, which the
+  old regression could not do. Unfed pipelines
   read 0, not the unprimed-filter phantom value. No HW deps.
-  `scale::push(counts, now)` takes a real monotone timestamp — flow
-  regression and the zero-track hold run on it, so dropped DRDY edges
+  `scale::push(counts, now)` takes a real monotone timestamp — the Kalman
+  prediction and the zero-track hold run on it, so dropped DRDY edges
   don't distort rates. `system_stable = loadcell_stable && IMU quiet`
   gates zero tracking; brew mode freezes the tracker entirely.
 - `components/scale_proto` — header-only wire ABI (`proto.hpp`): GATT
@@ -91,9 +93,12 @@ idf.py -B build-esp32s3 build flash
 - `components/ui` — LVGL screens + `ui_port_esp.cpp` (ST7789 via esp_lcd) +
   `ui_port_sdl.cpp` (desktop).
 - `main/app_main.cpp` — tasks: adc (DRDY ISR→notify, optional per-sample
-  CSV over USB-serial-JTAG), accel (~20 Hz LIS2DW12 poll), button
+  CSV over USB-serial-JTAG), accel (100 Hz LIS2DW12 poll, feed_accel/motion decimated to 20 Hz), button
   (debounce, short tare / long tare_long / mode), battery (ADC1_CH8 +
-  chrg_stat + TMP102), console ('t' toggles CSV telemetry, 'z' = tare),
+  chrg_stat + TMP102), console ('t' toggles CSV telemetry, 'z' = tare,
+  'r' toggles the raw capture stream — `W`/`A`/`E` lines for
+  `tools/capture.py` + `tools/replay`, plus `T,<t_us>,<tmp102_c>` and
+  `C,<t_us>,<chip_c>` on the ~2 s battery_task cadence),
   power (idle->light sleep), lvgl.
   Power: after 5 min without "new activity" (weight step >4000 raw counts
   off a slow baseline, IMU motion >150 mg, button, console/BLE command —
@@ -183,3 +188,7 @@ idf.py -B build-esp32s3 build flash
   needs `--preview`.
 - `sdkconfig` is committed, so `sdkconfig.defaults` alone changes nothing
   — update both, then `idf.py -B build-esp32s3 reconfigure`.
+- TMP102 is NOT fitted on the s3.1 build — the firmware probes it once at
+  boot, logs "TMP102 not fitted — thermal comp off" and never reads it
+  again (thermal compensation stays off). Boards that have it get the
+  full path.

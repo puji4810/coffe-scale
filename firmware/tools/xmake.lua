@@ -1,0 +1,6 @@
+target("replay")
+    set_kind("binary")
+    set_default(true)
+    add_deps("scale_core")
+    add_files("replay.cpp")
+    add_includedirs(".")

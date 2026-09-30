@@ -243,6 +243,60 @@ private:
     float y1_ = 0.0f, y2_ = 0.0f;
 };
 
+/// 2nd-order Butterworth low-pass biquad (bilinear, Q = 1/sqrt(2)),
+/// transposed direct-form II. Unlike bessel2_lpf this is a pure streaming
+/// stage with steady-state priming: the first push() leaves the delay
+/// elements where the output already equals the input, so a fresh filter
+/// on a live signal has no startup transient.
+class butter2_lpf {
+public:
+    butter2_lpf() = default;
+    butter2_lpf(float cutoff_hz, float sample_hz) {
+        configure(cutoff_hz, sample_hz);
+    }
+
+    /// `cutoff_hz` is the -3 dB point, clamped to < 0.45*sample_hz.
+    void configure(float cutoff_hz, float sample_hz) {
+        constexpr float kQ = 0.7071067811865476f;   // 1/sqrt(2)
+        if (sample_hz <= 0.0f) {
+            return;
+        }
+        const float fc = std::clamp(cutoff_hz, 0.0f, 0.45f * sample_hz);
+        const float k  = std::tan(std::numbers::pi_v<float> * fc / sample_hz);
+        const float kk = k * k;
+        const float n  = 1.0f / (1.0f + k / kQ + kk);
+        b0_ = kk * n;
+        b1_ = 2.0f * b0_;
+        b2_ = b0_;
+        a1_ = 2.0f * (kk - 1.0f) * n;
+        a2_ = (1.0f - k / kQ + kk) * n;
+        primed_ = false;
+    }
+
+    [[nodiscard]] float push(float v) {
+        if (!primed_) {     // prime at steady state on the first sample
+            z1_ = v * (1.0f - b0_);
+            z2_ = v * (b2_ - a2_);
+            primed_ = true;
+        }
+        const float y = b0_ * v + z1_;
+        z1_ = b1_ * v - a1_ * y + z2_;
+        z2_ = b2_ * v - a2_ * y;
+        return y;
+    }
+
+    /// Next push re-primes at that sample's level.
+    void reset() { primed_ = false; }
+
+    [[nodiscard]] bool primed() const { return primed_; }
+
+private:
+    float b0_ = 0.0f, b1_ = 0.0f, b2_ = 0.0f;
+    float a1_ = 0.0f, a2_ = 0.0f;
+    float z1_ = 0.0f, z2_ = 0.0f;
+    bool  primed_ = false;
+};
+
 /// Savitzky–Golay FIR smoother: a least-squares polynomial of `Order` over
 /// the last N samples, evaluated at `eval` (centred units: 0 = window
 /// centre, +(N-1)/2 = newest sample = zero added latency). Coefficients are
