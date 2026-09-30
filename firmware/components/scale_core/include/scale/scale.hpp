@@ -119,6 +119,9 @@ struct diag {
     float        drift_counts  = 0.0f;
     float        flow_gps      = 0.0f;
     bool         disturbed     = false;  // flow KF impact gate engaged
+    int          flow_trip     = 0;      // last gate reason (flow_kf)
+    int          flow_boost    = 0;      // estimator tracking a change
+    float        flow_resume   = 0.0f;   // flow adopted at last un-gate
     bool         stable        = false;  // load-cell window
     bool         tilt_quiet    = true;   // accelerometer motion gate
     tilt::vec3   accel_mg{};
@@ -169,6 +172,9 @@ public:
         diag_.flow_gps      = flow_gps();
         diag_.stable        = stab_.stable();
         diag_.disturbed     = kf_.disturbed();
+        diag_.flow_trip     = kf_.trip_reason();
+        diag_.flow_boost    = kf_.boosting() ? 1 : 0;
+        diag_.flow_resume   = kf_.ungate_f0();
         diag_.tilt_quiet    = tilt_.quiet();
         diag_.accel_mg      = tilt_.accel();
         diag_.pitch_deg     = tilt_.pitch_deg();

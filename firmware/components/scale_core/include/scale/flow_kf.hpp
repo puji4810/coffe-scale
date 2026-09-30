@@ -91,6 +91,9 @@ struct flow_kf_config {
                                 //   noise) or a healthy pour re-trips
                                 //   every release.
     float gate_diff_gps  = 6.0f;
+    int   gate_steep_n   = 3;   // consecutive steep samples to trip —
+                              //   edge spikes last 1-2, real slopes and
+                              //   sine upswings sustain 40 ms+
     float jump_g     = 1.5f;    // fast windowed-mean step EXCESS over
                                 //   the window's fitted ramp that trips
                                 //   it (a real step has a kink the
@@ -141,6 +144,14 @@ struct flow_kf_config {
     float rebound_gps       = 0.35f;// while the fitted signal is flat a
                                   //   deeply negative reading is settle
                                   //   momentum, not weight leaving
+    float stop_flat_gps     = 1.5f; // |calm-window slope| under this for
+                                  //   stop_s declares a stop — the read
+                                  //   is taken on the smooth pre channel
+                                  //   so post-stop slosh can't jitter it
+    float stop_s            = 0.15f;
+    float stop_veto_gps     = 2.0f; // a live fast-channel slope past this
+                                  //   blocks the pull (re-start)
+    float stop_pull_hz      = 15.0f;// pull rate once a stop declares
     float boost_steep_gps = 12.f; // beyond this |slope| evidence must persist
     float boost_steep_s   = 0.35f;// ...this long instead of boost_min_s
     float q_track      = 30.0f;   // post-settle tracking density on a slope
@@ -184,6 +195,9 @@ public:
         run_sign_   = 0;
         run_t_      = 0.0f;
         run_slope_max_ = 0.0f;
+        steep_run_n_   = 0;
+        steep_n_       = 0;
+        stop_t_        = 0.0f;
         track_t_    = -1e9f;
         lost_t_     = 0.0f;
         abort_t_    = 0.0f;
@@ -232,6 +246,9 @@ public:
             track_t_       = -1e9f;
             run_t_         = 0.0f;
             run_slope_max_ = 0.0f;
+            steep_run_n_   = 0;
+            steep_n_       = 0;
+            stop_t_        = 0.0f;
         }
         const float pre  = b2_.push(b1_.push(g));
         const float fast = fb_.push(g);
@@ -607,6 +624,33 @@ private:
                 f_ < -cfg_.rebound_gps) {
                 f_ = -cfg_.rebound_gps;
             }
+            // Stop snap: judge flatness on the PRE channel over the
+            // full calm window — post-stop slosh spikes the fast fit
+            // past the bound while the smooth channel still reads ~0.
+            // A persistently flat calm fit with a nonzero f_ is residual
+            // momentum draining exponentially through the Kalman — pull
+            // it toward the measured slope instead of tailing ~1 s.
+            // The accumulator leaks rather than resets so one noisy fit
+            // pauses the count instead of restarting it. The pull itself
+            // is vetoed per-sample by a live fast slope so a re-start
+            // (slope breaks out within ~3 samples) releases it at once;
+            // and it only ever shrinks |f_| — on a pour onset the fit
+            // slope leads f_ and the pull can't fight the rise.
+            const fit_res calm =
+                line_fit(buf_, cfg_.calm_s, 8, cfg_.calm_s * 0.85f);
+            const bool flat_calm = calm.ok &&
+                std::fabs(calm.slope) < cfg_.stop_flat_gps;
+            stop_t_ = flat_calm ? stop_t_ + dt
+                                : std::max(0.0f, stop_t_ - dt);
+            if (stop_t_ >= cfg_.stop_s &&
+                (!now.ok ||
+                 std::fabs(now.slope) < cfg_.stop_veto_gps)) {
+                const float tgt = calm.ok ? calm.slope : 0.0f;
+                if (std::fabs(tgt) < std::fabs(f_)) {
+                    f_ += (tgt - f_) *
+                          std::min(1.0f, dt * cfg_.stop_pull_hz);
+                }
+            }
         };
 
         const float dsl = shape ? now.slope - f_ : 0.0f;
@@ -614,15 +658,24 @@ private:
         // handling keeps failing the evidence test), a clean settle resets it.
         const float sup_hold = cfg_.boost_suppress_s * (1.0f + sup_streak_);
         // Steep claims need longer proof at entry: real pours sustain a
-        // slope, wiggles reverse it within a half cycle. Judged on the
-        // steepest clean slope across the run, not the current sample.
+        // slope, wiggles reverse it within a half cycle. "Steep" must
+        // itself persist a few samples — a single noisy fit spike must
+        // not reclassify an ordinary run as steep and force it through
+        // the 0.35 s proof (a slam still reads steep for ~0.15 s).
         if (run_t_ > 0.0f) {
             if (clean) {
-                run_slope_max_ =
-                    std::max(run_slope_max_, std::fabs(now.slope));
+                steep_run_n_ =
+                    std::fabs(now.slope) > cfg_.boost_steep_gps
+                        ? steep_run_n_ + 1
+                        : 0;
+                if (steep_run_n_ >= cfg_.gate_steep_n) {
+                    run_slope_max_ =
+                        std::max(run_slope_max_, std::fabs(now.slope));
+                }
             }
         } else {
-            run_slope_max_ = clean ? std::fabs(now.slope) : 0.0f;
+            run_slope_max_ = 0.0f;
+            steep_run_n_   = 0;
         }
         const float need_s = run_slope_max_ > cfg_.boost_steep_gps
                                  ? cfg_.boost_steep_s
@@ -650,10 +703,16 @@ private:
                 // is handed to the gate — never chased blindly. A real
                 // pour this steep comes back through the un-gate fit;
                 // a wobble upswing is captured early and held instead
-                // of tracked to the sine's peak rate.
-                if (now.ok &&
+                // of tracked to the sine's peak rate. The claim must
+                // persist ~40 ms: a pour-resume edge or splash spike
+                // only exceeds the bound for a sample or two, while a
+                // genuinely steep signal sustains it.
+                const bool steep = now.ok &&
                     std::fabs(now.slope) > cfg_.gate_slope_gps &&
-                    std::fabs(now.slope - f_) > cfg_.gate_diff_gps) {
+                    std::fabs(now.slope - f_) > cfg_.gate_diff_gps;
+                steep_n_ = steep ? steep_n_ + 1 : 0;
+                if (steep_n_ >= cfg_.gate_steep_n) {
+                    steep_n_  = 0;
                     trip_why_ = 5;
                     trip_gate(tp_, cfg_.rewind_s);
                     return;
@@ -779,11 +838,24 @@ private:
         run_sign_   = 0;
         run_t_      = 0.0f;
         run_slope_max_ = 0.0f;
+        steep_run_n_   = 0;
+        steep_n_       = 0;
+        stop_t_        = 0.0f;
         lost_t_     = 0.0f;
         abort_t_    = 0.0f;
         slope_sign_ = 0.0f;
         ungate_t_   = t;
         ungate_f0_  = f0;        // diagnostics: what the resume adopted
+        // Onset-kink case: the gate contained the pour's own start, so
+        // the whole-window ramp test failed even though the newest half
+        // already reads a clean positive slope. Grant the mid tracking
+        // density — the Kalman converges on its own (no slope is
+        // fabricated) — but only while the oscillation streak is cold,
+        // so a mid-upswing sine release doesn't get to track hard.
+        if (osc_flips_ == 0 && h.ok && h.worst <= cfg_.calm_g &&
+            h.slope > cfg_.boost_quiet_gps) {
+            track_t_ = t;
+        }
         anchor(f.level, f0);
     }
 
@@ -895,6 +967,9 @@ private:
     float          osc_flip_t_ = -1e9f;
     int            trip_why_   = 0; // 1 pre inn, 2 fast inn, 3 jump,
                                   //   4 boost abort, 5 steep slope
+    int            steep_n_    = 0; // consecutive steep-fit samples
+    int            steep_run_n_ = 0;//   same, for steep-claim grading
+    float          stop_t_     = 0.0f; // flat-slope persistence timer
     float          ungate_f0_  = 0.0f; // flow adopted at last un-gate
     // accel motion veto
     float          motion_ema_ = 0.0f;

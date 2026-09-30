@@ -91,7 +91,10 @@ idf.py -B build-esp32s3 build flash
   lifetime: the positive ceiling runs only during boost + ~0.35 s
   after (chronic clamping biases a noisy pour low — min() of noisy
   fits is biased), while the negative floor stays armed and a
-  flat-signal rebound pin keeps settle dips ~0.35 g/s. Slope-sign
+  flat-signal rebound pin keeps settle dips ~0.35 g/s, and a flat
+  calm-window fit persisting 0.15 s pulls residual |f_| toward the
+  measured slope (leaky accumulator, per-sample veto on a live fast
+  slope, shrink-only) so a stop can't tail ~1 s. Slope-sign
   flips and a growing
   hold-off suppress re-entry so handling wiggles can't latch.
   Boost aborts into the gate when the signal is already flat — a

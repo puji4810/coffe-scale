@@ -483,5 +483,5 @@ TEST_CASE("telemetry: csv row serialises every column") {
     CHECK(buf[n - 1] == '\n');
     int commas = 0;
     for (const char* p = buf; *p; ++p) commas += (*p == ',');
-    CHECK(commas == 16);               // 17 columns
+    CHECK(commas == 19);               // 20 columns
 }
