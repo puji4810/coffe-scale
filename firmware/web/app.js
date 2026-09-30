@@ -147,6 +147,7 @@ function showFrame(m, tMs) {
         dose > 0 ? `1 : ${(s.grams / dose).toFixed(1)}` : '–';
 
     updateChartHint();
+    recorder.updateStatus(s);
     recorder.onFrame(m, tMs);
 }
 
@@ -314,46 +315,41 @@ document.addEventListener('visibilitychange', () => {
 });
 addEventListener('focus', () => link.resume());
 
-// --- recording -----------------------------------------------------------------
-// frames[] holds the raw decoded frames for the jsonl download; on stop()
-// the same data is folded into a compact brew row (t/w/f arrays) and
-// saved into the library bound to the selected bean.
+// --- recording ------------------------------------------------------------------
+// Bound to the brew timer (snap.timerState: 0 idle, 1 running, 2 paused),
+// in any mode. frames[] keeps the raw decoded frames for the jsonl
+// download; on stop() the data is folded into a compact brew row whose
+// t[] is timer time — paused intervals never appear on the curve.
 
-const recElapsed = $('rec-elapsed');
-const recLabel = $('rec-label');
-let recTick = null;
+const recStatus = $('rec-status');
+const recTxt = $('rec-txt');
 
 const recorder = {
-    frames: [], on: false, auto: false, armed: true,
+    frames: [], on: false, lastTimerMs: 0,
     onFrame(m, t) {
         const s = m.snap;
-        // auto record while the brew timer runs; re-arms on idle
-        if (s.timerState === 0) this.armed = true;
-        if (!this.on && this.armed && s.mode === 1 && s.timerState === 1) {
-            this.start(true);
+        if (!this.on) {
+            // covers page open / reconnect mid-brew as well
+            if (s.timerState === 1 || s.timerState === 2) this.start();
+        } else if (s.timerState === 0) {
+            this.stop();
+        } else if (s.timerMs < this.lastTimerMs) {
+            // missed the reset+restart — save the old one, start anew
+            this.stop();
+            this.start();
         }
-        if (this.on && this.auto && s.timerState === 0) this.stop();
-        if (this.on) this.frames.push({ t: Math.round(t), ...m });
+        if (this.on && s.timerState === 1) {
+            this.frames.push({ t: Math.round(t), ...m });
+        }
+        this.lastTimerMs = s.timerMs;
     },
-    start(auto = false) {
-        this.on = true; this.auto = auto; this.frames = [];
+    start() {
+        this.on = true; this.frames = [];
         this.startedAt = Date.now();
-        $('btn-rec').classList.add('rec-on');
-        recLabel.textContent = '停止';
-        recElapsed.hidden = false;
-        const tick = () => {
-            recElapsed.textContent = fmtDur((Date.now() - this.startedAt) / 1000);
-        };
-        tick();
-        recTick = setInterval(tick, 1000);
-        $('rec-info').textContent = auto ? '自动录制中' : '';
+        $('rec-info').textContent = '';
     },
     stop() {
-        this.on = false; this.armed = false;
-        $('btn-rec').classList.remove('rec-on');
-        recLabel.textContent = '录制';
-        recElapsed.hidden = true;
-        clearInterval(recTick);
+        this.on = false;
         $('btn-dl').disabled = this.frames.length === 0;
         if (this.frames.length && this.frames.length < 10) {
             $('rec-info').textContent = '录制太短，未保存';
@@ -363,10 +359,24 @@ const recorder = {
         saveBrew(this.frames, this.startedAt)
             .catch(e => toast(`保存失败：${e.message || e}`));
     },
+    // chart-head status — called on every frame
+    updateStatus(s) {
+        if (!this.on) {
+            recStatus.className = '';
+            recTxt.textContent = '计时开始后自动录制';
+            return;
+        }
+        const ms = s.timerMs;
+        const dur = `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
+        if (s.timerState === 2) {
+            recStatus.className = 'paused';
+            recTxt.textContent = `已暂停 ${dur}`;
+        } else {
+            recStatus.className = 'on';
+            recTxt.textContent = `录制中 ${dur}`;
+        }
+    },
 };
-
-$('btn-rec').onclick = () =>
-    recorder.on ? recorder.stop() : (recorder.armed = true, recorder.start(false));
 
 $('btn-dl').onclick = () => {
     const body = recorder.frames.map(f => JSON.stringify(f)).join('\n');
@@ -419,10 +429,11 @@ $('btn-weigh').onclick = () => {
 
 async function saveBrew(frames, startedAt) {
     if (frames.length < 10) return;         // taps/blips aren't brews
-    const t0 = frames[0].t;
+    const t0 = frames[0].snap.timerMs;
     const t = [], w = [], f = [];
     for (const m of frames) {
-        t.push(+((m.t - t0) / 1000).toFixed(2));
+        // x = timer time — paused intervals are simply absent
+        t.push(+((m.snap.timerMs - t0) / 1000).toFixed(2));
         w.push(+m.snap.grams.toFixed(2));
         f.push(+m.snap.flowGps.toFixed(2));
     }

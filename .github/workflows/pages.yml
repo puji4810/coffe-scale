@@ -48,6 +48,7 @@ jobs:
         run: |
           node smoke.mjs
           node ble_test.mjs
+          node flow_test.mjs
 
       - name: assemble site
         run: firmware/web/site.sh _site

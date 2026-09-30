@@ -42,6 +42,7 @@ jobs:
         run: |
           node smoke.mjs
           node ble_test.mjs
+          node flow_test.mjs
 
   firmware-scale:
     runs-on: ubuntu-latest

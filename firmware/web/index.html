@@ -322,21 +322,26 @@
   .chip-line { width: 14px; height: 0; border-top: 2px solid; flex: none; }
   .chip-line.ink { border-color: var(--ink); }
   .chip-line.amber { border-color: var(--amber-fill); }
-  #btn-rec { display: inline-flex; align-items: center; gap: 7px; min-height: 34px;
-             padding: 4px 12px; font-size: 14px; }
+  #rec-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--dim); font-size: 13px; white-space: nowrap;
+    min-width: 0; max-width: 16em; overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .rec-dot {
     width: 9px; height: 9px; border-radius: 50%; flex: none;
-    border: 1.5px solid var(--red);
+    border: 1.5px solid var(--red); display: none;
   }
-  #btn-rec.rec-on .rec-dot {
-    background: var(--red);
+  #rec-status.on .rec-dot {
+    display: block; background: var(--red);
     animation: recpulse 1.2s ease-in-out infinite;
   }
+  #rec-status.paused .rec-dot { display: block; }
+  #rec-status.on, #rec-status.paused { color: var(--red); }
   @keyframes recpulse {
     0%, 100% { box-shadow: 0 0 0 0 rgb(229 83 75 / .4); }
     50%      { box-shadow: 0 0 0 5px rgb(229 83 75 / 0); }
   }
-  #rec-elapsed { color: var(--red); font-size: 13px; }
 
   .switch { position: relative; display: inline-block; width: 40px; height: 22px; flex: none; }
   .switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
@@ -619,8 +624,7 @@
             <span class="chip"><i class="chip-line amber"></i>流速 g/s</span>
           </span>
           <span class="spacer"></span>
-          <span id="rec-elapsed" hidden></span>
-          <button id="btn-rec"><i class="rec-dot"></i><span id="rec-label">录制</span></button>
+          <span id="rec-status"><i class="rec-dot"></i><span id="rec-txt">计时开始后自动录制</span></span>
           <label class="switch" title="显示曲线">
             <input type="checkbox" id="chart-toggle" checked><span class="knob"></span>
           </label>
@@ -700,7 +704,7 @@
         <h2>关于</h2>
         <p>通过 Web 蓝牙连接，需要 Chrome 或 Edge；Linux 需开启
            chrome://flags/#enable-experimental-web-platform-features。
-           授权过的秤会自动重连。冲煮计时开始时自动录制。<br>
+           授权过的秤会自动重连。冲煮计时开始时自动录制，暂停计时同时暂停录制，复位计时后保存。<br>
            快捷键：T 去皮，L 计时，M 切换模式。</p>
       </div>
     </div>

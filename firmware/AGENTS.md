@@ -31,6 +31,7 @@ idf.py -B build-esp32s3 build                # -> coffee_scale.bin
 web/wasm/build.sh             # -> web/dist/{scale_core,scale_screen}.{mjs,wasm}
 cd web && node smoke.mjs      # headless check of both modules + proto bindings
 cd web && node ble_test.mjs   # ScaleLink reconnect/write-queue tests
+cd web && node flow_test.mjs  # disturbance rejection + flow derivation tests
 web/site.sh _site             # assemble the GitHub Pages site from dist/
 
 # firmware image + flash
