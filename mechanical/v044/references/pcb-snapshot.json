@@ -1,0 +1,1728 @@
+{
+  "source": "pcb/s3.1/s3.1.kicad_pcb",
+  "sha256": "8aebf51587cdf4a7d8c4064b6a57075559863600490f1c30cd41a88b0a411674",
+  "captured_utc": "2026-09-19T12:18:28.526028+00:00",
+  "outline": [
+    0,
+    0,
+    90,
+    55
+  ],
+  "width": 90,
+  "depth": 55,
+  "thickness": 1.6,
+  "mounting_holes": [
+    {
+      "reference": "MH1",
+      "at": [
+        4.0,
+        4.0
+      ],
+      "drill_mm": 2.2,
+      "plated": false
+    },
+    {
+      "reference": "MH2",
+      "at": [
+        86.0,
+        4.0
+      ],
+      "drill_mm": 2.2,
+      "plated": false
+    },
+    {
+      "reference": "MH3",
+      "at": [
+        4.0,
+        51.0
+      ],
+      "drill_mm": 2.2,
+      "plated": false
+    },
+    {
+      "reference": "MH4",
+      "at": [
+        86.0,
+        51.0
+      ],
+      "drill_mm": 2.2,
+      "plated": false
+    }
+  ],
+  "components": [
+    {
+      "reference": "D1",
+      "value": "B5819W",
+      "footprint": "s3-1:D_SOD-123",
+      "at": [
+        66,
+        42
+      ],
+      "side": "F",
+      "bbox": [
+        64.6,
+        41.1,
+        67.4,
+        42.9
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "J2",
+      "value": "LOADCELL",
+      "footprint": "s3-1:PinHeader_1x05_P2.54mm_H",
+      "at": [
+        8,
+        51
+      ],
+      "side": "F",
+      "bbox": [
+        6.85,
+        49.85,
+        19.310000000000002,
+        52.15
+      ],
+      "height_envelope": 8.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R2",
+      "value": "1k",
+      "footprint": "s3-1:SMD_0805_VR",
+      "at": [
+        13.08,
+        48
+      ],
+      "side": "F",
+      "bbox": [
+        12.46,
+        47.0,
+        13.7,
+        49.0
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R1",
+      "value": "1k",
+      "footprint": "s3-1:SMD_0805_VR",
+      "at": [
+        15.62,
+        48
+      ],
+      "side": "F",
+      "bbox": [
+        15.0,
+        47.0,
+        16.24,
+        49.0
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C11",
+      "value": "1n",
+      "footprint": "s3-1:SMD_0805_F",
+      "at": [
+        11,
+        18.05
+      ],
+      "side": "F",
+      "bbox": [
+        10.0,
+        17.43,
+        12.0,
+        18.67
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C10",
+      "value": "1n",
+      "footprint": "s3-1:SMD_0805_F",
+      "at": [
+        11,
+        19.95
+      ],
+      "side": "F",
+      "bbox": [
+        10.0,
+        19.33,
+        12.0,
+        20.57
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C5",
+      "value": "100n",
+      "footprint": "s3-1:SMD_0805_VR",
+      "at": [
+        13.45,
+        19
+      ],
+      "side": "F",
+      "bbox": [
+        12.83,
+        18.0,
+        14.069999999999999,
+        20.0
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "U1",
+      "value": "NAU7802SGI",
+      "footprint": "s3-1:SOIC-16_3.9x9.9mm_P1.27mm",
+      "at": [
+        18,
+        22
+      ],
+      "side": "F",
+      "bbox": [
+        16.05,
+        17.05,
+        19.95,
+        26.95
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C4",
+      "value": "100n",
+      "footprint": "s3-1:SMD_0805_VR",
+      "at": [
+        11,
+        23.3
+      ],
+      "side": "F",
+      "bbox": [
+        10.38,
+        22.3,
+        11.62,
+        24.3
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "TP7",
+      "value": "TP_VBG",
+      "footprint": "s3-1:TestPoint_1.2mm",
+      "at": [
+        11,
+        26.4
+      ],
+      "side": "F",
+      "bbox": [
+        9.9,
+        25.299999999999997,
+        12.1,
+        27.5
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C1",
+      "value": "100n",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        23.3,
+        18.825
+      ],
+      "side": "F",
+      "bbox": [
+        22.3,
+        18.205,
+        24.3,
+        19.445
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C2",
+      "value": "100n",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        23.3,
+        16.9
+      ],
+      "side": "F",
+      "bbox": [
+        22.3,
+        16.279999999999998,
+        24.3,
+        17.52
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C3",
+      "value": "1u",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        23.3,
+        15.05
+      ],
+      "side": "F",
+      "bbox": [
+        22.3,
+        14.430000000000001,
+        24.3,
+        15.67
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "TP8",
+      "value": "TP_AVDD",
+      "footprint": "s3-1:TestPoint_1.2mm",
+      "at": [
+        20.6,
+        15.3
+      ],
+      "side": "F",
+      "bbox": [
+        19.5,
+        14.200000000000001,
+        21.700000000000003,
+        16.400000000000002
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "U7",
+      "value": "HT7533-1",
+      "footprint": "s3-1:SOT-89-3",
+      "at": [
+        22.5,
+        11.7
+      ],
+      "side": "F",
+      "bbox": [
+        21.25,
+        9.45,
+        23.75,
+        13.95
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C20",
+      "value": "10u",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        17.5,
+        12.8
+      ],
+      "side": "F",
+      "bbox": [
+        16.5,
+        12.180000000000001,
+        18.5,
+        13.42
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C22",
+      "value": "10u",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        26.9,
+        11.7
+      ],
+      "side": "F",
+      "bbox": [
+        25.9,
+        11.08,
+        27.9,
+        12.319999999999999
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "J11",
+      "value": "CH2",
+      "footprint": "s3-1:PinHeader_1x04_P2.54mm",
+      "at": [
+        4,
+        30
+      ],
+      "side": "F",
+      "bbox": [
+        2.85,
+        28.85,
+        5.15,
+        39.17
+      ],
+      "height_envelope": 12,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R22",
+      "value": "1k",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        9.2,
+        35.08
+      ],
+      "side": "F",
+      "bbox": [
+        8.2,
+        34.46,
+        10.2,
+        35.699999999999996
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R23",
+      "value": "1k",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        9.2,
+        37.62
+      ],
+      "side": "F",
+      "bbox": [
+        8.2,
+        37.0,
+        10.2,
+        38.239999999999995
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C27",
+      "value": "100n",
+      "footprint": "s3-1:SMD_0805_VR",
+      "at": [
+        13,
+        22.7
+      ],
+      "side": "F",
+      "bbox": [
+        12.38,
+        21.7,
+        13.62,
+        23.7
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C28",
+      "value": "1n",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        9.4,
+        41.4
+      ],
+      "side": "F",
+      "bbox": [
+        8.4,
+        40.78,
+        10.4,
+        42.019999999999996
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C29",
+      "value": "1n",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        10.7,
+        39.5
+      ],
+      "side": "F",
+      "bbox": [
+        9.7,
+        38.88,
+        11.7,
+        40.12
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "U3",
+      "value": "TMP102",
+      "footprint": "s3-1:SOT-563_1.6x1.6mm_P0.5mm",
+      "at": [
+        22,
+        31.5
+      ],
+      "side": "F",
+      "bbox": [
+        21.2,
+        30.7,
+        22.8,
+        32.3
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C6",
+      "value": "100n",
+      "footprint": "s3-1:SMD_0805_V",
+      "at": [
+        20.2,
+        36.5
+      ],
+      "side": "F",
+      "bbox": [
+        19.58,
+        35.5,
+        20.82,
+        37.5
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C17",
+      "value": "100n",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        23.1,
+        35.6
+      ],
+      "side": "F",
+      "bbox": [
+        22.1,
+        34.980000000000004,
+        24.1,
+        36.22
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R13",
+      "value": "100k",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        23.1,
+        37.6
+      ],
+      "side": "F",
+      "bbox": [
+        22.1,
+        36.980000000000004,
+        24.1,
+        38.22
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R14",
+      "value": "100k",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        23.1,
+        39.7
+      ],
+      "side": "F",
+      "bbox": [
+        22.1,
+        39.080000000000005,
+        24.1,
+        40.32
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "TP3",
+      "value": "TP_EN",
+      "footprint": "s3-1:TestPoint_1.2mm",
+      "at": [
+        6,
+        6.5
+      ],
+      "side": "F",
+      "bbox": [
+        4.9,
+        5.4,
+        7.1,
+        7.6
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "TP4",
+      "value": "TP_BOOT",
+      "footprint": "s3-1:TestPoint_1.2mm",
+      "at": [
+        9,
+        6.5
+      ],
+      "side": "F",
+      "bbox": [
+        7.9,
+        5.4,
+        10.1,
+        7.6
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "TP5",
+      "value": "TP_TXD",
+      "footprint": "s3-1:TestPoint_1.2mm",
+      "at": [
+        12,
+        6.5
+      ],
+      "side": "F",
+      "bbox": [
+        10.9,
+        5.4,
+        13.1,
+        7.6
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "TP6",
+      "value": "TP_RXD",
+      "footprint": "s3-1:TestPoint_1.2mm",
+      "at": [
+        15,
+        6.5
+      ],
+      "side": "F",
+      "bbox": [
+        13.9,
+        5.4,
+        16.1,
+        7.6
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "TP9",
+      "value": "TP_VBUS",
+      "footprint": "s3-1:TestPoint_1.2mm",
+      "at": [
+        6,
+        10
+      ],
+      "side": "F",
+      "bbox": [
+        4.9,
+        8.9,
+        7.1,
+        11.1
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "TP10",
+      "value": "TP_3V3",
+      "footprint": "s3-1:TestPoint_1.2mm",
+      "at": [
+        9,
+        10
+      ],
+      "side": "F",
+      "bbox": [
+        7.9,
+        8.9,
+        10.1,
+        11.1
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "TP11",
+      "value": "TP_GND",
+      "footprint": "s3-1:TestPoint_1.2mm",
+      "at": [
+        12,
+        10
+      ],
+      "side": "F",
+      "bbox": [
+        10.9,
+        8.9,
+        13.1,
+        11.1
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "TP12",
+      "value": "TP_SDA",
+      "footprint": "s3-1:TestPoint_1.2mm",
+      "at": [
+        15,
+        10
+      ],
+      "side": "F",
+      "bbox": [
+        13.9,
+        8.9,
+        16.1,
+        11.1
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "TP13",
+      "value": "TP_SCL",
+      "footprint": "s3-1:TestPoint_1.2mm",
+      "at": [
+        20.3,
+        29.3
+      ],
+      "side": "F",
+      "bbox": [
+        19.2,
+        28.2,
+        21.400000000000002,
+        30.400000000000002
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C12",
+      "value": "100n",
+      "footprint": "s3-1:SMD_0805_F",
+      "at": [
+        33.5,
+        7
+      ],
+      "side": "F",
+      "bbox": [
+        32.5,
+        6.38,
+        34.5,
+        7.62
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C13",
+      "value": "10u",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        34,
+        26.5
+      ],
+      "side": "F",
+      "bbox": [
+        33.0,
+        25.88,
+        35.0,
+        27.12
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C25",
+      "value": "1u",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        59.5,
+        31.8
+      ],
+      "side": "F",
+      "bbox": [
+        58.5,
+        31.18,
+        60.5,
+        32.42
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R5",
+      "value": "10k",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        33.5,
+        10.8
+      ],
+      "side": "F",
+      "bbox": [
+        32.5,
+        10.180000000000001,
+        34.5,
+        11.42
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C14",
+      "value": "1u",
+      "footprint": "s3-1:SMD_0805_V",
+      "at": [
+        33.5,
+        13.8
+      ],
+      "side": "F",
+      "bbox": [
+        32.88,
+        12.8,
+        34.12,
+        14.8
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R6",
+      "value": "10k",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        58.5,
+        16
+      ],
+      "side": "F",
+      "bbox": [
+        57.5,
+        15.38,
+        59.5,
+        16.62
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "J7",
+      "value": "LCD",
+      "footprint": "s3-1:JST_PH_B8B-PH-K_1x08_P2.00mm_Vertical",
+      "at": [
+        64,
+        3.5
+      ],
+      "side": "F",
+      "bbox": [
+        61.64,
+        1.3900000000000001,
+        79.95,
+        6.3
+      ],
+      "height_envelope": 12,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "J8",
+      "value": "BTN",
+      "footprint": "s3-1:JST_PH_B4B-PH-K_1x04_P2.00mm_Vertical",
+      "at": [
+        60,
+        10.2
+      ],
+      "side": "F",
+      "bbox": [
+        57.64,
+        8.09,
+        67.95,
+        13.0
+      ],
+      "height_envelope": 12,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R21",
+      "value": "10k",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        77.5,
+        8.4
+      ],
+      "side": "F",
+      "bbox": [
+        76.5,
+        7.78,
+        78.5,
+        9.02
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C26",
+      "value": "100n",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        73,
+        8.4
+      ],
+      "side": "F",
+      "bbox": [
+        72.0,
+        7.78,
+        74.0,
+        9.02
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R15",
+      "value": "10k",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        69.75,
+        11.71
+      ],
+      "side": "F",
+      "bbox": [
+        68.75,
+        11.090000000000002,
+        70.75,
+        12.33
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C18",
+      "value": "100n",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        66.2,
+        14.7
+      ],
+      "side": "F",
+      "bbox": [
+        65.2,
+        14.08,
+        67.2,
+        15.319999999999999
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R16",
+      "value": "10k",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        73.24,
+        11.72
+      ],
+      "side": "F",
+      "bbox": [
+        72.24,
+        11.100000000000001,
+        74.24,
+        12.34
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C19",
+      "value": "100n",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        69.5,
+        14
+      ],
+      "side": "F",
+      "bbox": [
+        68.5,
+        13.38,
+        70.5,
+        14.62
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "U2",
+      "value": "LIS2DW12",
+      "footprint": "s3-1:LGA-12_2x2mm_P0.5mm_LIS2DW12",
+      "at": [
+        32,
+        33
+      ],
+      "side": "F",
+      "bbox": [
+        31.0,
+        32.0,
+        33.0,
+        34.0
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C7",
+      "value": "100n",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        29,
+        29.5
+      ],
+      "side": "F",
+      "bbox": [
+        28.0,
+        28.88,
+        30.0,
+        30.12
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C8",
+      "value": "4u7",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        29,
+        36.5
+      ],
+      "side": "F",
+      "bbox": [
+        28.0,
+        35.88,
+        30.0,
+        37.12
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R3",
+      "value": "4k7",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        50,
+        28
+      ],
+      "side": "F",
+      "bbox": [
+        49.0,
+        27.38,
+        51.0,
+        28.62
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R4",
+      "value": "4k7",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        50,
+        30.5
+      ],
+      "side": "F",
+      "bbox": [
+        49.0,
+        29.88,
+        51.0,
+        31.12
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "BZ1",
+      "value": "MLT-8530",
+      "footprint": "s3-1:MagneticBuzzer_CUI_CMT-8540S-SMT",
+      "at": [
+        62,
+        24
+      ],
+      "side": "F",
+      "bbox": [
+        57.75,
+        19.75,
+        66.25,
+        28.25
+      ],
+      "height_envelope": 4,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "D2",
+      "value": "1N4148W",
+      "footprint": "s3-1:D_SOD-123",
+      "at": [
+        69.5,
+        22
+      ],
+      "side": "F",
+      "bbox": [
+        68.1,
+        21.1,
+        70.9,
+        22.9
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "Q2",
+      "value": "2N7002",
+      "footprint": "s3-1:SOT-23",
+      "at": [
+        55.5,
+        28
+      ],
+      "side": "F",
+      "bbox": [
+        53.57,
+        26.3,
+        57.43,
+        29.7
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R17",
+      "value": "1k",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        52,
+        26
+      ],
+      "side": "F",
+      "bbox": [
+        51.0,
+        25.38,
+        53.0,
+        26.62
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R18",
+      "value": "100k",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        54,
+        30.5
+      ],
+      "side": "F",
+      "bbox": [
+        53.0,
+        29.88,
+        55.0,
+        31.12
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "U5",
+      "value": "TP4057-42",
+      "footprint": "s3-1:SOT-23-6",
+      "at": [
+        64,
+        32
+      ],
+      "side": "F",
+      "bbox": [
+        61.95,
+        30.3,
+        66.05,
+        33.7
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R10",
+      "value": "2k7",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        66.5,
+        35
+      ],
+      "side": "F",
+      "bbox": [
+        65.5,
+        34.38,
+        67.5,
+        35.62
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R11",
+      "value": "10k",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        60,
+        29.6
+      ],
+      "side": "F",
+      "bbox": [
+        59.0,
+        28.98,
+        61.0,
+        30.220000000000002
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R12",
+      "value": "100k",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        64,
+        39
+      ],
+      "side": "F",
+      "bbox": [
+        63.0,
+        38.38,
+        65.0,
+        39.62
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C16",
+      "value": "10u",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        60,
+        36
+      ],
+      "side": "F",
+      "bbox": [
+        59.0,
+        35.38,
+        61.0,
+        36.62
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C15",
+      "value": "10u",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        79.3,
+        43.5
+      ],
+      "side": "F",
+      "bbox": [
+        78.3,
+        42.88,
+        80.3,
+        44.12
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "J6",
+      "value": "BAT",
+      "footprint": "s3-1:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical",
+      "at": [
+        62,
+        51
+      ],
+      "side": "F",
+      "bbox": [
+        59.64,
+        48.89,
+        65.95,
+        53.8
+      ],
+      "height_envelope": 12,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "U4",
+      "value": "ESP32-S3-WROOM-1-N16R8",
+      "footprint": "s3-1:ESP32-S3-WROOM-1",
+      "at": [
+        45,
+        11
+      ],
+      "side": "F",
+      "bbox": [
+        36.0,
+        -1.75,
+        54.0,
+        23.75
+      ],
+      "height_envelope": 3.1,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "Q1",
+      "value": "AO3401A",
+      "footprint": "s3-1:SOT-23",
+      "at": [
+        68,
+        38
+      ],
+      "side": "F",
+      "bbox": [
+        66.07,
+        36.3,
+        69.93,
+        39.7
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "U6",
+      "value": "XC6220B331MR-G",
+      "footprint": "s3-1:SOT-23-5",
+      "at": [
+        74,
+        34
+      ],
+      "side": "F",
+      "bbox": [
+        71.95,
+        32.3,
+        76.05,
+        35.7
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C21",
+      "value": "10u",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        72,
+        37
+      ],
+      "side": "F",
+      "bbox": [
+        71.0,
+        36.38,
+        73.0,
+        37.62
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C9",
+      "value": "10u",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        76.5,
+        37
+      ],
+      "side": "F",
+      "bbox": [
+        75.5,
+        36.38,
+        77.5,
+        37.62
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "J5",
+      "value": "TYPE-C-31-M-12",
+      "footprint": "s3-1:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
+      "at": [
+        74,
+        50
+      ],
+      "side": "F",
+      "bbox": [
+        69.53,
+        46.35,
+        78.47,
+        53.65
+      ],
+      "height_envelope": 3.2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R8",
+      "value": "5k1",
+      "footprint": "s3-1:SMD_0805_VR",
+      "at": [
+        73,
+        42.3
+      ],
+      "side": "F",
+      "bbox": [
+        72.38,
+        41.3,
+        73.62,
+        43.3
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R9",
+      "value": "5k1",
+      "footprint": "s3-1:SMD_0805_VR",
+      "at": [
+        75.75,
+        42.3
+      ],
+      "side": "F",
+      "bbox": [
+        75.13,
+        41.3,
+        76.37,
+        43.3
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "U8",
+      "value": "USBLC6-2SC6",
+      "footprint": "s3-1:SOT-23-6",
+      "at": [
+        79,
+        40.5
+      ],
+      "side": "F",
+      "bbox": [
+        76.95,
+        38.8,
+        81.05,
+        42.2
+      ],
+      "height_envelope": 2,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R20",
+      "value": "22R",
+      "footprint": "s3-1:SMD_0805_F",
+      "at": [
+        60,
+        18.5
+      ],
+      "side": "F",
+      "bbox": [
+        59.0,
+        17.88,
+        61.0,
+        19.12
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R19",
+      "value": "22R",
+      "footprint": "s3-1:SMD_0805_F",
+      "at": [
+        64.5,
+        18.5
+      ],
+      "side": "F",
+      "bbox": [
+        63.5,
+        17.88,
+        65.5,
+        19.12
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C24",
+      "value": "DNP",
+      "footprint": "s3-1:SMD_0805_V",
+      "at": [
+        56.5,
+        19
+      ],
+      "side": "F",
+      "bbox": [
+        55.88,
+        18.0,
+        57.12,
+        20.0
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "C23",
+      "value": "DNP",
+      "footprint": "s3-1:SMD_0805_V",
+      "at": [
+        70.5,
+        26.8
+      ],
+      "side": "F",
+      "bbox": [
+        69.88,
+        25.8,
+        71.12,
+        27.8
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "J10",
+      "value": "EXP",
+      "footprint": "s3-1:PinHeader_2x10_P2.54mm_Vertical",
+      "at": [
+        34,
+        50
+      ],
+      "side": "F",
+      "bbox": [
+        32.35,
+        48.35,
+        58.510000000000005,
+        54.19
+      ],
+      "height_envelope": 12,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R24",
+      "value": "100R",
+      "footprint": "s3-1:SMD_0805_V",
+      "at": [
+        34,
+        46.5
+      ],
+      "side": "F",
+      "bbox": [
+        33.38,
+        45.5,
+        34.62,
+        47.5
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R25",
+      "value": "100R",
+      "footprint": "s3-1:SMD_0805_V",
+      "at": [
+        36.54,
+        46.5
+      ],
+      "side": "F",
+      "bbox": [
+        35.92,
+        45.5,
+        37.16,
+        47.5
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R26",
+      "value": "100R",
+      "footprint": "s3-1:SMD_0805_V",
+      "at": [
+        39.08,
+        46.5
+      ],
+      "side": "F",
+      "bbox": [
+        38.46,
+        45.5,
+        39.699999999999996,
+        47.5
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R27",
+      "value": "100R",
+      "footprint": "s3-1:SMD_0805_V",
+      "at": [
+        41.62,
+        46.5
+      ],
+      "side": "F",
+      "bbox": [
+        41.0,
+        45.5,
+        42.239999999999995,
+        47.5
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R28",
+      "value": "100R",
+      "footprint": "s3-1:SMD_0805_V",
+      "at": [
+        44.16,
+        46.5
+      ],
+      "side": "F",
+      "bbox": [
+        43.54,
+        45.5,
+        44.779999999999994,
+        47.5
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R29",
+      "value": "100R",
+      "footprint": "s3-1:SMD_0805_V",
+      "at": [
+        46.7,
+        46.5
+      ],
+      "side": "F",
+      "bbox": [
+        46.080000000000005,
+        45.5,
+        47.32,
+        47.5
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R30",
+      "value": "100R",
+      "footprint": "s3-1:SMD_0805_V",
+      "at": [
+        49.24,
+        46.5
+      ],
+      "side": "F",
+      "bbox": [
+        48.620000000000005,
+        45.5,
+        49.86,
+        47.5
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R31",
+      "value": "100R",
+      "footprint": "s3-1:SMD_0805_V",
+      "at": [
+        51.78,
+        46.5
+      ],
+      "side": "F",
+      "bbox": [
+        51.160000000000004,
+        45.5,
+        52.4,
+        47.5
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "R32",
+      "value": "10k",
+      "footprint": "s3-1:SMD_0805",
+      "at": [
+        55.5,
+        46.8
+      ],
+      "side": "F",
+      "bbox": [
+        54.5,
+        46.18,
+        56.5,
+        47.419999999999995
+      ],
+      "height_envelope": 0.8,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "D3",
+      "value": "B5819W",
+      "footprint": "s3-1:D_SOD-123",
+      "at": [
+        30,
+        49.5
+      ],
+      "side": "F",
+      "bbox": [
+        28.6,
+        48.6,
+        31.4,
+        50.4
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    },
+    {
+      "reference": "D4",
+      "value": "B5819WS",
+      "footprint": "s3-1:D_SOD-323",
+      "at": [
+        70,
+        43.55
+      ],
+      "side": "F",
+      "bbox": [
+        69.15,
+        42.925,
+        70.85,
+        44.175
+      ],
+      "height_envelope": 1.5,
+      "height_basis": "assumed; vendor body/plug STEP unavailable"
+    }
+  ]
+}
