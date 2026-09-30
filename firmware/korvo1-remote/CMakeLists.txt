@@ -11,5 +11,8 @@
 # bsp_display_start() does panel + GT1151 + LVGL in one call.
 cmake_minimum_required(VERSION 3.16)
 set(PROJECT_VER "0.1.0")
+# scale_proto lives in the parent firmware project — the wire ABI is
+# shared verbatim between scale, remote and the web WASM bindings.
+set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../components/scale_proto")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(korvo1_remote)

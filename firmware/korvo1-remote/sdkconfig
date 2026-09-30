@@ -1027,7 +1027,6 @@ CONFIG_BOOTLOADER_PROJECT_VER=1
 CONFIG_BOOTLOADER_APP_ROLLBACK=y
 # default:
 CONFIG_BOOTLOADER_APP_ROLLBACK_CONFIRM_ON_STARTUP=y
-# default:
 # CONFIG_BOOTLOADER_APP_ROLLBACK_CONFIRM_BY_APP is not set
 # end of Application Rollback
 
@@ -1398,12 +1397,29 @@ CONFIG_COMPILER_CXX_GLIBCXX_CONSTEXPR_NO_CHANGE=y
 #
 # Bluetooth
 #
+CONFIG_BT_ENABLED=y
+# CONFIG_BT_BLUEDROID_ENABLED is not set
+CONFIG_BT_NIMBLE_ENABLED=y
+# CONFIG_BT_CONTROLLER_ONLY is not set
 # default:
-# CONFIG_BT_ENABLED is not set
+CONFIG_BT_CONTROLLER_ENABLED=y
+# default:
+# CONFIG_BT_CONTROLLER_DISABLED is not set
 
 #
 # Common Options
 #
+# default:
+CONFIG_BT_ALARM_MAX_NUM=50
+# default:
+# CONFIG_BT_BLE_HOST_ALLOW_SUB_SPEC_MIN_CONN_INT is not set
+
+#
+# OSAL (OS abstraction layer)
+#
+# default:
+# CONFIG_BT_OSAL_ENABLED is not set
+# end of OSAL (OS abstraction layer)
 
 #
 # BT Logs
@@ -1432,7 +1448,723 @@ CONFIG_COMPILER_CXX_GLIBCXX_CONSTEXPR_NO_CHANGE=y
 # default:
 # CONFIG_BT_LE_USED_MEM_STATISTICS_ENABLED is not set
 # end of Common Options
+
+#
+# NimBLE Options
+#
+
+#
+# General
+#
+# default:
+CONFIG_BT_NIMBLE_MEM_ALLOC_MODE_INTERNAL=y
+# default:
+# CONFIG_BT_NIMBLE_MEM_ALLOC_MODE_EXTERNAL is not set
+# default:
+# CONFIG_BT_NIMBLE_MEM_ALLOC_MODE_DEFAULT is not set
+# default:
+CONFIG_BT_NIMBLE_PINNED_TO_CORE=0
+# default:
+CONFIG_BT_NIMBLE_PINNED_TO_CORE_0=y
+# default:
+# CONFIG_BT_NIMBLE_PINNED_TO_CORE_1 is not set
+# default:
+CONFIG_BT_NIMBLE_HOST_TASK_STACK_SIZE=4096
+# end of General
+
+#
+# Roles and Profiles
+#
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=y
+# CONFIG_BT_NIMBLE_ROLE_PERIPHERAL is not set
+# CONFIG_BT_NIMBLE_ROLE_BROADCASTER is not set
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=y
+# default:
+CONFIG_BT_NIMBLE_GATT_CLIENT=y
+# end of Roles and Profiles
+
+#
+# Security (SMP)
+#
+# CONFIG_BT_NIMBLE_SECURITY_ENABLE is not set
+# end of Security (SMP)
+
+#
+# GAP
+#
+# default:
+CONFIG_BT_NIMBLE_RPA_TIMEOUT=900
+# default:
+CONFIG_BT_NIMBLE_WHITELIST_SIZE=12
+# default:
+CONFIG_BT_NIMBLE_ENABLE_CONN_REATTEMPT=y
+# default:
+CONFIG_BT_NIMBLE_MAX_CONN_REATTEMPT=3
+# default:
+CONFIG_BT_NIMBLE_HS_PVCY=y
+# default:
+# CONFIG_BT_NIMBLE_HOST_ALLOW_CONNECT_WITH_SCAN is not set
+# default:
+# CONFIG_BT_NIMBLE_HOST_QUEUE_CONG_CHECK is not set
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
+# default:
+CONFIG_BT_NIMBLE_MAX_CCCDS=8
+# default:
+# CONFIG_BT_NIMBLE_CRYPTO_STACK_MBEDTLS is not set
+# default:
+CONFIG_BT_NIMBLE_HS_STOP_TIMEOUT_MS=2000
+# default:
+CONFIG_BT_NIMBLE_USE_ESP_TIMER=y
+# default:
+CONFIG_BT_NIMBLE_DEFER_CONN_EVENTS_UNTIL_CONNECT=y
+# default:
+# CONFIG_BT_NIMBLE_UNHANDLED_HCI_EVENT is not set
+# end of GAP
+
+#
+# GATT / ATT
+#
+# default:
+CONFIG_BT_NIMBLE_ATT_PREFERRED_MTU=256
+# default:
+CONFIG_BT_NIMBLE_ATT_MAX_PREP_ENTRIES=64
+# default:
+CONFIG_BT_NIMBLE_GATT_MAX_PROCS=4
+# default:
+# CONFIG_BT_NIMBLE_BLE_GATT_BLOB_TRANSFER is not set
+# default:
+# CONFIG_BT_NIMBLE_GATT_CACHING is not set
+# default:
+# CONFIG_BT_NIMBLE_INCL_SVC_DISCOVERY is not set
+# end of GATT / ATT
+
+#
+# L2CAP
+#
+# default:
+CONFIG_BT_NIMBLE_L2CAP_COC_MAX_NUM=0
+# end of L2CAP
+
+#
+# Memory Settings
+#
+# default:
+CONFIG_BT_NIMBLE_MSYS_1_BLOCK_COUNT=24
+# default:
+CONFIG_BT_NIMBLE_MSYS_1_BLOCK_SIZE=128
+# default:
+CONFIG_BT_NIMBLE_MSYS_2_BLOCK_COUNT=24
+# default:
+CONFIG_BT_NIMBLE_MSYS_2_BLOCK_SIZE=320
+# default:
+CONFIG_BT_NIMBLE_MSYS_BUF_FROM_HEAP=y
+# default:
+CONFIG_BT_NIMBLE_TRANSPORT_ACL_FROM_LL_COUNT=24
+# default:
+CONFIG_BT_NIMBLE_TRANSPORT_ACL_SIZE=255
+# default:
+CONFIG_BT_NIMBLE_TRANSPORT_EVT_SIZE=70
+# default:
+CONFIG_BT_NIMBLE_TRANSPORT_EVT_COUNT=30
+# default:
+CONFIG_BT_NIMBLE_TRANSPORT_EVT_DISCARD_COUNT=8
+# default:
+CONFIG_BT_NIMBLE_L2CAP_COC_SDU_BUFF_COUNT=1
+# default:
+# CONFIG_BT_NIMBLE_MEMPOOL_RUNTIME_ALLOC is not set
+# end of Memory Settings
+
+#
+# BLE 5.x Features
+#
+# default:
+CONFIG_BT_NIMBLE_50_FEATURE_SUPPORT=y
+# default:
+CONFIG_BT_NIMBLE_LL_CFG_FEAT_LE_2M_PHY=y
+# default:
+CONFIG_BT_NIMBLE_LL_CFG_FEAT_LE_CODED_PHY=y
+# default:
+# CONFIG_BT_NIMBLE_EXT_ADV is not set
+# default:
+# CONFIG_BT_NIMBLE_EXT_SCAN is not set
+# default:
+# CONFIG_BT_NIMBLE_BLE_POWER_CONTROL is not set
+# default:
+# CONFIG_BT_NIMBLE_AOA_AOD is not set
+# default:
+# CONFIG_BT_NIMBLE_ISO is not set
+# end of BLE 5.x Features
+
+#
+# Extra Features
+#
+# default:
+# CONFIG_BT_NIMBLE_DYNAMIC_SERVICE is not set
+# default:
+# CONFIG_BT_NIMBLE_BLUFI_ENABLE is not set
+# default:
+# CONFIG_BT_NIMBLE_ENC_ADV_DATA is not set
+# default:
+# CONFIG_BT_NIMBLE_ADV_UUID_CONCAT is not set
+# default:
+# CONFIG_BT_NIMBLE_GATTC_PROC_PREEMPTION_PROTECT is not set
+# default:
+# CONFIG_BT_NIMBLE_GATTC_AUTO_PAIR is not set
+# default:
+CONFIG_BT_NIMBLE_EATT_CHAN_NUM=0
+# default:
+# CONFIG_BT_NIMBLE_SUBRATE is not set
+# default:
+CONFIG_BT_NIMBLE_DTM_MODE_TEST=y
+# default:
+CONFIG_BT_NIMBLE_MEM_OPTIMIZATION=y
+# default:
+CONFIG_BT_NIMBLE_STATIC_TO_DYNAMIC=y
+# default:
+CONFIG_BT_NIMBLE_SM_SIGN_CNT=y
+# default:
+CONFIG_BT_NIMBLE_CPFD_CAFD=y
+# default:
+CONFIG_BT_NIMBLE_RECONFIG_MTU=y
+# default:
+# CONFIG_BT_NIMBLE_LOW_SPEED_MODE is not set
+# default:
+# CONFIG_BT_NIMBLE_GAP_ALLOW_ADV_RESTART is not set
+# end of Extra Features
+
+#
+# NimBLE Mesh
+#
+# default:
+# CONFIG_BT_NIMBLE_MESH is not set
+# end of NimBLE Mesh
+
+#
+# Host-controller Transport
+#
+# default:
+CONFIG_UART_HW_FLOWCTRL_DISABLE=y
+# default:
+# CONFIG_UART_HW_FLOWCTRL_CTS_RTS is not set
+# default:
+CONFIG_BT_NIMBLE_HCI_UART_FLOW_CTRL=0
+# default:
+CONFIG_BT_NIMBLE_HCI_UART_RTS_PIN=19
+# default:
+CONFIG_BT_NIMBLE_HCI_UART_CTS_PIN=23
+# end of Host-controller Transport
+
+#
+# Debugging/Testing
+#
+# default:
+# CONFIG_BT_NIMBLE_MEM_DEBUG is not set
+# default:
+# CONFIG_BT_NIMBLE_LOG_LEVEL_NONE is not set
+# default:
+# CONFIG_BT_NIMBLE_LOG_LEVEL_ERROR is not set
+# default:
+# CONFIG_BT_NIMBLE_LOG_LEVEL_WARNING is not set
+# default:
+CONFIG_BT_NIMBLE_LOG_LEVEL_INFO=y
+# default:
+# CONFIG_BT_NIMBLE_LOG_LEVEL_DEBUG is not set
+# default:
+CONFIG_BT_NIMBLE_LOG_LEVEL=1
+# default:
+CONFIG_BT_NIMBLE_PRINT_ERR_NAME=y
+# default:
+# CONFIG_BT_NIMBLE_DEBUG is not set
+# default:
+# CONFIG_BT_NIMBLE_TEST_THROUGHPUT_TEST is not set
+# end of Debugging/Testing
+
+#
+# Vendor / Optimization
+#
+# default:
+# CONFIG_BT_NIMBLE_VS_SUPPORT is not set
+# default:
+# CONFIG_BT_NIMBLE_OPTIMIZE_MULTI_CONN is not set
+# default:
+# CONFIG_BT_NIMBLE_HIGH_DUTY_ADV_ITVL is not set
+# default:
+# CONFIG_BT_NIMBLE_ADV_SEND_CONSTANT_DID is not set
+# default:
+# CONFIG_BT_NIMBLE_SCAN_ALLOW_ENH_ADI_FILTER is not set
+# end of Vendor / Optimization
+
+#
+# Helper Utils
+#
+# default:
+CONFIG_BT_NIMBLE_CHK_HOST_STATUS=y
+# default:
+CONFIG_BT_NIMBLE_UTIL_API=y
+# default:
+CONFIG_BT_NIMBLE_EXTRA_ADV_FIELDS=y
+# end of Helper Utils
+# end of NimBLE Options
+
+#
+# Controller Options
+#
+# default:
+CONFIG_BTDM_CTRL_MODE_BLE_ONLY=y
+# default:
+# CONFIG_BTDM_CTRL_MODE_BR_EDR_ONLY is not set
+# default:
+# CONFIG_BTDM_CTRL_MODE_BTDM is not set
+# default:
+CONFIG_BT_CTRL_PINNED_TO_CORE_CHOICE_0=y
+# default:
+# CONFIG_BT_CTRL_PINNED_TO_CORE_CHOICE_1 is not set
+# default:
+CONFIG_BT_CTRL_PINNED_TO_CORE=0
+# default:
+CONFIG_BT_CTRL_TASK_STACK_SIZE=4096
+# default:
+# CONFIG_BT_CTRL_ALLOW_MALLOC_FROM_SPIRAM is not set
+# default:
+# CONFIG_BT_CTRL_SLEEP_ENABLE is not set
+# default:
+CONFIG_BT_DUAL_MODE_ARCH=y
+# default:
+CONFIG_BT_CTRL_BLE_ENABLE=y
+
+#
+# Bluetooth controller HCI
+#
+# default:
+CONFIG_BT_CTRL_HCI_CMD_NUM=5
+# default:
+CONFIG_BT_CTRL_HCI_INTERFACE_USE_RAM=y
+# default:
+# CONFIG_BT_CTRL_HCI_INTERFACE_USE_UART is not set
+# default:
+CONFIG_BT_CTRL_NONBLOCK_CMD_BUF=y
+# end of Bluetooth controller HCI
+
+#
+# BLE Controller Options
+#
+
+#
+# Connection vendor/Optimization Options
+#
+# default:
+# CONFIG_BT_LE_CTRL_CHECK_CONNECT_IND_ACCESS_ADDRESS is not set
+# default:
+# CONFIG_BT_LE_CTRL_CHAN_ASS_EN is not set
+
+#
+# BLE disconnects when Instant Passed (0x28) occurs
+#
+# default:
+# CONFIG_BT_LE_CTRL_LLCP_CONN_UPDATE is not set
+# default:
+# CONFIG_BT_LE_CTRL_LLCP_CHAN_MAP_UPDATE is not set
+# default:
+# CONFIG_BT_LE_CTRL_LLCP_PHY_UPDATE is not set
+# end of BLE disconnects when Instant Passed (0x28) occurs
+
+# default:
+CONFIG_BT_LE_CONN_RESERVED_MEMORY_COUNT=2
+# default:
+# CONFIG_BT_LE_CTRL_SLV_FAST_RX_CONN_DATA_EN is not set
+# default:
+# CONFIG_BT_LE_CTRL_DL_ITVL_PHY_SYNC_EN is not set
+# end of Connection vendor/Optimization Options
+
+#
+# Scanning vendor/Optimization Options
+#
+# default:
+CONFIG_BT_CTRL_SCAN_BACKOFF_UPPERLIMITMAX=32
+# end of Scanning vendor/Optimization Options
+
+#
+# Advertising vendor/Optimization Options
+#
+# default:
+CONFIG_BT_LE_CTRL_ADV_DATA_LENGTH_ZERO_AUX=y
+# default:
+# CONFIG_BT_LE_CTRL_ADV_EVENT_INC_ON_FULL_TX_EN is not set
+# default:
+# CONFIG_BT_LE_CTRL_ADV_CH38_39_TX_AVOID_CONFLICT_EN is not set
+# default:
+# CONFIG_BT_LE_ADV_CH39_TXPWR_CONFIG_SEPARATELY_EN is not set
+# default:
+# CONFIG_BT_LE_CTRL_ADV_TX_CONTINUE_WHEN_EXCEED_ITVL_EN is not set
+# default:
+# CONFIG_BT_LE_CTRL_ADV_RAND_CH_IDX_EN is not set
+# default:
+CONFIG_BT_LE_CTRL_FAST_CONN_DATA_TX_EN=y
+# default:
+CONFIG_BT_LE_EXT_ADV_RESERVED_MEMORY_COUNT=2
+# end of Advertising vendor/Optimization Options
+
+#
+# Scheduling Priority Level Config
+#
+# default:
+CONFIG_BT_LE_ADV_SCHED_PRIO_LOW_LEVEL=y
+# default:
+# CONFIG_BT_LE_ADV_SCHED_PRIO_MID_LEVEL is not set
+# default:
+# CONFIG_BT_LE_ADV_SCHED_PRIO_HIGH_LEVEL is not set
+# default:
+CONFIG_BT_LE_DFT_ADV_SCHED_PRIO_LEVEL=0
+# default:
+# CONFIG_BT_LE_PERIODIC_ADV_SCHED_PRIO_LOW_LEVEL is not set
+# default:
+CONFIG_BT_LE_PERIODIC_ADV_SCHED_PRIO_MID_LEVEL=y
+# default:
+# CONFIG_BT_LE_PERIODIC_ADV_SCHED_PRIO_HIGH_LEVEL is not set
+# default:
+CONFIG_BT_LE_DFT_PERIODIC_ADV_SCHED_PRIO_LEVEL=1
+# default:
+# CONFIG_BT_LE_SYNC_SCHED_PRIO_LOW_LEVEL is not set
+# default:
+CONFIG_BT_LE_SYNC_SCHED_PRIO_MID_LEVEL=y
+# default:
+# CONFIG_BT_LE_SYNC_SCHED_PRIO_HIGH_LEVEL is not set
+# default:
+CONFIG_BT_LE_DFT_SYNC_SCHED_PRIO_LEVEL=1
+# end of Scheduling Priority Level Config
+
+# default:
+# CONFIG_BT_LE_ISO_SUPPORT is not set
+
+#
+# Controller debug features
+#
+# default:
+# CONFIG_BT_LE_ERROR_SIM_ENABLED is not set
+# default:
+# CONFIG_BT_LE_ASSERT_WHEN_ABNORMAL_DISCONN_ENABLED is not set
+# default:
+# CONFIG_BT_LE_DEBUG_REMAIN_SCENE_ENABLED is not set
+# default:
+# CONFIG_BT_LE_PTR_CHECK_ENABLED is not set
+# default:
+# CONFIG_BT_LE_MEM_CHECK_ENABLED is not set
+# end of Controller debug features
+
+# default:
+CONFIG_BT_LE_LL_RESOLV_LIST_SIZE=4
+# default:
+CONFIG_BT_LE_LL_DUP_SCAN_LIST_COUNT=20
+# default:
+CONFIG_BT_LE_LL_SCA=60
+# default:
+# CONFIG_BT_LE_COEX_PHY_CODED_TX_RX_TLIM_EN is not set
+# default:
+CONFIG_BT_LE_COEX_PHY_CODED_TX_RX_TLIM_DIS=y
+# default:
+CONFIG_BT_LE_COEX_PHY_CODED_TX_RX_TLIM_EFF=0
+# default:
+CONFIG_BT_CTRL_BLE_ADV_REPORT_FLOW_CTRL_SUPP=y
+# default:
+CONFIG_BT_CTRL_BLE_ADV_REPORT_FLOW_CTRL_NUM=100
+# default:
+CONFIG_BT_CTRL_BLE_ADV_REPORT_DISCARD_THRSHOLD=20
+# default:
+CONFIG_BT_LE_SCAN_DUPL=y
+# default:
+CONFIG_BT_LE_SCAN_DUPL_TYPE_DEVICE=y
+# default:
+# CONFIG_BT_LE_SCAN_DUPL_TYPE_DATA is not set
+# default:
+# CONFIG_BT_LE_SCAN_DUPL_TYPE_DATA_DEVICE is not set
+# default:
+CONFIG_BT_LE_SCAN_DUPL_TYPE=0
+# default:
+CONFIG_BT_LE_SCAN_DUPL_CACHE_SIZE=100
+# default:
+CONFIG_BT_LE_SCAN_DUPL_CACHE_REFRESH_PERIOD=0
+# default:
+CONFIG_BT_LE_MSYS_INIT_IN_CONTROLLER=y
+# default:
+# CONFIG_BT_LE_TX_CCA_ENABLED is not set
+# default:
+# CONFIG_BT_LE_DFT_TX_POWER_LEVEL_N15 is not set
+# default:
+# CONFIG_BT_LE_DFT_TX_POWER_LEVEL_N12 is not set
+# default:
+# CONFIG_BT_LE_DFT_TX_POWER_LEVEL_N9 is not set
+# default:
+# CONFIG_BT_LE_DFT_TX_POWER_LEVEL_N6 is not set
+# default:
+# CONFIG_BT_LE_DFT_TX_POWER_LEVEL_N3 is not set
+# default:
+# CONFIG_BT_LE_DFT_TX_POWER_LEVEL_N0 is not set
+# default:
+# CONFIG_BT_LE_DFT_TX_POWER_LEVEL_P3 is not set
+# default:
+# CONFIG_BT_LE_DFT_TX_POWER_LEVEL_P6 is not set
+# default:
+CONFIG_BT_LE_DFT_TX_POWER_LEVEL_P9=y
+# default:
+# CONFIG_BT_LE_DFT_TX_POWER_LEVEL_P12 is not set
+# default:
+# CONFIG_BT_LE_DFT_TX_POWER_LEVEL_P15 is not set
+# default:
+# CONFIG_BT_LE_DFT_TX_POWER_LEVEL_P18 is not set
+# default:
+# CONFIG_BT_LE_DFT_TX_POWER_LEVEL_P20 is not set
+# default:
+CONFIG_BT_LE_DFT_TX_POWER_LEVEL_DBM_EFF=9
+# default:
+# CONFIG_BT_LE_DTM_ENABLED is not set
+# default:
+CONFIG_BT_CTRL_LE_VS_CMD_EVT_ENABLED=y
+# end of BLE Controller Options
+
+# default:
+CONFIG_BT_CTRL_MULTI_LINK_ENABLED=y
+# default:
+CONFIG_BT_CTRL_LE_SUPPORT_MEM_RES=y
+# end of Controller Options
+
+# default:
+# CONFIG_BT_HCI_LOG_DEBUG_EN is not set
+
+#
+# BLE ISO Options
+#
+# default:
+# CONFIG_BT_ISO_PERIPHERAL is not set
+# default:
+# CONFIG_BT_ISO_CENTRAL is not set
+# default:
+# CONFIG_BT_ISO_BROADCASTER is not set
+# default:
+# CONFIG_BT_ISO_SYNC_RECEIVER is not set
+# end of BLE ISO Options
+
+#
+# BLE Audio Options
+#
+
+#
+# AICS Options
+#
+# default:
+CONFIG_BT_AICS_MAX_INSTANCE_COUNT=0
+# default:
+CONFIG_BT_AICS_CLIENT_MAX_INSTANCE_COUNT=0
+# end of AICS Options
+
+#
+# ASCS Options
+#
+# default:
+# CONFIG_BT_ASCS is not set
+# end of ASCS Options
+
+#
+# BAP Options
+#
+# default:
+# CONFIG_BT_BAP_UNICAST_SERVER is not set
+# default:
+# CONFIG_BT_BAP_UNICAST_CLIENT is not set
+# default:
+CONFIG_BT_AUDIO_CODEC_CFG_MAX_DATA_SIZE=19
+# default:
+CONFIG_BT_AUDIO_CODEC_CFG_MAX_METADATA_SIZE=20
+# default:
+CONFIG_BT_BAP_BASS_MAX_SUBGROUPS=1
+# default:
+CONFIG_BT_AUDIO_CODEC_CAP_MAX_DATA_SIZE=19
+# default:
+CONFIG_BT_AUDIO_CODEC_CAP_MAX_METADATA_SIZE=4
+# default:
+# CONFIG_BT_BAP_BROADCAST_SOURCE is not set
+# default:
+# CONFIG_BT_BAP_SCAN_DELEGATOR is not set
+# default:
+# CONFIG_BT_BAP_BROADCAST_ASSISTANT is not set
+# default:
+# CONFIG_BT_BAP_DEBUG_STREAM_DATA is not set
+# default:
+CONFIG_BT_BAP_DEBUG_STREAM_SEQ_NUM=y
+# end of BAP Options
+
+#
+# CAP Options
+#
+# end of CAP Options
+
+#
+# TBS Options
+#
+# default:
+# CONFIG_BT_TBS is not set
+# default:
+# CONFIG_BT_TBS_CLIENT_GTBS is not set
+# default:
+# CONFIG_BT_TBS_CLIENT_TBS is not set
+# end of TBS Options
+
+#
+# CCP Options
+#
+# end of CCP Options
+
+#
+# CSIP Options
+#
+# default:
+# CONFIG_BT_CSIP_SET_MEMBER is not set
+# default:
+# CONFIG_BT_CSIP_SET_COORDINATOR is not set
+# end of CSIP Options
+
+#
+# GMAP Options
+#
+# end of GMAP Options
+
+#
+# MCS Options
+#
+# default:
+# CONFIG_BT_MCC is not set
+# end of MCS Options
+
+#
+# MCTL Options
+#
+# default:
+# CONFIG_BT_MCTL is not set
+# end of MCTL Options
+
+#
+# MICP Options
+#
+# default:
+# CONFIG_BT_MICP_MIC_DEV is not set
+# default:
+# CONFIG_BT_MICP_MIC_CTLR is not set
+# end of MICP Options
+
+#
+# MPL Options
+#
+# default:
+# CONFIG_BT_MPL is not set
+# end of MPL Options
+
+#
+# PACS Options
+#
+# default:
+# CONFIG_BT_PAC_SNK is not set
+# default:
+# CONFIG_BT_PAC_SRC is not set
+# end of PACS Options
+
+#
+# VOCS Options
+#
+# default:
+CONFIG_BT_VOCS_MAX_INSTANCE_COUNT=0
+# default:
+CONFIG_BT_VOCS_CLIENT_MAX_INSTANCE_COUNT=0
+# end of VOCS Options
+
+#
+# VCP Options
+#
+# default:
+# CONFIG_BT_VCP_VOL_REND is not set
+# default:
+# CONFIG_BT_VCP_VOL_CTLR is not set
+# end of VCP Options
+
+#
+# TMAP Options
+#
+# end of TMAP Options
+
+#
+# HAS Options
+#
+# default:
+# CONFIG_BT_HAS_CLIENT is not set
+# end of HAS Options
+
+#
+# PBP Options
+#
+# default:
+# CONFIG_BT_PBP is not set
+# end of PBP Options
+
+#
+# OTS Options
+#
+# default:
+# CONFIG_BT_OTS is not set
+# default:
+# CONFIG_BT_OTS_CLIENT is not set
+# end of OTS Options
+
+# default:
+# CONFIG_BT_AUDIO_NO_LOG is not set
+
+#
+# BLE Audio Lib Debug Log Level
+#
+# default:
+# CONFIG_BT_AUDIO_LOG_LEVEL_NONE is not set
+# default:
+# CONFIG_BT_AUDIO_LOG_LEVEL_ERROR is not set
+# default:
+CONFIG_BT_AUDIO_LOG_LEVEL_WARNING=y
+# default:
+# CONFIG_BT_AUDIO_LOG_LEVEL_INFO is not set
+# default:
+# CONFIG_BT_AUDIO_LOG_LEVEL_DEBUG is not set
+# default:
+# CONFIG_BT_AUDIO_LOG_LEVEL_VERBOSE is not set
+# default:
+CONFIG_BT_AUDIO_LOG_LEVEL=2
+# end of BLE Audio Lib Debug Log Level
+# end of BLE Audio Options
+
+#
+# BLE Profiles
+#
+# default:
+# CONFIG_BT_PRF_TASK_ENABLED is not set
+
+#
+# Object Transfer Service (OTS) (EXPERIMENTAL)
+#
+
+#
+# OTS Client
+#
+# end of OTS Client
+
+#
+# OTS Server
+#
+# end of OTS Server
+# end of Object Transfer Service (OTS) (EXPERIMENTAL)
+
+#
+# Electronic Shelf Label (ESL) (EXPERIMENTAL)
+#
+# end of Electronic Shelf Label (ESL) (EXPERIMENTAL)
+# end of BLE Profiles
 # end of Bluetooth
+
+# default:
+# CONFIG_BLE_MESH is not set
 
 #
 # Console Library
@@ -4394,15 +5126,6 @@ CONFIG_ADC_BUTTON_SAMPLE_TIMES=1
 # end of IoT Button
 
 #
-# cJSON
-#
-# default:
-CONFIG_CJSON_NESTING_LIMIT=1000
-# default:
-CONFIG_CJSON_CIRCULAR_LIMIT=10000
-# end of cJSON
-
-#
 # CMake Utilities
 #
 # default:
@@ -4652,15 +5375,6 @@ CONFIG_ESP_VIDEO_ENABLE_DVP_VIDEO_DEVICE=y
 #
 # end of Video Data Preprocessing
 # end of Espressif Video Configuration
-
-#
-# ESP WebSocket client
-#
-# default:
-# CONFIG_ESP_WS_CLIENT_ENABLE_DYNAMIC_BUFFER is not set
-# default:
-# CONFIG_ESP_WS_CLIENT_SEPARATE_TX_LOCK is not set
-# end of ESP WebSocket client
 
 #
 # LED Indicator
@@ -5747,6 +6461,39 @@ CONFIG_STACK_CHECK_NONE=y
 # CONFIG_STACK_CHECK_STRONG is not set
 # CONFIG_STACK_CHECK_ALL is not set
 # CONFIG_WARN_WRITE_STRINGS is not set
+# CONFIG_BLUEDROID_ENABLED is not set
+CONFIG_NIMBLE_ENABLED=y
+CONFIG_NIMBLE_MEM_ALLOC_MODE_INTERNAL=y
+# CONFIG_NIMBLE_MEM_ALLOC_MODE_EXTERNAL is not set
+# CONFIG_NIMBLE_MEM_ALLOC_MODE_DEFAULT is not set
+CONFIG_NIMBLE_PINNED_TO_CORE=0
+CONFIG_NIMBLE_PINNED_TO_CORE_0=y
+# CONFIG_NIMBLE_PINNED_TO_CORE_1 is not set
+CONFIG_NIMBLE_TASK_STACK_SIZE=4096
+CONFIG_BT_NIMBLE_TASK_STACK_SIZE=4096
+CONFIG_NIMBLE_ROLE_CENTRAL=y
+# CONFIG_NIMBLE_ROLE_PERIPHERAL is not set
+# CONFIG_NIMBLE_ROLE_BROADCASTER is not set
+CONFIG_NIMBLE_ROLE_OBSERVER=y
+CONFIG_NIMBLE_RPA_TIMEOUT=900
+CONFIG_NIMBLE_MAX_CONNECTIONS=1
+CONFIG_NIMBLE_MAX_CCCDS=8
+# CONFIG_NIMBLE_CRYPTO_STACK_MBEDTLS is not set
+CONFIG_NIMBLE_ATT_PREFERRED_MTU=256
+CONFIG_NIMBLE_L2CAP_COC_MAX_NUM=0
+CONFIG_BT_NIMBLE_MSYS1_BLOCK_COUNT=24
+CONFIG_BT_NIMBLE_ACL_BUF_COUNT=24
+CONFIG_BT_NIMBLE_ACL_BUF_SIZE=255
+CONFIG_BT_NIMBLE_HCI_EVT_BUF_SIZE=70
+CONFIG_BT_NIMBLE_HCI_EVT_HI_BUF_COUNT=30
+CONFIG_BT_NIMBLE_HCI_EVT_LO_BUF_COUNT=8
+# CONFIG_NIMBLE_MESH is not set
+# CONFIG_NIMBLE_DEBUG is not set
+CONFIG_BTDM_CONTROLLER_MODE_BLE_ONLY=y
+# CONFIG_BTDM_CONTROLLER_MODE_BR_EDR_ONLY is not set
+# CONFIG_BTDM_CONTROLLER_MODE_BTDM is not set
+# CONFIG_BT_NIMBLE_COEX_PHY_CODED_TX_RX_TLIM_EN is not set
+CONFIG_BT_NIMBLE_COEX_PHY_CODED_TX_RX_TLIM_DIS=y
 CONFIG_SW_COEXIST_ENABLE=y
 CONFIG_ESP32_WIFI_SW_COEXIST_ENABLE=y
 CONFIG_ESP_WIFI_SW_COEXIST_ENABLE=y

@@ -1,6 +1,7 @@
 /// korvo1-remote — touch remote display/controller for the coffee scale.
 ///
-///   link      WiFi STA onto the scale's SoftAP + WebSocket client
+///   link      BLE central: scan for the scale's service UUID, connect,
+///             subscribe to the 20 Hz state notifications (proto.hpp)
 ///   display   BSP: 800x480 RGB LCD + GT1151 touch + LVGL (esp_lvgl_port
 ///             owns the LVGL task/tick — all LVGL calls under
 ///             bsp_display_lock/unlock)
@@ -34,7 +35,7 @@ void ui_task(void*) {
             ui::update();
             bsp_display_unlock();
         }
-        vTaskDelay(pdMS_TO_TICKS(50));   // 20 Hz matches the ws push rate
+        vTaskDelay(pdMS_TO_TICKS(50));   // 20 Hz matches the BLE push rate
     }
 }
 
@@ -43,7 +44,7 @@ void ui_task(void*) {
 extern "C" void app_main() {
     ESP_ERROR_CHECK(nvs_flash_init());
 
-    net::start();                     // wifi + websocket, self-healing
+    net::start();                     // BLE scan/connect, self-healing
 
     if (!display::init()) {
         ESP_LOGE(kTag, "display init failed — check the SUB3 board/ribbon");

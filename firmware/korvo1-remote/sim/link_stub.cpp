@@ -1,6 +1,6 @@
 // Host-side stub of link.cpp — a synthetic scale: a repeating bloom+pour
 // cycle with jitter, a working timer, draining battery, wandering level.
-// send_cmd() mutates the sim state so the touch buttons do real things.
+// send() mutates the sim state so the touch buttons do real things.
 
 #include "link.hpp"
 
@@ -8,7 +8,6 @@
 #include <cmath>
 #include <cstdio>
 #include <mutex>
-#include <string>
 
 namespace {
 
@@ -66,18 +65,21 @@ void net::start() {
     s.tared       = true;
 }
 
-bool net::send_cmd(const char* cmd) {
+bool net::send(const proto::command& cmd) {
     std::lock_guard lk(s_mtx);
-    std::printf("[stub] cmd '%s'\n", cmd);
-    const std::string c = cmd;
-    if (c == "tare")            { s.grams = 0; s.tared = true; }
-    else if (c == "long")       { s.timer_state = s.timer_state == 1 ? 0 : 1;
-                                  if (s.timer_state == 1) s.timer_ms = 0; }
-    else if (c == "reset")      { s.timer_state = 0; s.timer_ms = 0; }
-    else if (c == "mode")       { s.mode ^= 1; }
-    else if (c == "unit0")      { s.unit = 0; }
-    else if (c == "unit1")      { s.unit = 1; }
-    else if (c == "sleep")      { s_offline = true; }
+    std::printf("[stub] cmd op=%d arg=%ld\n", static_cast<int>(cmd.o),
+                static_cast<long>(cmd.arg));
+    switch (cmd.o) {
+    case proto::op::tare:         s.grams = 0; s.tared = true; break;
+    case proto::op::timer_toggle: s.timer_state = s.timer_state == 1 ? 0 : 1;
+                                  if (s.timer_state == 1) s.timer_ms = 0;
+                                  break;
+    case proto::op::timer_reset:  s.timer_state = 0; s.timer_ms = 0; break;
+    case proto::op::mode:         s.mode ^= 1; break;
+    case proto::op::unit:         s.unit = cmd.arg ? 1 : 0; break;
+    case proto::op::sleep:        s_offline = true; break;
+    default:                      break;   // cal_* — stub doesn't model them
+    }
     return true;
 }
 

@@ -13,16 +13,16 @@ CONFIG_BSP_LCD_RGB_BUFFER_NUMS=2
 CONFIG_BSP_DISPLAY_LVGL_AVOID_TEAR=y
 CONFIG_BSP_DISPLAY_LVGL_DIRECT_MODE=y
 # LCD DMA reads from an internal-SRAM bounce buffer instead of streaming
-# straight from PSRAM — WiFi bursts / LVGL writes stall PSRAM long enough
+# straight from PSRAM — radio bursts / LVGL writes stall PSRAM long enough
 # to underrun the LCD FIFO and garble frames.
 CONFIG_BSP_LCD_RGB_BOUNCE_BUFFER_MODE=y
 # 40 lines of SRAM bounce ≈ 2 ms of refill slack — the old 10-line window
-# (~0.5 ms) underran under WiFi/LVGL PSRAM bursts and showed a garbled
+# (~0.5 ms) underran under radio/LVGL PSRAM bursts and showed a garbled
 # "mosaic" line. (Must divide the 480-line frame: 40 works.)
 CONFIG_BSP_LCD_RGB_BOUNCE_BUFFER_HEIGHT=40
 # NOTE: do NOT enable LCD_RGB_ISR_IRAM_SAFE — with it, the bounce-fill ISR
-# keeps running while the flash cache is off (NVS writes during WiFi
-# connect) and its memcpy reads the PSRAM framebuffer through the cache ->
+# keeps running while the flash cache is off (NVS writes) and its memcpy
+# reads the PSRAM framebuffer through the cache ->
 # instant "Cache error" panic (esp_lcd_panel_rgb.c documents this).
 # (LCD_RGB_RESTART_IN_VSYNC is an ESP32-S3-only workaround — no S31 symbol.)
 
@@ -40,3 +40,15 @@ CONFIG_LV_FONT_MONTSERRAT_14=y
 CONFIG_LV_FONT_MONTSERRAT_24=y
 CONFIG_LV_FONT_MONTSERRAT_28=y
 CONFIG_LV_FONT_MONTSERRAT_48=y
+
+# BLE central (main/link.cpp): NimBLE, one connection to the scale, open
+# link — no pairing. Role names on IDF master differ from 6.0.2 — these
+# are the master's CONFIG_BT_NIMBLE_* symbols.
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=y
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=y
+# CONFIG_BT_NIMBLE_ROLE_PERIPHERAL is not set
+# CONFIG_BT_NIMBLE_ROLE_BROADCASTER is not set
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
+# CONFIG_BT_NIMBLE_SECURITY_ENABLE is not set

@@ -3,6 +3,7 @@
 // it the same snapshot shape produced by the scale_core module (or by the
 // device over WebSocket) and the page mirrors the physical ST7789 exactly.
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 
@@ -11,6 +12,7 @@
 
 #include "lvgl.h"
 #include "scale/app.hpp"
+#include "scale_proto/proto.hpp"
 #include "ui/ui.hpp"
 #include "wasm_port.hpp"
 
@@ -83,6 +85,65 @@ emscripten::val framebuffer() {
         ui::wasm::framebuffer_len(), ui::wasm::framebuffer()));
 }
 
+// ---- BLE wire protocol (scale_proto/proto.hpp is the ABI source) ----------
+
+/// Decode one state frame into the same {snap, displayValue, batteryPct,
+/// charging} shape Screen.update() takes. Returns null on a bad frame.
+emscripten::val decodeFrame(emscripten::val bytes) {
+    const std::size_t n = bytes["length"].as<std::size_t>();
+    if (n > 255) {
+        return emscripten::val::null();
+    }
+    std::array<std::uint8_t, 255> buf{};
+    for (std::size_t i = 0; i < n; ++i) {
+        buf[i] = bytes[i].as<std::uint8_t>();
+    }
+    const auto s = proto::decode(
+        std::span<const std::uint8_t>{buf.data(), n});
+    if (!s) {
+        return emscripten::val::null();
+    }
+    emscripten::val snap = emscripten::val::object();
+    snap.set("grams", s->grams);
+    snap.set("flowGps", s->flow_gps);
+    snap.set("stable", s->stable);
+    snap.set("tared", s->tared);
+    snap.set("calibrated", s->calibrated);
+    snap.set("unit", static_cast<int>(s->unit));
+    snap.set("mode", static_cast<int>(s->mode));
+    snap.set("timerState", static_cast<int>(s->timer_state));
+    snap.set("timerMs", static_cast<double>(s->timer_ms));
+    snap.set("pitchDeg", s->pitch_deg);
+    snap.set("rollDeg", s->roll_deg);
+    emscripten::val m = emscripten::val::object();
+    m.set("snap", snap);
+    m.set("displayValue", s->display_value);
+    m.set("batteryPct", static_cast<int>(s->battery_pct));
+    m.set("charging", s->charging);
+    return m;
+}
+
+/// Encode a command (op + arg, see proto::op) into a fresh Uint8Array.
+emscripten::val encodeCommand(int opcode, int arg) {
+    const auto f = proto::encode_command(
+        {static_cast<proto::op>(opcode), arg});
+    emscripten::val arr =
+        emscripten::val::global("Uint8Array").new_(f.size);
+    arr.call<void>("set", emscripten::val(emscripten::typed_memory_view(
+                              f.size, f.bytes.data())));
+    return arr;
+}
+
+/// GATT UUIDs straight from the proto header — the page never hardcodes
+/// them.
+emscripten::val bleUuids() {
+    emscripten::val o = emscripten::val::object();
+    o.set("service", std::string(proto::kServiceUuid));
+    o.set("state", std::string(proto::kStateUuid));
+    o.set("command", std::string(proto::kCommandUuid));
+    return o;
+}
+
 } // namespace
 
 EMSCRIPTEN_BINDINGS(scale_screen) {
@@ -111,6 +172,9 @@ EMSCRIPTEN_BINDINGS(scale_screen) {
     function("update", &update);
     function("pump", &pump);
     function("framebuffer", &framebuffer);
+    function("decodeFrame", &decodeFrame);
+    function("encodeCommand", &encodeCommand);
+    function("bleUuids", &bleUuids);
     function("width", +[] { return ui::hor_res; });
     function("height", +[] { return ui::ver_res; });
 }

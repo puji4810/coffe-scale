@@ -1,0 +1,92 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: xmake-io/github-action-setup-xmake@v1
+      - name: doctest suite
+        working-directory: firmware
+        run: |
+          xmake f -m release --ui_preview=n -y
+          xmake build unit_tests
+          xmake run unit_tests
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: emsdk 6.0.10
+        run: |
+          git clone --depth 1 --branch 6.0.10 https://github.com/emscripten-core/emsdk "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 6.0.10
+          "$RUNNER_TEMP/emsdk/emsdk" activate 6.0.10
+
+      - name: LVGL v9.5.0
+        run: git clone --depth 1 --branch v9.5.0 https://github.com/lvgl/lvgl "$RUNNER_TEMP/lvgl"
+
+      - name: build wasm modules
+        working-directory: firmware/web/wasm
+        env:
+          LVGL_DIR: ${{ runner.temp }}/lvgl
+        run: |
+          . "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          ./build.sh
+
+      - name: node tests
+        working-directory: firmware/web
+        run: |
+          node smoke.mjs
+          node ble_test.mjs
+
+  firmware-scale:
+    runs-on: ubuntu-latest
+    container: espressif/idf:v6.0.2
+    defaults:
+      run:
+        shell: bash
+        working-directory: firmware
+    steps:
+      - uses: actions/checkout@v4
+      - name: build scale firmware
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf.py -B build-esp32s3 build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-scale-esp32s3
+          path: |
+            firmware/build-esp32s3/bootloader/bootloader.bin
+            firmware/build-esp32s3/partition_table/partition-table.bin
+            firmware/build-esp32s3/coffee_scale.bin
+            firmware/build-esp32s3/flash_args
+            firmware/build-esp32s3/flasher_args.json
+
+  firmware-korvo:
+    runs-on: ubuntu-latest
+    container: espressif/idf:v6.1
+    defaults:
+      run:
+        shell: bash
+        working-directory: firmware/korvo1-remote
+    steps:
+      - uses: actions/checkout@v4
+      # committed sdkconfig already targets esp32s31 — S31 is preview,
+      # so --preview is required on every idf.py call
+      - name: build korvo remote
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf.py --preview -B build-s31 build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-korvo-s31
+          path: |
+            firmware/korvo1-remote/build-s31/bootloader/bootloader.bin
+            firmware/korvo1-remote/build-s31/partition_table/partition-table.bin
+            firmware/korvo1-remote/build-s31/korvo1_remote.bin
+            firmware/korvo1-remote/build-s31/flash_args
+            firmware/korvo1-remote/build-s31/flasher_args.json

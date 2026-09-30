@@ -13,16 +13,6 @@ dependencies:
       registry_url: https://components.espressif.com
       type: service
     version: 4.2.1
-  espressif/cjson:
-    component_hash: e788323270d90738662d66fffa910bfe1fba019bba087f01557e70c40485b469
-    dependencies:
-    - name: idf
-      require: private
-      version: '>=5.0'
-    source:
-      registry_url: https://components.espressif.com/
-      type: service
-    version: 1.7.19~2
   espressif/cmake_utilities:
     component_hash: 351350613ceafba240b761b4ea991e0f231ac7a9f59a9ee901f751bddc0bb18f
     dependencies:
@@ -201,16 +191,6 @@ dependencies:
     - esp32c61
     - esp32s31
     version: 2.2.0
-  espressif/esp_websocket_client:
-    component_hash: dc00233af846f3a744ada283a300e0d586040aadc3ee67361645ecdce4523672
-    dependencies:
-    - name: idf
-      require: private
-      version: '>=5.0'
-    source:
-      registry_url: https://components.espressif.com/
-      type: service
-    version: 1.8.0
   espressif/led_indicator:
     component_hash: 0694f655b0f0b7694592cfbb5a44ba33840847c5ca44eb639eec8570a4094cd4
     dependencies:
@@ -316,10 +296,8 @@ dependencies:
       type: service
     version: 9.6.0~1
 direct_dependencies:
-- espressif/cjson
 - espressif/esp32_s31_korvo_1
-- espressif/esp_websocket_client
 - idf
-manifest_hash: 62008688dfbdfb1ecf5e995d42bf03d27e0e06763edac05d8228838895207229
+manifest_hash: 41e34fdfae0811eba7b8df830a07898959806fb3d47a2f624d7f0e72f7aa5116
 target: esp32s31
 version: 3.0.0

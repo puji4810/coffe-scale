@@ -16,9 +16,12 @@ set -euo pipefail
 cd "$(dirname "$0")"
 WASM_DIR=$PWD
 FW=$(cd ../.. && pwd)
-LVGL=$FW/managed_components/lvgl__lvgl
+# LVGL_DIR lets CI point at a plain git checkout instead of the IDF
+# managed component.
+LVGL=${LVGL_DIR:-$FW/managed_components/lvgl__lvgl}
 CONF=$FW/config/lv_conf.h
 CORE_INC=$FW/components/scale_core/include
+PROTO_INC=$FW/components/scale_proto/include
 UI_DIR=$FW/components/ui
 OUT=$WASM_DIR/../dist
 LVGL_BUILD=$FW/build/wasm/lvgl
@@ -51,7 +54,7 @@ em++ "${CORE_FLAGS[@]}" "${OUT_FLAGS[@]}" \
 
 em++ "${CORE_FLAGS[@]}" "${OUT_FLAGS[@]}" \
     "-DLV_CONF_PATH=\"$CONF\"" -I"$LVGL" \
-    -I"$UI_DIR/include" -I"$WASM_DIR" \
+    -I"$UI_DIR/include" -I"$WASM_DIR" -I"$PROTO_INC" \
     "$WASM_DIR/bindings_screen.cpp" "$WASM_DIR/ui_port_wasm.cpp" \
     "$UI_DIR/src/scale_ui.cpp" "$LIBLVGL" \
     -o "$OUT/scale_screen.js"

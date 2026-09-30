@@ -19,7 +19,7 @@ buzzer, VBAT sense).
 # host: configure / build / test / simulate
 xmake f -m release            # once
 xmake build
-xmake run unit_tests          # doctest: 65 cases
+xmake run unit_tests          # doctest: 73 cases
 xmake run sim                 # SDL window; T=tare L=long-tare M=mode Esc=quit
 
 # firmware image
@@ -29,13 +29,14 @@ idf.py -B build-esp32s3 build                # -> coffee_scale.bin
 
 # web WASM modules (needs emscripten + cmake on PATH)
 web/wasm/build.sh             # -> web/dist/{scale_core,scale_screen}.{mjs,wasm}
-cd web && node smoke.mjs      # headless check of both modules
+cd web && node smoke.mjs      # headless check of both modules + proto bindings
+cd web && node ble_test.mjs   # ScaleLink reconnect/write-queue tests
+web/site.sh _site             # assemble the GitHub Pages site from dist/
 
-# pack the on-device web root + build + flash (first flash after the
-# partition change rewrites the table; littlefs auto-formats on first boot)
-web/pack.sh                   # -> web/root (plain + .gz, baked into littlefs.bin)
+# firmware image + flash
 idf.py -B build-esp32s3 build flash
-# device: SoftAP "coffee-scale" (pass "coffeebrew") -> http://192.168.4.1
+# the web app is a static site (GitHub Actions → Pages); connect over
+# Web Bluetooth ("Connect scale" button), Chrome/Edge only
 ```
 
 ## Layout
@@ -75,6 +76,10 @@ idf.py -B build-esp32s3 build flash
   regression and the zero-track hold run on it, so dropped DRDY edges
   don't distort rates. `system_stable = loadcell_stable && IMU quiet`
   gates zero tracking; brew mode freezes the tracker entirely.
+- `components/scale_proto` — header-only wire ABI (`proto.hpp`): GATT
+  UUIDs, the 20-byte little-endian state frame, and the command encoding.
+  Shared by firmware, the WASM bindings and (later) the Korvo remote —
+  no HW deps, C++23 std only.
 - `components/bus` — `bus::i2c_device` concept + `bus::i2c_dev_esp` (ESP-IDF
   i2c_master). Named `bus`, NOT `hal`: `hal` collides with ESP-IDF's own
   component and breaks the build.
@@ -90,9 +95,9 @@ idf.py -B build-esp32s3 build flash
   chrg_stat + TMP102), console ('t' toggles CSV telemetry, 'z' = tare),
   power (idle->light sleep), lvgl.
   Power: after 5 min without "new activity" (weight step >4000 raw counts
-  off a slow baseline, IMU motion >150 mg, button, console/web command —
+  off a slow baseline, IMU motion >150 mg, button, console/BLE command —
   NOT just "number didn't change") the firmware blanks the LCD +
-  backlight, stops SoftAP/httpd, powers down NAU7802 and light-sleeps.
+  backlight, stops BLE, powers down NAU7802 and light-sleeps.
   Wake sources: LIS2DW12 tap on INT1 (IO13, latched level — needs
   CTRL7.interrupts_enable + CTRL4.int1_tap + CTRL3.LIR, cleared by
   reading ALL_INT_SRC/TAP_SRC) and MODE button (IO18, low level).
@@ -100,40 +105,54 @@ idf.py -B build-esp32s3 build flash
   RAM + LVGL + filters; the brew timer running suppresses auto-sleep.
 - `tests/` — doctest + `mock_i2c` register-level driver tests.
 - `sim/` — SDL2 LVGL simulator with synthetic weight signal.
-- `web/` — self-hosted web UI. `wasm/build.sh` builds two ES6 modules into
-  `web/dist/`: `scale_core` (embind `ScaleApp` around `scale::app` — same
-  injected-ms `feed()` contract) and `scale_screen` (the real
-  `ui::create`/`ui::update` + LVGL compiled with `config/lv_conf.h`,
-  flushing RGB565→RGBA into a staging frame for canvas blit). `pack.sh`
-  assembles `web/root/` (plain + .gz) which `main/CMakeLists.txt` bakes
-  into `littlefs.bin` via `littlefs_create_partition_image(FLASH_IN_PROJECT)`.
-  `index.html`/`app.js` = dev harness (demo pour + mirror mode);
-  `smoke.mjs` = node smoke test.
-- `main/web_server.cpp` — SoftAP `coffee-scale`/`coffeebrew` @192.168.4.1,
-  littlefs mounted at `/littlefs`, statics prefer `<path>.gz` +
-  `Content-Encoding: gzip`, unknown paths fall back to `/index.html`
-  (SPA + captive-portal). `/ws` pushes the snapshot JSON at 20 Hz and
-  accepts `{"cmd": tare|long|reset|mode|unit0|unit1|calzero|calspan:<g>|sleep}`
-  (`reset` = brew timer back to 0:0.0, any mode)
-  (cal* persist to NVS) — field names are the same wire ABI the wasm
-  modules use (`snap, displayValue, batteryPct, charging`). Push
-  enumerates clients via `httpd_get_client_list` +
-  `httpd_ws_get_fd_info` — stateless, no fd bookkeeping.
-- `web/` is also the standalone static app (same files): vendored uPlot
-  chart (weight+flow dual axis), screen-mirror canvas, brew auto-record
-  → jsonl download + replay, two-point cal wizard, demo mode. No CDN —
-  works on device AND as a GitHub Pages deploy (`web/deploy-gh-pages.sh`;
-  note https pages can't open ws:// to the LAN device — demo/replay only
-  there).
-- `partitions.csv` — dual OTA ~3.9 MB each + `littlefs` subtype 8.1 MB.
+- `main/ble_link.cpp` — NimBLE peripheral "coffee-scale". GAP: flags +
+  service UUID in the adv packet, complete name in the scan response;
+  100 ms interval for 30 s after start/disconnect then 500 ms; keeps
+  advertising while connections < `BT_NIMBLE_MAX_CONNECTIONS` (3, so a
+  browser and the Korvo can share). GATT service `c0ffee00-…-8c01`:
+  state char `…8c02` (read + notify, 20-byte `proto` frame pushed at
+  20 Hz by a dedicated task to each subscribed conn via
+  `ble_gatts_notify_custom`), command char `…8c03` (write +
+  write-no-response → `proto::decode_command` → app callbacks; bad
+  frames → `BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN`). Open — no
+  pairing/bonding. `ble::stop()` tears the whole stack down —
+  `nimble_port_stop` → `nimble_port_freertos_deinit` →
+  `nimble_port_deinit` — because the modem domain powers down in light
+  sleep anyway; re-init cycles are supported on 6.0.2 (nimble_port only
+  releases CLASSIC_BT memory). `ble::start()` re-inits everything.
+  Wire ABI lives in `components/scale_proto/proto.hpp`.
+- `web/` — static web UI (GitHub Pages via `.github/workflows/pages.yml`;
+  `site.sh <out>` assembles it from `dist/`). `wasm/build.sh` builds two
+  ES6 modules into `web/dist/`: `scale_core` (embind `ScaleApp` around
+  `scale::app` — same injected-ms `feed()` contract) and `scale_screen`
+  (the real `ui::create`/`ui::update` + LVGL compiled with
+  `config/lv_conf.h`, flushing RGB565→RGBA into a staging frame for
+  canvas blit; also exports `decodeFrame`/`encodeCommand`/`bleUuids`
+  straight from scale_proto). `ble.js` = DOM-free Web Bluetooth
+  `ScaleLink` (requestDevice picker, `getDevices`/`watchAdvertisements`
+  auto-connect where the browser allows it, infinite 1→10 s backoff
+  reconnect on link loss, serialized writes). `app.js` wires it to the
+  mirror canvas + controls; vendored uPlot chart, brew auto-record →
+  jsonl download + replay, two-point cal wizard. `smoke.mjs` +
+  `ble_test.mjs` = node tests. Pages setup: repo Settings → Pages →
+  Source: GitHub Actions.
+- `partitions.csv` — dual OTA ~3.9 MB each; the `littlefs` slot is kept
+  only because shrinking the table would move NVS (calibration must
+  survive) — nothing mounts it.
 - `korvo1-remote/` — separate ESP-IDF project: ESP32-S31-Korvo-1 V1.1 +
-  4.3" 800x480 RGB LCD sub-board acting as a touch remote. Joins the
-  scale's SoftAP as STA and speaks the existing `/ws` JSON protocol —
-  the scale needs no code changes. Requires IDF ≥6.1 (S31 unsupported on
-  the 6.0.x used for the scale); own `sdkconfig.defaults`, own build dir
-  (`idf.py -B build-s31`). LCD/touch/LVGL come from the
-  `espressif/esp32_s31_korvo_1` BSP (touch is GT1151) — no pin map to
-  maintain; LVGL calls must run under `bsp_display_lock/unlock`.
+  4.3" 800x480 RGB LCD sub-board acting as a touch remote. It is a NimBLE
+  **central**: passive scan for `proto::kServiceUuid128` in adv packets →
+  connect (30–50 ms itvl, 4 s supervision) → discover service/chars/CCCD →
+  subscribe → `proto::decode` each notify into `net::snapshot`; any
+  discovery error or disconnect rescans forever. Commands go out via
+  `ble_gattc_write_no_rsp_flat` (`net::send(proto::command)`). Pulls
+  `scale_proto` via `EXTRA_COMPONENT_DIRS` in its top CMakeLists — the ABI
+  is shared verbatim. Requires IDF ≥6.1 (S31 unsupported on the 6.0.x used
+  for the scale) and **every idf.py call needs `--preview`**; own
+  `sdkconfig.defaults`, own build dir (`idf.py --preview -B build-s31`).
+  LCD/touch/LVGL come from the `espressif/esp32_s31_korvo_1` BSP (touch is
+  GT1151) — no pin map to maintain; LVGL calls must run under
+  `bsp_display_lock/unlock`.
   Host preview: `xmake build -P korvo1-remote remote_sim` +
   `xmake run -P korvo1-remote remote_sim` (xmake treats `-P` as a global
   flag — it goes after the action). `sim/link_stub.cpp` plays a synthetic
@@ -154,9 +173,12 @@ idf.py -B build-esp32s3 build flash
 - s3.1 powers NAU7802 AVDD externally (U7 HT7533 → VDD_ADC, shared with
   load-cell E+ and REFP): PU_CTRL AVDDS must stay 0. Use
   `nau7802_ldo::external` (the default), never a VLDO voltage.
-- `/ws` needs `CONFIG_HTTPD_WS_SUPPORT=y` (in sdkconfig.defaults AND the
-  generated sdkconfig — defaults only apply to a fresh sdkconfig).
-- `esp_vfs_littlefs_conf_t` gained a `blockdev` member in IDF 6 — the
-  designated init must list it (`nullptr`) before the flag bitfields.
-- IDF 6 httpd: wildcard matching is `cfg.uri_match_fn =
-  httpd_uri_match_wildcard`, not the old `uri_match_wildcard` bool.
+- BT Kconfig symbol names drift between IDF 6.0.2 and master: controller
+  sleep is `BT_CTRL_MODEM_SLEEP` on 6.0.2 vs `BT_CTRL_SLEEP_ENABLE` on
+  master, controller mode is `BT_CTRL_MODE_EFF`/`HCI_MODE_VHCI` vs
+  `BTDM_CTRL_MODE_*`. The NimBLE-layer names (`BT_NIMBLE_ROLE_*`,
+  `BT_NIMBLE_MAX_CONNECTIONS`, `BT_NIMBLE_ATT_PREFERRED_MTU`) are stable.
+- ESP32-S31 (korvo1-remote) is a preview target — every `idf.py` call
+  needs `--preview`.
+- `sdkconfig` is committed, so `sdkconfig.defaults` alone changes nothing
+  — update both, then `idf.py -B build-esp32s3 reconfigure`.

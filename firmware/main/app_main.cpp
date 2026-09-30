@@ -8,8 +8,8 @@
 ///   battery_task samples VBAT on ADC1_CH8 + charge status + TMP102, ~2 s
 ///   console_task USB-serial commands: 't' = CSV telemetry, 'z' = tare
 ///   power_task   tracks "new activity" (weight steps, motion, buttons,
-///                taps, web commands); after kIdleTimeoutMs of quiet it
-///                powers down LCD/backlight/WiFi/NAU7802, arms LIS2DW12
+///                taps, BLE link events); after kIdleTimeoutMs of quiet it
+///                powers down LCD/backlight/BLE/NAU7802, arms LIS2DW12
 ///                tap->INT1 as the GPIO wake source and enters light
 ///                sleep. Double-tap (or MODE button) wakes everything
 ///                back up. btn_tare (IO48) is not an RTC pin and cannot
@@ -37,7 +37,8 @@
 #include "scale/telemetry.hpp"
 #include "tmp102/tmp102.hpp"
 #include "ui/ui.hpp"
-#include "web_server.hpp"
+#include "ble_link.hpp"
+#include "scale_proto/proto.hpp"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -83,10 +84,10 @@ void mark_activity() {
                              std::memory_order_relaxed);
 }
 
-// Defined in the web-bridge section below; power management restarts the
-// server with the same source after wake.
-size_t web_snapshot_json(void*, char* buf, size_t cap);
-void   web_command(void*, const char* cmd, size_t len);
+// Defined in the BLE-bridge section below; power management restarts the
+// link with the same source after wake.
+proto::state ble_snapshot(void*);
+void         ble_command(void*, const proto::command& cmd);
 
 TaskHandle_t  g_adc_task   = nullptr;
 TaskHandle_t  g_accel_task = nullptr;
@@ -308,16 +309,17 @@ void button_task(void*) {
 }
 
 // ---- power management -----------------------------------------------------
-// Idle -> light sleep: display + backlight off, SoftAP/httpd stopped,
-// NAU7802 powered down, LIS2DW12 reconfigured to drive a LATCHED tap
+// Idle -> light sleep: display + backlight off, BLE controller fully torn
+// down, NAU7802 powered down, LIS2DW12 reconfigured to drive a LATCHED tap
 // interrupt on INT1 (IO13 is an RTC pin, so a level wake works), MODE
 // button as a second source. RAM survives light sleep, so wake is a
 // sub-second restore instead of a reboot.
 
-const web::source s_web_src = {
-    .ctx           = nullptr,
-    .snapshot_json = &web_snapshot_json,
-    .command       = &web_command,
+const ble::source s_ble_src = {
+    .ctx      = nullptr,
+    .snapshot = &ble_snapshot,
+    .command  = &ble_command,
+    .activity = [](void*) { mark_activity(); },
 };
 
 void enter_sleep() {
@@ -329,7 +331,7 @@ void enter_sleep() {
     // Latch the backlight GPIO low across light sleep — without hold the
     // pad can float when the digital domain gates and the LED relights.
     gpio_hold_en(static_cast<gpio_num_t>(board::pins::lcd_bl));
-    web::stop();
+    ble::stop();
     if (s_adc) {
         if (auto r = s_adc->power_down(); !r) {
             ESP_LOGW(kTag, "adc power_down failed: errc %d",
@@ -403,8 +405,8 @@ void enter_sleep() {
     ui::display_init();
     ui::display_power(true);
     ui::render_pause(false);
-    if (const esp_err_t e = web::start(s_web_src); e != ESP_OK) {
-        ESP_LOGW(kTag, "web restart failed: %s", esp_err_to_name(e));
+    if (const esp_err_t e = ble::start(s_ble_src); e != ESP_OK) {
+        ESP_LOGW(kTag, "ble restart failed: %s", esp_err_to_name(e));
     }
     beep(40);
 }
@@ -520,11 +522,11 @@ void ui_refresh(void*) {
     ui::update(m);
 }
 
-// ---- web bridge ---------------------------------------------------------------
-// Snapshot shape is the wire ABI shared with web/app.js and the wasm modules
-// (field names match the embind Snapshot/ScreenModel bindings).
+// ---- BLE bridge ---------------------------------------------------------------
+// Frame/opcode layout lives in scale_proto/proto.hpp — the single ABI
+// shared with the web app (WASM decode) and the Korvo remote.
 
-size_t web_snapshot_json(void*, char* buf, size_t cap) {
+proto::state ble_snapshot(void*) {
     scale::app::snapshot s;
     float                dv;
     {
@@ -532,57 +534,69 @@ size_t web_snapshot_json(void*, char* buf, size_t cap) {
         s  = g_app.state();
         dv = g_app.display_value();
     }
-    const int n = std::snprintf(
-        buf, cap,
-        "{\"snap\":{\"grams\":%.2f,\"flowGps\":%.2f,\"stable\":%s,"
-        "\"tared\":%s,\"calibrated\":%s,\"unit\":%d,\"mode\":%d,"
-        "\"timerState\":%d,\"timerMs\":%lld,\"pitchDeg\":%.1f,"
-        "\"rollDeg\":%.1f},\"displayValue\":%.2f,\"batteryPct\":%d,"
-        "\"charging\":%s}",
-        static_cast<double>(s.grams), static_cast<double>(s.flow_gps),
-        s.stable ? "true" : "false", s.tared ? "true" : "false",
-        s.calibrated ? "true" : "false", static_cast<int>(s.u),
-        static_cast<int>(s.m), static_cast<int>(s.timer_state),
-        static_cast<long long>(s.timer_elapsed.count()),
-        static_cast<double>(s.pitch_deg), static_cast<double>(s.roll_deg),
-        static_cast<double>(dv), g_battery_pct.load(),
-        g_charging.load() ? "true" : "false");
-    return n > 0 ? static_cast<size_t>(n) : 0;
+    return {
+        .grams         = s.grams,
+        .flow_gps      = s.flow_gps,
+        .display_value = dv,
+        .pitch_deg     = s.pitch_deg,
+        .roll_deg      = s.roll_deg,
+        .timer_ms =
+            static_cast<std::uint32_t>(s.timer_elapsed.count()),
+        .battery_pct = static_cast<std::int8_t>(g_battery_pct.load()),
+        .unit        = static_cast<std::uint8_t>(s.u),
+        .mode        = static_cast<std::uint8_t>(s.m),
+        .timer_state = static_cast<std::uint8_t>(s.timer_state),
+        .seq         = 0,          // assigned by the push task
+        .stable      = s.stable,
+        .tared       = s.tared,
+        .calibrated  = s.calibrated,
+        .charging    = g_charging.load(),
+    };
 }
 
-void web_command(void*, const char* cmd, size_t len) {
+void ble_command(void*, const proto::command& cmd) {
     mark_activity();
-    if (len == 5 && !std::memcmp(cmd, "sleep", 5)) {
+    if (cmd.o == proto::op::sleep) {
         g_sleep_request.store(true, std::memory_order_relaxed);
         return;
     }
     std::lock_guard lk(g_mtx);
-    if (len == 4 && !std::memcmp(cmd, "tare", 4)) {
-        g_app.tare();
-    } else if (len == 4 && !std::memcmp(cmd, "long", 4)) {
-        g_app.tare_long();
-    } else if (len == 5 && !std::memcmp(cmd, "reset", 5)) {
-        g_app.timer_reset();
-    } else if (len == 4 && !std::memcmp(cmd, "mode", 4)) {
-        g_app.next_mode();
-    } else if (len == 5 && !std::memcmp(cmd, "unit0", 5)) {
-        g_app.set_unit(scale::unit::gram);
-    } else if (len == 5 && !std::memcmp(cmd, "unit1", 5)) {
-        g_app.set_unit(scale::unit::ounce);
-    } else if (len == 7 && !std::memcmp(cmd, "calzero", 7)) {
-        // Calibration wizard: empty-pan zero capture, persisted to NVS.
-        g_app.cal_zero();
-        save_calibration(g_app.inner().calibration_data());
-        ESP_LOGI(kTag, "cal zero saved");
-    } else if (len > 8 && !std::memcmp(cmd, "calspan:", 8)) {
-        const float mass = std::strtof(cmd + 8, nullptr);
-        if (g_app.cal_span(mass)) {
+    switch (cmd.o) {
+        case proto::op::tare:
+            g_app.tare();
+            break;
+        case proto::op::timer_toggle:
+            g_app.tare_long();   // long-press equivalent: toggles brew timer
+            break;
+        case proto::op::timer_reset:
+            g_app.timer_reset();
+            break;
+        case proto::op::mode:
+            g_app.next_mode();
+            break;
+        case proto::op::unit:
+            g_app.set_unit(cmd.arg == 1 ? scale::unit::ounce
+                                        : scale::unit::gram);
+            break;
+        case proto::op::cal_zero:
+            // Calibration wizard: empty-pan zero capture, persisted to NVS.
+            g_app.cal_zero();
             save_calibration(g_app.inner().calibration_data());
-            ESP_LOGI(kTag, "cal span saved: %.1f g -> %.1f counts/g",
-                     static_cast<double>(mass),
-                     static_cast<double>(
-                         g_app.inner().calibration_data().counts_per_gram));
-        }
+            ESP_LOGI(kTag, "cal zero saved");
+            break;
+        case proto::op::cal_span:
+            if (g_app.cal_span(cmd.arg / 100.0f)) {   // arg is centigrams
+                save_calibration(g_app.inner().calibration_data());
+                ESP_LOGI(kTag, "cal span saved: %.1f g -> %.1f counts/g",
+                         static_cast<double>(cmd.arg / 100.0f),
+                         static_cast<double>(
+                             g_app.inner()
+                                 .calibration_data()
+                                 .counts_per_gram));
+            }
+            break;
+        default:
+            break;
     }
 }
 
@@ -711,10 +725,10 @@ extern "C" void app_main() {
     ui::port_init();
     ui::set_refresh(ui_refresh, nullptr);   // ui::create() runs on the LVGL task
 
-    // Self-hosted web UI: SoftAP + littlefs statics + /ws mirror channel.
+    // BLE peripheral: state notify + command write (proto.hpp ABI).
     // Non-fatal — the scale works headless if it fails.
-    if (const esp_err_t e = web::start(s_web_src); e != ESP_OK) {
-        ESP_LOGW(kTag, "web start failed: %s", esp_err_to_name(e));
+    if (const esp_err_t e = ble::start(s_ble_src); e != ESP_OK) {
+        ESP_LOGW(kTag, "ble start failed: %s", esp_err_to_name(e));
     }
 
     ESP_LOGI(kTag, "scale-adc-s3 firmware up");

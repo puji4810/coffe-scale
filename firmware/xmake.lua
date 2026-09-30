@@ -20,6 +20,7 @@ if has_config("ui_preview") then
 end
 
 includes("components/board")
+includes("components/scale_proto")
 includes("components/bus")
 includes("components/scale_core")
 includes("components/nau7802")

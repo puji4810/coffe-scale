@@ -1,0 +1,69 @@
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'firmware/web/**'
+      - 'firmware/components/ui/**'
+      - 'firmware/components/scale_core/**'
+      - 'firmware/components/scale_proto/**'
+      - 'firmware/config/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: emsdk 6.0.10
+        run: |
+          git clone --depth 1 --branch 6.0.10 https://github.com/emscripten-core/emsdk "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 6.0.10
+          "$RUNNER_TEMP/emsdk/emsdk" activate 6.0.10
+
+      - name: LVGL v9.5.0
+        run: git clone --depth 1 --branch v9.5.0 https://github.com/lvgl/lvgl "$RUNNER_TEMP/lvgl"
+
+      - name: build wasm modules
+        working-directory: firmware/web/wasm
+        env:
+          LVGL_DIR: ${{ runner.temp }}/lvgl
+        run: |
+          . "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          ./build.sh
+
+      - name: node tests
+        working-directory: firmware/web
+        run: |
+          node smoke.mjs
+          node ble_test.mjs
+
+      - name: assemble site
+        run: firmware/web/site.sh _site
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

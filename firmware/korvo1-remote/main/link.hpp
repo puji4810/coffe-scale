@@ -1,16 +1,18 @@
 #pragma once
-/// Link to the scale: WiFi STA onto its SoftAP + WebSocket client.
+/// Link to the scale: BLE central (NimBLE) — passive scan for the service
+/// UUID, connect, subscribe to state notifications.
 ///
-/// The scale speaks exactly the protocol its web UI uses:
-///   ws://192.168.4.1/ws pushes snapshot JSON at ~20 Hz and accepts
-///   {"cmd": tare|long|mode|unit0|unit1|calzero|calspan:<g>|sleep}.
-/// Field names are the same wire ABI the wasm modules consume.
+/// The wire ABI is firmware/components/scale_proto/proto.hpp — the same
+/// 20-byte state frame the web UI decodes, and the same command encoding
+/// its buttons write.
 
 #include <cstdint>
 
+#include "scale_proto/proto.hpp"
+
 namespace net {
 
-/// One decoded snapshot frame — mirrors m.snap in the web app.
+/// One decoded snapshot frame — mirrors the proto::state fields.
 struct snapshot {
     float grams          = 0;
     float flow_gps       = 0;
@@ -28,18 +30,18 @@ struct snapshot {
     bool  charging       = false;
 };
 
-/// Bring up STA + connect + run the WS client (with auto-reconnect).
+/// Bring up the NimBLE host and start scanning (reconnects forever).
 void start();
 
-/// Send a command word to the scale, e.g. "tare". Returns false if the
-/// socket isn't up.
-bool send_cmd(const char* cmd);
+/// Send one proto command to the scale (write-without-response on the
+/// command characteristic). Returns false while the link isn't ready.
+bool send(const proto::command& cmd);
 
 /// Latest decoded snapshot (copy, atomic). `seq` is bumped on every new
 /// frame — compare against your last-seen value to detect freshness.
 snapshot latest(std::uint32_t* seq = nullptr);
 
-/// True while the WS is connected and frames are arriving.
+/// True while subscribed and frames are arriving (< 1.5 s old).
 bool online();
 
 /// Sim-only hook: flip the stub's offline flag (host preview 'O' key).

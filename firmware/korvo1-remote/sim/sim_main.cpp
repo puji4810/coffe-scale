@@ -100,12 +100,12 @@ int main() {
             if (e.type == SDL_KEYDOWN) {
                 switch (e.key.keysym.sym) {
                     case SDLK_ESCAPE: quit = true; break;
-                    case SDLK_t: net::send_cmd("tare"); break;
-                    case SDLK_l: net::send_cmd("long"); break;
-                    case SDLK_m: net::send_cmd("mode"); break;
+                    case SDLK_t: net::send({proto::op::tare}); break;
+                    case SDLK_l: net::send({proto::op::timer_toggle}); break;
+                    case SDLK_m: net::send({proto::op::mode}); break;
                     case SDLK_u:
-                        net::send_cmd(net::latest().unit == 0 ? "unit1"
-                                                              : "unit0");
+                        net::send({proto::op::unit,
+                                   net::latest().unit == 0 ? 1 : 0});
                         break;
                     case SDLK_o: net::sim_toggle_offline(); break;
                     default: break;

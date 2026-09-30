@@ -1,11 +1,13 @@
 // coffee-scale web app — mirror client for the on-device UI.
-//   WebSocket to the scale: {snap,displayValue,batteryPct,charging} @20 Hz
-//   out, {"cmd":...} in. The canvas runs the device's real LVGL UI
+//   BLE notifications to the scale: 20-byte state frames @20 Hz out,
+//   tiny command writes in (scale_proto/proto.hpp is the wire ABI; WASM
+//   decodes it). The canvas runs the device's real LVGL UI
 //   (scale_screen.wasm), so the mirror is pixel-identical to the ST7789.
 //   Chart is vendored uPlot.
 
 import ScaleScreenFactory from './dist/scale_screen.mjs';
 import { ScaleChart } from './chart.js';
+import { ScaleLink } from './ble.js';
 
 const Screen = await ScaleScreenFactory();
 Screen.init();
@@ -25,10 +27,9 @@ function blit() {
 
 // --- state ------------------------------------------------------------------
 
-let ws = null;
-
 const $ = id => document.getElementById(id);
 const connEl = $('conn');
+const bleBtn = $('btn-ble');
 
 // --- snapshot -> UI ----------------------------------------------------------
 
@@ -74,64 +75,77 @@ function showFrame(m, tMs) {
 
 // --- commands ----------------------------------------------------------------
 
-function cmd(c) {
-    if (!ws || ws.readyState !== WebSocket.OPEN) { setConn('offline — connect first'); return; }
-    ws.send(JSON.stringify({ cmd: c }));
+// proto opcodes — components/scale_proto/proto.hpp
+const OP = {
+    tare: 1, timerToggle: 2, timerReset: 3, mode: 4, unit: 5,
+    calZero: 6, calSpan: 7, sleep: 8,
+};
+
+function cmd(op, arg = 0) {
+    link.send(Screen.encodeCommand(op, arg))
+        .catch(() => setConn('write failed — reconnecting?'));
 }
 
-$('btn-tare').onclick = () => cmd('tare');
-$('btn-long').onclick = () => cmd('long');
-$('btn-mode').onclick = () => cmd('mode');
-$('sel-unit').onchange = e => cmd(`unit${e.target.value}`);
-$('btn-calzero').onclick = () => cmd('calzero');
-$('btn-calspan').onclick = () => cmd(`calspan:${$('cal-mass').value || 100}`);
+$('btn-tare').onclick = () => cmd(OP.tare);
+$('btn-long').onclick = () => cmd(OP.timerToggle);
+$('btn-mode').onclick = () => cmd(OP.mode);
+$('sel-unit').onchange = e => cmd(OP.unit, +e.target.value);
+$('btn-calzero').onclick = () => cmd(OP.calZero);
+$('btn-calspan').onclick = () =>
+    cmd(OP.calSpan, Math.round(parseFloat($('cal-mass').value || '100') * 100));
 $('btn-sleep').onclick = () => {
-    if (confirm('进入低功耗？秤会关屏、关 WiFi；双击秤体或按 MODE 键唤醒。')) {
-        cmd('sleep');
+    if (confirm('进入低功耗？秤会关屏、关蓝牙；双击秤体或按 MODE 键唤醒。')) {
+        cmd(OP.sleep);
     }
 };
 addEventListener('keydown', e => {
     if (e.target.tagName === 'INPUT') return;
-    if (e.key === 't') cmd('tare');
-    else if (e.key === 'l') cmd('long');
-    else if (e.key === 'm') cmd('mode');
+    if (e.key === 't') cmd(OP.tare);
+    else if (e.key === 'l') cmd(OP.timerToggle);
+    else if (e.key === 'm') cmd(OP.mode);
 });
 
-// --- websocket (mirror) -------------------------------------------------------
+// --- bluetooth link (mirror) --------------------------------------------------
 
 function setConn(txt, live) {
     connEl.textContent = txt;
     connEl.className = live ? 'live' : '';
 }
 
-function connect(url) {
-    if (location.protocol === 'https:' && url.startsWith('ws:')) {
-        setConn('https page can\'t open ws:// — use the device-hosted page or local http');
+const link = new ScaleLink({
+    bluetooth: navigator.bluetooth,
+    uuids: Screen.bleUuids(),
+    onFrame: (bytes, t) => {
+        const m = Screen.decodeFrame(new Uint8Array(
+            bytes.buffer, bytes.byteOffset, bytes.byteLength));
+        if (m) showFrame(m, t);
+    },
+    onStatus: (kind, text) => {
+        setConn(text, kind === 'live');
+        bleBtn.textContent = (kind === 'live' || kind === 'reconnecting')
+            ? 'Disconnect' : 'Connect scale';
+        if (kind === 'live') chart.clear();
+    },
+});
+
+bleBtn.onclick = async () => {
+    if (link.connected || link.status === 'reconnecting') {
+        await link.disconnect();
         return;
     }
-    setConn('connecting…');
-    ws = new WebSocket(url);
-    ws.onopen = () => { chart.clear(); setConn('mirror · ' + url, true); };
-    ws.onmessage = ev => {
-        const m = JSON.parse(ev.data);
-        showFrame(m, performance.now());
-    };
-    ws.onclose = () => { ws = null; $('btn-ws').textContent = 'Connect'; setConn('offline'); };
-    ws.onerror = () => ws.close();
-    $('btn-ws').textContent = 'Disconnect';
-}
-
-$('btn-ws').onclick = () => {
-    if (ws) { ws.close(); return; }
-    connect($('ws-url').value.trim() || `ws://${location.host || '192.168.4.1'}/ws`);
+    try { await link.connect(); }
+    catch { setConn('connect failed / cancelled'); }
 };
 
-// the device-hosted page knows its own host — connect straight away
-if (location.protocol === 'http:' && location.host) {
-    const url = `ws://${location.host}/ws`;
-    $('ws-url').value = url;
-    connect(url);
-}
+// permitted devices reconnect on their own when supported
+link.autoConnect();
+
+// Chrome drops advertisement watches while the window is hidden —
+// re-arm the reconnect when we come back.
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) link.resume();
+});
+addEventListener('focus', () => link.resume());
 
 // --- recording ---------------------------------------------------------------
 

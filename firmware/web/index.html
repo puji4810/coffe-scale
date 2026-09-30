@@ -57,7 +57,6 @@
   #conn.live { color: var(--green); }
   #conn.live::before { background: var(--green); box-shadow: 0 0 8px var(--green); }
   header .spacer { flex: 1; min-width: 4px; }
-  #ws-url { width: min(200px, 34vw); min-width: 0; }
 
   /* --- layout ------------------------------------------------------------- */
   main {
@@ -273,8 +272,7 @@
   <span class="logo">coffee scale</span>
   <span id="conn">offline</span>
   <span class="spacer"></span>
-  <input type="text" id="ws-url" placeholder="ws://192.168.4.1/ws" size="22" spellcheck="false">
-  <button id="btn-ws">Connect</button>
+  <button id="btn-ble">Connect scale</button>
 </header>
 
 <main>
@@ -333,7 +331,8 @@
 </main>
 
 <div class="hint">
-  连 coffee-scale WiFi 后打开 http://192.168.4.1 自动连接本秤。
+  Web 蓝牙：点 Connect scale 选择本秤；已授权过的设备会自动重连，断线也会自动找回。
+  需要 Chrome / Edge（Linux 需开启 chrome://flags/#enable-experimental-web-platform-features）。
   快捷键 T/L/M。brew 计时器启动会自动开始记录。
 </div>
 

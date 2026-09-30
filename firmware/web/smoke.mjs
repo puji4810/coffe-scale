@@ -73,5 +73,53 @@ for (let i = 0; i < 30 && !again; i++) {
 }
 check('re-render dirty', again);
 
+// --- BLE wire protocol bindings (scale_proto/proto.hpp layout) --------------
+
+const uuids = Screen.bleUuids();
+check('uuid service', uuids.service === 'c0ffee00-5ca1-4e5a-9b1e-7d2f3a6b8c01', `(${uuids.service})`);
+check('uuid state', uuids.state === 'c0ffee00-5ca1-4e5a-9b1e-7d2f3a6b8c02', `(${uuids.state})`);
+check('uuid command', uuids.command === 'c0ffee00-5ca1-4e5a-9b1e-7d2f3a6b8c03', `(${uuids.command})`);
+
+// hand-built 20-byte v1 frame: flags tared+calibrated+unit-oz, batt 82,
+// seq 9, grams 200.50, display 7.074 oz, flow 1.25 g/s, pitch -2.0,
+// roll 1.5, timer 61.4 s
+const f = new Uint8Array(20);
+const dv = new DataView(f.buffer);
+f[0] = 1;
+f[1] = 0b01010110; // stable=0 tared=1 calibrated=1 charging=0 unit=1 mode=0 tstate=01
+f[2] = 82;
+f[3] = 9;
+dv.setInt32(4, 20050, true);
+dv.setInt32(8, 7074, true);
+dv.setInt16(12, 125, true);
+dv.setInt16(14, -20, true);
+dv.setInt16(16, 15, true);
+dv.setUint16(18, 614, true);
+const m = Screen.decodeFrame(f);
+check('decodeFrame non-null', m !== null);
+if (m) {
+    check('frame grams', Math.abs(m.snap.grams - 200.5) < 1e-6, `(${m.snap.grams})`);
+    check('frame display', Math.abs(m.displayValue - 7.074) < 1e-6, `(${m.displayValue})`);
+    check('frame flow', Math.abs(m.snap.flowGps - 1.25) < 1e-6, `(${m.snap.flowGps})`);
+    check('frame pitch', Math.abs(m.snap.pitchDeg - -2.0) < 1e-6, `(${m.snap.pitchDeg})`);
+    check('frame roll', Math.abs(m.snap.rollDeg - 1.5) < 1e-6, `(${m.snap.rollDeg})`);
+    check('frame timer', m.snap.timerMs === 61400, `(${m.snap.timerMs})`);
+    check('frame batt', m.batteryPct === 82);
+    check('frame flags', m.snap.tared && m.snap.calibrated && !m.snap.stable && !m.charging);
+    check('frame unit/mode', m.snap.unit === 1 && m.snap.mode === 0 && m.snap.timerState === 1);
+}
+check('decodeFrame(short)=null', Screen.decodeFrame(f.subarray(0, 5)) === null);
+const badVer = new Uint8Array(f); badVer[0] = 9;
+check('decodeFrame(badver)=null', Screen.decodeFrame(badVer) === null);
+
+const enc = Screen.encodeCommand(7, 12345); // cal_span 123.45 g
+check('encodeCommand calspan', enc.length === 5 &&
+      enc[0] === 7 && enc[1] === 0x39 && enc[2] === 0x30 && enc[3] === 0 && enc[4] === 0,
+      `(${Array.from(enc)})`);
+const encU = Screen.encodeCommand(5, 1);
+check('encodeCommand unit', encU.length === 2 && encU[0] === 5 && encU[1] === 1);
+const encT = Screen.encodeCommand(1, 0);
+check('encodeCommand tare', encT.length === 1 && encT[0] === 1);
+
 if (failures) { console.error(`${failures} FAILED`); process.exit(1); }
 console.log('all checks passed');

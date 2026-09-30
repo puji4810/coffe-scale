@@ -90,13 +90,14 @@ lv_obj_t* mk_dot(lv_obj_t* parent, int size, std::uint32_t color) {
 }
 
 void on_btn_cmd(lv_event_t* e) {
-    const char* c = static_cast<const char*>(lv_event_get_user_data(e));
-    if (std::strcmp(c, "unit_toggle") == 0) {
+    const auto op = static_cast<proto::op>(
+        reinterpret_cast<std::uintptr_t>(lv_event_get_user_data(e)));
+    proto::command c{op, 0};
+    if (op == proto::op::unit) {
         // the wire protocol wants the *target* unit, not a toggle
-        net::send_cmd(net::latest().unit == 0 ? "unit1" : "unit0");
-    } else {
-        net::send_cmd(c);
+        c.arg = net::latest().unit == 0 ? 1 : 0;
     }
+    net::send(c);
 }
 
 // CLEAR: wipe the local curve and reset the scale's brew timer.
@@ -104,7 +105,7 @@ void on_clear(lv_event_t*) {
     lv_chart_set_all_values(w.chart, w.ser_w, LV_CHART_POINT_NONE);
     lv_chart_set_all_values(w.chart, w.ser_f, LV_CHART_POINT_NONE);
     lv_chart_refresh(w.chart);
-    net::send_cmd("reset");
+    net::send({proto::op::timer_reset});
 }
 
 /// Bottom-bar key. `accent` colours the caption + the pressed border;
@@ -145,11 +146,12 @@ lv_obj_t* mk_btn_ex(lv_obj_t* parent, const char* txt, std::uint32_t accent,
     return b;
 }
 
-lv_obj_t* mk_btn(lv_obj_t* parent, const char* txt, const char* cmd,
+lv_obj_t* mk_btn(lv_obj_t* parent, const char* txt, proto::op cmd,
                  std::uint32_t accent = kFg, bool filled = false,
                  bool danger = false) {
     return mk_btn_ex(parent, txt, accent, filled, danger, on_btn_cmd,
-                     const_cast<char*>(cmd));
+                     reinterpret_cast<void*>(
+                         static_cast<std::uintptr_t>(cmd)));
 }
 
 // Vertical strip of axis tick labels, one per horizontal grid line
@@ -370,17 +372,17 @@ void ui::create() {
     lv_obj_set_style_pad_ver(bar, 9, 0);
     lv_obj_set_style_pad_hor(bar, 10, 0);
 
-    mk_btn(bar, "Tare",  "tare", kAmber, /*filled=*/true);
-    w.timer_btn = mk_btn(bar, "Timer", "long", kFg);
+    mk_btn(bar, "Tare",  proto::op::tare, kAmber, /*filled=*/true);
+    w.timer_btn = mk_btn(bar, "Timer", proto::op::timer_toggle, kFg);
     w.timer_lbl = lv_obj_get_child(w.timer_btn, 0);
-    mk_btn(bar, "Mode",  "mode");
+    mk_btn(bar, "Mode",  proto::op::mode);
     // CLEAR wipes the curve locally and resets the brew timer on the scale
     mk_btn_ex(bar, "Clear", kFg, false, false, on_clear, nullptr);
-    mk_btn(bar, "g / oz", "unit_toggle", kDim);
-    mk_btn(bar, "Sleep",  "sleep", kRed, false, /*danger=*/true);
+    mk_btn(bar, "g / oz", proto::op::unit, kDim);
+    mk_btn(bar, "Sleep",  proto::op::sleep, kRed, false, /*danger=*/true);
 
-    // offline overlay — the scale kills its AP in low power, so this is a
-    // normal resting state, not an error.
+    // offline overlay — the scale drops its BLE link in low power, so this
+    // is a normal resting state, not an error.
     w.offline = lv_obj_create(scr);
     lv_obj_remove_style_all(w.offline);
     lv_obj_set_size(w.offline, 420, 90);

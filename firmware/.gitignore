@@ -11,9 +11,7 @@
 # xmake host cache
 /.xmake/
 
-# generated at build time by littlefs_create_partition_image
-/littlefs_py_venv/
-
-# web wasm + packed fs root (regenerate: web/wasm/build.sh, web/pack.sh)
+# web wasm output (regenerate: web/wasm/build.sh) and a site.sh run from
+# inside web/
 /web/dist/
-/web/root/
+/web/_site/
