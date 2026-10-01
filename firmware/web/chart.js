@@ -30,9 +30,11 @@ function chartOpts(el, c) {
         font: c.font,
         scales: {
             x: { time: false },
-            // 0-line stays visible, negatives still allowed through
-            // (soft), resting view keeps a sensible 50 g window (soft max).
-            w: { range: { min: { soft: 0, mode: 1, pad: 0.05 },
+            // 0-line is a hard floor: a negative excursion (lifting a
+            // tared cup) clips at the plot edge instead of re-ranging the
+            // axis — the fixed-position flow curve would otherwise land
+            // inside negative axis labels and read as "flow below zero".
+            w: { range: { min: { hard: 0, soft: 0, mode: 1, pad: 0.05 },
                           max: { soft: 50, mode: 1, pad: 0.08 } } },
             // flow is physically bounded (clipped at ±30 g/s), so a fixed
             // axis keeps every value at a stable position.
@@ -166,7 +168,7 @@ export function brewPlot(el, t, w, f) {
         font: c.font,
         scales: {
             x: { time: false },
-            w: { range: { min: { soft: 0, mode: 1, pad: 0.05 },
+            w: { range: { min: { hard: 0, soft: 0, mode: 1, pad: 0.05 },
                           max: { soft: 50, mode: 1, pad: 0.08 } } },
             f: { range: [-10, 40] },
         },
