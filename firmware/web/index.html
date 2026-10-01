@@ -17,14 +17,14 @@
     --plate: #DADDD8; --well: #CDD1CB; --key: #E8EAE6;
     --ink: #1F2326; --dim: #5E6660; --rule: #B7BCB5;
     --amber: #B8741A; --amber-fill: #E8A33D;
-    --green: #1F8A52; --red: #B8382F;
+    --green: #1F8A52; --red: #B8382F; --ref: #4E86B8;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --plate: #1E2123; --well: #16181A; --key: #2A2E31;
       --ink: #E6E8E4; --dim: #8E958F; --rule: #353A3D;
       --amber: #E8A33D; --amber-fill: #E8A33D;
-      --green: #3DD68C; --red: #E5534B;
+      --green: #3DD68C; --red: #E5534B; --ref: #8FBDE0;
     }
   }
   :root {
@@ -329,7 +329,7 @@
   .chip-line { width: 14px; height: 0; border-top: 2px solid; flex: none; }
   .chip-line.ink { border-color: var(--ink); }
   .chip-line.amber { border-color: var(--amber-fill); }
-  .chip-line.ref { border-top-style: dashed; border-color: var(--dim); }
+  .chip-line.ref { border-top-style: dashed; border-color: var(--ref); }
   .autotimer {
     display: inline-flex; align-items: center; gap: 5px;
     color: var(--dim); font-size: 13px; white-space: nowrap;

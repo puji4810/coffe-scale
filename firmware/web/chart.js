@@ -13,6 +13,7 @@ function theme() {
         amber: v('--amber-fill') || '#E8A33D',
         grid: v('--rule') || '#B7BCB5',
         dim: v('--dim') || '#5E6660',
+        ref: v('--ref') || '#4E86B8',
         font: '12px "Barlow Semi Condensed", "PingFang SC", system-ui, sans-serif',
     };
 }
@@ -64,8 +65,8 @@ function chartOpts(el, c) {
               points: { show: false } },
             { label: 'g/s', scale: 'f', stroke: c.amber, width: 1.5,
               points: { show: false } },
-            { label: '参考 g', scale: 'w', stroke: c.dim, width: 1,
-              dash: [5, 4], points: { show: false } },
+            { label: '参考 g', scale: 'w', stroke: c.ref, width: 1.5,
+              dash: [6, 4], points: { show: false } },
         ],
         axes: [
             { stroke: c.dim, grid: { stroke: c.grid }, font: c.font,
@@ -235,8 +236,8 @@ export function brewPlot(el, t, w, f, other = null) {
               points: { show: false } },
             { label: 'g/s', scale: 'f', stroke: c.amber, width: 1.5,
               points: { show: false } },
-            { label: '参考 g', scale: 'w', stroke: c.dim, width: 1,
-              dash: [5, 4], points: { show: false } },
+            { label: '参考 g', scale: 'w', stroke: c.ref, width: 1.5,
+              dash: [6, 4], points: { show: false } },
         ],
         axes: [
             { stroke: c.dim, grid: { stroke: c.grid }, font: c.font,
