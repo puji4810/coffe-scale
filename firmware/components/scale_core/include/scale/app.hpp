@@ -62,8 +62,8 @@ public:
         if (mode_ == mode::weigh) {
             timer_.reset();
         }
-        // Freeze zero tracking for the whole brew session — slow real mass
-        // changes (dripping, evaporation) must not be eaten as "drift".
+        // Freeze slow drift for the brew session — dripping/evaporation
+        // remains real mass. Proven physical unloads may still restore zero.
         scale_.set_zero_tracking(mode_ == mode::weigh);
     }
 

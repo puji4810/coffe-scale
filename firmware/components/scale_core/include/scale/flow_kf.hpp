@@ -141,19 +141,34 @@ struct flow_kf_config {
                                   //   |slope| — rest-noise slope fits
                                   //   jitter ~2 g/s, a real wiggle
                                   //   swings 20+
-    float rebound_gps       = 0.35f;// while the fitted signal is flat a
+    float rebound_gps       = 0.25f;// while the fitted signal is flat a
                                   //   deeply negative reading is settle
-                                  //   momentum, not weight leaving
-    float stop_flat_gps     = 1.5f; // |calm-window slope| under this for
-                                  //   stop_s declares a stop — the read
-                                  //   is taken on the smooth pre channel
-                                  //   so post-stop slosh can't jitter it
-    float stop_s            = 0.15f;
+                                  //   momentum, not weight leaving — and
+                                  //   the pin stays inside the 0.3 g/s
+                                  //   display deadband so a pinned dip
+                                  //   still reads as stopped
+    float stop_flat_gps     = 1.5f; // |stop-window slope| under this the
+                                  //   snap candidate builds — shrink
+                                  //   threshold on residual flow, NOT
+                                  //   the zero test (that is zero_slope)
+    float stop_s            = 0.06f;// flat persistence before the snap
+    float stop_win_s        = 0.15f;// stop/zero fit window on `pre`
+    float zero_slope_gps    = 0.20f;// |slope| under this reads "still"
+    float zero_confirm_s    = 0.04f;// consecutive stillness -> zero hold
+    float restart_s         = 0.06f;// consecutive restart evidence to
+                                  //   release the zero hold
+    float restart_slope_gps = 0.20f;// |slope| past this is the signal
+                                  //   moving again
+    float restart_growth_g = 0.50f;// net pre growth since zero latched;
+                                  //   supports noisy positive restarts
+    float restart_var_gps2 = 16.0f;// flow variance floor on growth release
     float stop_veto_gps     = 2.0f; // a live fast-channel slope past this
                                   //   blocks the snap (re-start)
     float gate_skip_s       = 0.12f;// leading slice of a gate excluded
                                   //   from the post-transient ramp fit —
                                   //   it contains the trip's own impact
+    float gate_early_skip_s = 0.08f;// shorter exclusion only with full/half
+                                  //   pre agreement and a clean fast tail
     float stop_guard_s      = 0.45f;// rebound pin stays armed this long
                                   //   after each stop snap — the settle
                                   //   dip lands while the calm fit still
@@ -206,6 +221,10 @@ public:
         stop_t_        = 0.0f;
         snap_t_        = -1e9f;
         pour_hi_t_     = -1e9f;
+        zero_held_     = false;
+        zero_level_    = 0.0f;
+        zero_t_        = 0.0f;
+        restart_t_     = 0.0f;
         track_t_    = -1e9f;
         lost_t_     = 0.0f;
         abort_t_    = 0.0f;
@@ -216,6 +235,8 @@ public:
         ungate_t_   = -1e9f;
         flip_t_     = -1e9f;
         slope_sign_ = 0.0f;
+        flip_candidate_sign_ = 0.0f;
+        flip_candidate_s_    = 0.0f;
         osc_flips_  = 0;
         osc_sign_   = 0.0f;
         osc_flip_t_ = -1e9f;
@@ -259,6 +280,12 @@ public:
             stop_t_        = 0.0f;
             snap_t_        = -1e9f;
             pour_hi_t_     = -1e9f;
+            flip_candidate_sign_ = 0.0f;
+            flip_candidate_s_    = 0.0f;
+            zero_held_     = false;
+            zero_level_    = 0.0f;
+            zero_t_        = 0.0f;
+            restart_t_     = 0.0f;
         }
         const float pre  = b2_.push(b1_.push(g));
         const float fast = fb_.push(g);
@@ -395,8 +422,6 @@ private:
         w_ += dt * f_;
         // gated -> stay conservative; boosting -> q_boost; a clean steep
         // window keeps mid-level q_track briefly after the boost drops.
-        // gated -> stay conservative; boosting -> q_boost; a clean steep
-        // window keeps mid-level q_track briefly after the boost drops.
         // Elapsed math only: a track_t_ that crossed zero in a rebase is
         // still valid, and the "never" sentinel sits far in the past.
         const float q =
@@ -420,6 +445,15 @@ private:
         gated_    = true;
         boosting_ = false;
         track_t_  = -1e9f;
+        flip_candidate_sign_ = 0.0f;
+        flip_candidate_s_    = 0.0f;
+        stop_t_    = 0.0f;
+        snap_t_    = -1e9f;
+        pour_hi_t_ = -1e9f;
+        zero_held_ = false;
+        zero_level_ = 0.0f;
+        zero_t_    = 0.0f;
+        restart_t_ = 0.0f;
         // osc_* is deliberately NOT reset: the count must span gates —
         // a sustained wiggle trips, ungates and re-trips each half
         // cycle, and per-gate counting never reaches the threshold.
@@ -555,6 +589,168 @@ private:
         osc_sign_ = ss;
     }
 
+    /// Stop machinery, once per un-gated sample before the flip/boost
+    /// bookkeeping; returns true while the zero hold owns the estimate.
+    /// Candidate: a clean flat stop-window `pre` fit saturates stop_t_
+    /// (leaks when invalid) — the snap is residual control only: it
+    /// requires the candidate live, acts only on |f_| above
+    /// stop_flat_gps, shrinks toward the fit floored at rebound_gps,
+    /// and re-anchors w_. Held: stillness on both channels, or a quiet
+    /// calm-window pre fit with low residual flow just after a high
+    /// pour, for zero_confirm_s latches f_ = 0 exactly with w_ riding
+    /// the fitted level. Restart: a clean same-sign slope on both
+    /// channels sustained restart_s clears the timers and releases the
+    /// hold at f_ = 0 — genuine motion, either sign, earns tracking
+    /// through the normal boost/gate paths rather than an adopted slope.
+    /// The trend is certified beyond the newest window: the adjacent
+    /// `fast` window agrees in direction, or it still reads flat (a real
+    /// onset) while the smooth calm-window fit carries the same signed
+    /// slope. While held, a second low-rate proof covers drifts the
+    /// noisy fast fit can't certify: two adjacent calm-window `pre`
+    /// fits agreeing on a signed pour-band slope. Positive restarts
+    /// can also prove net growth from the level saved at zero latch,
+    /// with a clean calm-window trend for the same restart duration.
+    /// Growth releases widen flow uncertainty without adopting a rate
+    /// or granting tracking density. Only a release relying on this
+    /// fallback re-anchors weight to the latest observation; retaining
+    /// the original weight on a clean restart preserves its boost proof.
+    bool stop_update(float dt, float inn, const fit_res& now,
+                     const fit_res& prev, const fit_res& short_pre,
+                     const fit_res& pre_calm) {
+        const bool pclean = prev.ok && prev.worst <= cfg_.boost_resid_g;
+        const bool trend  =
+            (pclean && now.slope * prev.slope > 0.0f &&
+             std::fabs(prev.slope) > cfg_.restart_slope_gps) ||
+            (pclean && std::fabs(prev.slope) < cfg_.boost_quiet_gps &&
+             pre_calm.ok && pre_calm.worst <= cfg_.boost_resid_g &&
+             now.slope * pre_calm.slope > 0.0f &&
+             std::fabs(pre_calm.slope) > cfg_.restart_slope_gps);
+        bool restart_ev =
+            now.ok && now.worst <= cfg_.boost_resid_g &&
+            short_pre.ok && short_pre.worst <= cfg_.boost_resid_g &&
+            now.slope * short_pre.slope > 0.0f &&
+            std::fabs(now.slope) > cfg_.restart_slope_gps &&
+            std::fabs(short_pre.slope) > cfg_.restart_slope_gps &&
+            trend;
+        if (zero_held_ && !restart_ev) {
+            const fit_res older_pre =
+                line_fit(buf_, cfg_.calm_s, 8, cfg_.calm_s * 0.85f,
+                         cfg_.calm_s);
+            restart_ev =
+                pre_calm.ok && older_pre.ok &&
+                pre_calm.worst <= cfg_.boost_resid_g &&
+                older_pre.worst <= cfg_.boost_resid_g &&
+                pre_calm.slope * older_pre.slope > 0.0f &&
+                std::fabs(pre_calm.slope) > cfg_.restart_slope_gps &&
+                std::fabs(older_pre.slope) > cfg_.restart_slope_gps &&
+                std::fabs(pre_calm.slope) <= cfg_.stop_flat_gps &&
+                std::fabs(older_pre.slope) <= cfg_.stop_flat_gps &&
+                std::fabs(pre_calm.slope - older_pre.slope) <=
+                    cfg_.boost_band_gps;
+        }
+        const bool clean_restart_ev = restart_ev;
+        const bool growth_ev = zero_held_ &&
+            pre_calm.ok && pre_calm.worst <= cfg_.calm_g &&
+            pre_calm.slope > cfg_.boost_quiet_gps &&
+            pre_calm.level - zero_level_ >= cfg_.restart_growth_g;
+        restart_ev = restart_ev || growth_ev;
+        restart_t_ = restart_ev
+                         ? std::min(cfg_.restart_s, restart_t_ + dt)
+                         : 0.0f;
+        if (restart_t_ >= cfg_.restart_s) {
+            stop_t_ = 0.0f;
+            zero_t_ = 0.0f;
+            if (zero_held_) {
+                zero_held_ = false;
+                f_             = 0.0f;
+                boosting_      = false;
+                run_t_         = 0.0f;
+                run_slope_max_ = 0.0f;
+                steep_run_n_   = 0;
+                track_t_       = -1e9f;
+                if (growth_ev) {
+                    if (!clean_restart_ev)
+                        w_ = buf_.at(buf_.size() - 1).v;
+                    p11_ = std::max(p11_, cfg_.restart_var_gps2);
+                }
+            }
+            return false;
+        }
+        const bool quiet =
+            short_pre.ok && short_pre.worst <= cfg_.boost_resid_g &&
+            std::fabs(short_pre.slope) <= cfg_.zero_slope_gps &&
+            now.ok && now.worst <= cfg_.boost_resid_g &&
+            std::fabs(now.slope) <= cfg_.boost_quiet_gps;
+        // The short windows can keep alternating through a settling
+        // ring after the estimate already reaches zero. A longer quiet
+        // pre fit can certify that stop, but only just after a high
+        // pour, on the ring's falling side, while the state is already
+        // low. Restart evidence vetoes it; a same-sign slow tail cannot
+        // latch merely because it sits below the quiet threshold.
+        const bool quiet_after_pour =
+            tp_ - pour_hi_t_ <= cfg_.stop_guard_s &&
+            pre_calm.ok && pre_calm.worst <= cfg_.boost_resid_g &&
+            std::fabs(pre_calm.slope) <= cfg_.boost_quiet_gps &&
+            short_pre.ok && short_pre.slope < -cfg_.zero_slope_gps &&
+            f_ <= cfg_.boost_quiet_gps && f_ >= -cfg_.stop_flat_gps;
+        const bool zero_cand = !restart_ev && (quiet || quiet_after_pour);
+        zero_t_ = zero_cand
+                      ? std::min(cfg_.zero_confirm_s, zero_t_ + dt)
+                      : 0.0f;
+        if (zero_t_ >= cfg_.zero_confirm_s && !zero_held_) {
+            zero_held_ = true;
+            // Weight, not time: keep this anchor fixed while held and
+            // leave it untouched when timestamps rebase.
+            zero_level_ = pre_calm.ok ? pre_calm.level : short_pre.level;
+        }
+        if (zero_held_) {
+            f_ = 0.0f;
+            if (short_pre.ok) w_ = short_pre.level;
+            boosting_      = false;
+            track_t_       = -1e9f;
+            run_t_         = 0.0f;
+            run_slope_max_ = 0.0f;
+            steep_run_n_   = 0;
+            // The early return below bypasses the un-boosted steep-slope
+            // gate — keep it armed while held, with the same
+            // contradiction test. A clean sustained slope releases via
+            // the restart path first, so this only fires on a dirty
+            // fast fit — a step/slam, not stillness.
+            const bool steep =
+                now.ok &&
+                std::fabs(now.slope) > cfg_.gate_slope_gps &&
+                std::fabs(now.slope - f_) > cfg_.gate_diff_gps;
+            steep_n_ = steep ? steep_n_ + 1 : 0;
+            if (steep_n_ >= cfg_.gate_steep_n) {
+                steep_n_  = 0;
+                trip_why_ = 5;
+                trip_gate(tp_, cfg_.rewind_s);
+            }
+            return true;
+        }
+        const bool cand =
+            short_pre.ok && short_pre.worst <= cfg_.boost_resid_g &&
+            std::fabs(short_pre.slope) < cfg_.stop_flat_gps;
+        stop_t_ = cand ? std::min(stop_t_ + dt, cfg_.stop_s)
+                       : std::max(0.0f, stop_t_ - dt);
+        const float tgt = short_pre.ok ? short_pre.slope : 0.0f;
+        const bool pushing = std::fabs(inn) > cfg_.boost_inn_g &&
+                             inn * (f_ - tgt) > 0.0f;
+        // Shrink-only is not enough on its own: under pour-rate noise the
+        // fit reads low often enough to ratchet a genuine marginal pour
+        // down. Snap only trims leftover momentum above stop_flat_gps;
+        // low residual is the zero hold's job.
+        if (cand && stop_t_ >= cfg_.stop_s &&
+            (!now.ok || std::fabs(now.slope) < cfg_.stop_veto_gps) &&
+            !pushing && std::fabs(f_) > cfg_.stop_flat_gps &&
+            std::fabs(tgt) < std::fabs(f_)) {
+            f_ = std::max(tgt, -cfg_.rebound_gps);
+            snap_t_ = tp_;
+            w_ = short_pre.level;
+        }
+        return false;
+    }
+
     void boost_update(float dt, float inn) {
         const float s = inn > 0.0f ? 1.0f : (inn < 0.0f ? -1.0f : 0.0f);
         if (std::fabs(inn) > cfg_.boost_inn_g && s == run_sign_) {
@@ -571,16 +767,51 @@ private:
         const fit_res prev =
             line_fit(fbuf_, cfg_.boost_win_s, 6, cfg_.boost_win_s * 0.8f,
                      cfg_.boost_win_s);
+        // Same windows on the smooth pre channel: pre_short certifies a
+        // direction flip (the fast fit alone flips on noise and onset
+        // ringing), pre_calm certifies real growth for the cap below.
+        const fit_res pre_short =
+            line_fit(buf_, cfg_.boost_win_s, 6, cfg_.boost_win_s * 0.8f);
+        const fit_res pre_calm =
+            line_fit(buf_, cfg_.calm_s, 8, cfg_.calm_s * 0.85f);
         const bool clean  = now.ok && now.worst <= cfg_.boost_resid_g;
         const bool pclean = prev.ok && prev.worst <= cfg_.boost_resid_g;
-        // Slope-sign flips (with a quiet hysteresis so noise can't flip)
-        // mark oscillation: handling wiggles flip every half cycle and
-        // spend the flip guard suppressed, while a real pour transition
-        // never flips.
+        // Stop machinery's own window on `pre` (stop_win_s, not the
+        // boost window) — runs before the flip/boost bookkeeping so a
+        // held zero can't leak a rate through the band path below.
+        const fit_res short_pre =
+            line_fit(buf_, cfg_.stop_win_s, 8, cfg_.stop_win_s * 0.85f);
+        if (stop_update(dt, inn, now, prev, short_pre, pre_calm))
+            return;
+        // Slope-sign flips mark oscillation — but only a CREDIBLE
+        // direction may move slope_sign_/flip_t_: clean fast fit AND a
+        // clean same-sign pre_short, both past their noise floors. A new
+        // sign must persist 0.06 s consecutively before it confirms; a
+        // sample that can't certify the candidate drops it rather than
+        // touching the last credible sign — onset splash/ring noise then
+        // never trips the boost_flip_s guard, while a genuine reversal
+        // (a sustained wiggle) still flips every half cycle.
+        const bool credible =
+            clean && std::fabs(now.slope) >= cfg_.osc_slope_gps &&
+            pre_short.ok && pre_short.worst <= cfg_.boost_resid_g &&
+            now.slope * pre_short.slope > 0.0f &&
+            std::fabs(pre_short.slope) >= cfg_.boost_dslope_gps;
+        const float csign =
+            credible ? (now.slope > 0.0f ? 1.0f : -1.0f) : 0.0f;
+        if (csign != 0.0f && csign == flip_candidate_sign_) {
+            flip_candidate_s_ =
+                std::min(0.06f, flip_candidate_s_ + dt);
+        } else {
+            flip_candidate_sign_ = csign;
+            flip_candidate_s_    = csign != 0.0f ? dt : 0.0f;
+        }
+        if (csign != 0.0f && flip_candidate_s_ >= 0.06f) {
+            if (slope_sign_ != 0.0f && csign != slope_sign_) {
+                flip_t_ = tp_;
+            }
+            slope_sign_ = csign;
+        }
         if (clean && std::fabs(now.slope) >= cfg_.boost_quiet_gps) {
-            const float ss = now.slope > 0.0f ? 1.0f : -1.0f;
-            if (slope_sign_ != 0.0f && ss != slope_sign_) flip_t_ = tp_;
-            slope_sign_ = ss;
             note_osc(now.slope, tp_);
         }
         bool shape = false;
@@ -609,58 +840,26 @@ private:
         //  - the FLOOR (negative slope) only stops the readout dipping
         //    below the measured slope — it can never under-report a real
         //    pour, so it stays armed whenever the fit is sane.
-        // Both use the SHALLOWER of two adjacent windows so an onset
-        // can't extrapolate its steepest instant into a spike.
+        // The FLOOR still uses the shallower of the two adjacent fast
+        // windows; the CEILING rides max(that ref, the calm pre slope)
+        // so a fast-fit valley can't cap below measured growth — either
+        // way an onset can't extrapolate its steepest instant into a
+        // spike.
         const auto apply_band = [&](bool pos_cap) {
-            // Stop snap: judge flatness on the PRE channel over the
-            // full calm window — post-stop slosh spikes the fast fit
-            // past the bound while the smooth channel still reads ~0.
-            // A persistently flat calm fit with a nonzero f_ is residual
-            // momentum draining exponentially through the Kalman — once
-            // the flatness has persisted, land f_ on the measured slope
-            // at once instead of tailing ~1 s. The accumulator leaks
-            // rather than resets so one noisy fit pauses the count
-            // instead of restarting it. The snap only ever shrinks |f_|
-            // and is vetoed per-sample by a live fast slope (a re-start
-            // breaks out within ~3 samples) AND by an innovation still
-            // pushing f_ away from the target — an onset's positive
-            // innovation run releases it at once.
-            const fit_res calm =
-                line_fit(buf_, cfg_.calm_s, 8, cfg_.calm_s * 0.85f);
-            const float tgt = calm.ok ? calm.slope : 0.0f;
-            const bool flat_calm = calm.ok &&
-                std::fabs(calm.slope) < cfg_.stop_flat_gps;
-            stop_t_ = flat_calm ? stop_t_ + dt
-                                : std::max(0.0f, stop_t_ - dt);
-            const bool pushing = std::fabs(inn) > cfg_.boost_inn_g &&
-                                 inn * (f_ - tgt) > 0.0f;
-            if (stop_t_ >= cfg_.stop_s &&
-                (!now.ok ||
-                 std::fabs(now.slope) < cfg_.stop_veto_gps) &&
-                !pushing && std::fabs(tgt) < std::fabs(f_)) {
-                // Cap the target at the rebound floor: a deeply
-                // negative calm slope inside a flat declaration is the
-                // settle tail contaminating the fit, and snapping to it
-                // manufactures the dip it was meant to kill. If the
-                // downtrend were real the Kalman pulls f_ back within
-                // samples anyway.
-                f_ = std::max(tgt, -cfg_.rebound_gps);
-                snap_t_ = tp_;
-                // The level state still carries the pour's overshoot —
-                // left alone its residual innovation drags the snapped
-                // f_ right back negative. Land it on the fitted level
-                // too so the whole state agrees with the stop.
-                if (calm.ok) w_ = calm.level;
-            }
             // Flat-signal rebound guard: a deeply negative f_ while the
-            // signal reads flat (PRE channel) or within a short window
-            // after a snap is settle momentum, not weight leaving —
-            // pin it. The fast fit spikes past quiet exactly when the
-            // dip develops, so neither gate can key on it. The
-            // pour_hi_t_ term covers the settle transient itself: a
-            // boosted q can drag f_ below zero in a single step right
-            // after the pour stops, before the calm fit reads flat —
-            // a real removal gates instead.
+            // signal reads flat (PRE channel), while the stop candidate
+            // is warm, or within a short window after a snap/pour-end is
+            // settle momentum, not weight leaving — pin it. The fast fit
+            // spikes past quiet exactly when the dip develops, so the
+            // guard keys on pre_calm. The pour_hi_t_ term covers the
+            // settle transient itself: a boosted q can drag f_ below
+            // zero in a single step right after the pour stops — a
+            // sustained removal releases the guard through the
+            // zero-hold restart path instead. (The residual snap moved
+            // to stop_update; the hold path never reaches this lambda.)
+            const bool flat_calm =
+                pre_calm.ok &&
+                std::fabs(pre_calm.slope) < cfg_.stop_flat_gps;
             if (f_ > 1.5f) pour_hi_t_ = tp_;
             if ((flat_calm || stop_t_ > 0.0f ||
                  tp_ - snap_t_ <= cfg_.stop_guard_s ||
@@ -679,7 +878,18 @@ private:
                           : std::max(now.slope, prev.slope);
             }
             if (now.slope >= 0.0f) {
-                if (pos_cap) f_ = std::min(f_, ref + cfg_.boost_band_gps);
+                // Positive ceiling only while the smooth channel
+                // certifies real growth: a fast-fit valley must not cap
+                // f_ below the measured ramp, so the bound rides the
+                // HIGHER of the fast ref and the calm pre slope. An
+                // invalid pre reference means no cap at all — never a
+                // fallback to the noisy min alone.
+                if (pos_cap && clean && pre_calm.ok &&
+                    pre_calm.worst <= cfg_.boost_resid_g &&
+                    pre_calm.slope >= 0.0f) {
+                    f_ = std::min(f_, std::max(ref, pre_calm.slope) +
+                                      cfg_.boost_band_gps);
+                }
             } else {
                 f_ = std::max(f_, ref - cfg_.boost_band_gps);
             }
@@ -766,6 +976,11 @@ private:
             // climbing into the window), so snap slightly damped.
             f_ = std::clamp(now.slope * cfg_.boost_snap_damp,
                             -cfg_.boost_snap_gps, cfg_.boost_snap_gps);
+            // The entry snap bypassed the band before: a negative slope
+            // (post-stop slosh) would land below the rebound floor for
+            // one sample before the pin armed next sample. Run the
+            // floor/guard now — no positive cap on the snap itself.
+            apply_band(false);
             return;
         }
         if (std::fabs(inn) <= cfg_.boost_settle_g) {
@@ -832,6 +1047,42 @@ private:
         const fit_res h =
             line_fit(buf_, cfg_.calm_s * 0.5f, 4, cfg_.calm_s * 0.45f);
         if (!h.ok || h.worst >= cfg_.calm_g * 0.7f) return;
+        // A young gate may release after the minimum hold when both
+        // smooth windows clear the noise floor, agree, and a clean
+        // positive fast tail confirms them below the boost snap bound.
+        // A moderately accelerating ramp may disagree full vs half;
+        // require tight full-pre/fast-tail and half-pre/pre-tail pairs
+        // before allowing the wider full/half margin.
+        // This stronger proof tolerates
+        // a shorter impact slice; steep ramps and the normal
+        // post-transient path still wait for their full span.
+        const float early_span = (t - gate_t_) - cfg_.gate_early_skip_s;
+        const bool early_ready = early_span >= 0.12f &&
+                                 t - gate_t_ < cfg_.gate_skip_s + 0.12f;
+        const fit_res ep = early_ready
+            ? line_fit(buf_, early_span, 8, early_span * 0.7f) : fit_res{};
+        const fit_res ef = early_ready
+            ? line_fit(fbuf_, early_span, 8, early_span * 0.7f) : fit_res{};
+        const bool early_ramp =
+            early_ready &&
+            f.slope > cfg_.osc_slope_gps &&
+            h.slope > cfg_.osc_slope_gps &&
+            h.slope <= cfg_.boost_snap_gps &&
+            (std::fabs(f.slope - h.slope) <= cfg_.slope_consist_gps ||
+             (std::fabs(f.slope - h.slope) <= cfg_.slope_consist_gps * 2.0f &&
+              std::fabs(f.slope - ef.slope) <= cfg_.slope_consist_gps &&
+              std::fabs(h.slope - ep.slope) <= cfg_.slope_consist_gps)) &&
+            ep.ok && ep.slope > 0.0f && ep.worst <= cfg_.boost_resid_g &&
+            ef.ok && ef.slope > 0.0f && ef.worst <= cfg_.calm_g &&
+            ef.slope <= cfg_.fit_slope_max_gps &&
+            std::fabs(ef.slope - std::min(f.slope, h.slope)) <=
+                cfg_.slope_consist_gps * 2.0f &&
+            osc_flips_ <= cfg_.resume_flip_max;
+        if (!early_ramp && h.slope > cfg_.boost_quiet_gps &&
+            h.slope <= cfg_.fit_slope_max_gps &&
+            t - gate_t_ < cfg_.gate_skip_s + 0.12f) {
+            return;
+        }
         // Slope adoption demands the strongest evidence: the WHOLE gate
         // window must read as one clean ramp whose slope agrees with the
         // newest half. A pour running through the gate (e.g. the steep
@@ -859,8 +1110,12 @@ private:
             std::fabs(fp.slope - h.slope) <= cfg_.gate_diff_gps &&
             osc_flips_ <= cfg_.resume_flip_max;
         float f0;
+        bool  resumed_ramp = false;   // f0 adopted via a transient-ramp proof
         if (std::fabs(h.slope) < cfg_.boost_quiet_gps) {
             f0 = h.slope;   // flat half-window: stopped
+        } else if (early_ramp) {
+            f0 = std::min({f.slope, h.slope, ef.slope}) * cfg_.boost_snap_damp;
+            resumed_ramp = true;
         } else if (h.slope > 0.0f && gate_ramp &&
                    h.slope <= cfg_.fit_slope_max_gps &&
                    std::fabs(fg.slope - h.slope) <=
@@ -877,9 +1132,17 @@ private:
                    post_ramp) {
             // Pour resumed through its own splash: the strict triple
             // agreement can't hold (the gate window contains the trip's
-            // kink), so adopt the shallower of the two post-transient
-            // fits instead.
-            f0 = std::min(h.slope, fp.slope);
+            // kink). The cascaded pre filter can still ring downward,
+            // biasing both smooth slopes low even on a real ramp. Blend
+            // the conservative pre rate with the certified fast ramp
+            // only when their slopes agree within the resume margin;
+            // a discrepant or implausible fast slope cannot raise f0.
+            const float pre_rate = std::min(h.slope, fp.slope);
+            const bool fast_agrees =
+                ff.slope <= cfg_.fit_slope_max_gps &&
+                std::fabs(ff.slope - pre_rate) <= cfg_.gate_diff_gps;
+            f0 = fast_agrees ? 0.5f * (pre_rate + ff.slope) : pre_rate;
+            resumed_ramp = true;
         } else if (osc_flips_ >= cfg_.resume_flip_max) {
             f0 = 0.0f;      // the slope genuinely reversed recently —
                             // oscillation or removal, never a pour to
@@ -899,19 +1162,27 @@ private:
         stop_t_        = 0.0f;
         snap_t_        = -1e9f;
         pour_hi_t_     = -1e9f;
+        zero_held_     = false;
+        zero_level_    = 0.0f;
+        zero_t_        = 0.0f;
+        restart_t_     = 0.0f;
         lost_t_     = 0.0f;
         abort_t_    = 0.0f;
         slope_sign_ = 0.0f;
+        flip_candidate_sign_ = 0.0f;
+        flip_candidate_s_    = 0.0f;
         ungate_t_   = t;
         ungate_f0_  = f0;        // diagnostics: what the resume adopted
         // Onset-kink case: the gate contained the pour's own start, so
         // the whole-window ramp test failed even though the newest half
         // already reads a clean positive slope. Grant the mid tracking
         // density — the Kalman converges on its own (no slope is
-        // fabricated) — but only while the oscillation streak is cold,
-        // so a mid-upswing sine release doesn't get to track hard.
-        if (osc_flips_ == 0 && h.ok && h.worst <= cfg_.calm_g &&
-            h.slope > cfg_.boost_quiet_gps) {
+        // fabricated) — while the oscillation streak is cold, or when
+        // the resume was certified by the post-transient ramp (its own
+        // flip budget already tolerates the trip's ring). A rejected
+        // sine still never gets to track hard.
+        if ((osc_flips_ == 0 || resumed_ramp) && h.ok &&
+            h.worst <= cfg_.calm_g && h.slope > cfg_.boost_quiet_gps) {
             track_t_ = t;
         }
         anchor(f.level, f0);
@@ -938,6 +1209,8 @@ private:
         track_t_    -= delta_s;
         osc_flip_t_ -= delta_s;
         boost_end_t_ -= delta_s;
+        snap_t_     -= delta_s;
+        pour_hi_t_  -= delta_s;
         for (std::size_t i = 0; i < hist_.size(); ++i) {
             hist_.at(i).t -= delta_s;
         }
@@ -1015,7 +1288,9 @@ private:
     // and stay valid — while -1e9 computes "ages ago" at any tp_.
     float          ungate_t_   = -1e9f; // last un-gate (jump cooldown)
     float          flip_t_     = -1e9f; // last slope-sign flip
-    float          slope_sign_ = 0.0f;  // last significant fit-slope sign
+    float          slope_sign_ = 0.0f;  // last confirmed credible sign
+    float          flip_candidate_sign_ = 0.0f; // pending credible sign
+    float          flip_candidate_s_    = 0.0f; // its consecutive duration
     // Oscillation bookkeeping inside a gate: a sustained wiggle flips
     // its fitted slope sign every half cycle; a dying ring stops flipping
     // well before the window calms. Recent flips block slope adoption on
@@ -1030,6 +1305,10 @@ private:
     float          stop_t_     = 0.0f; // flat-slope persistence timer
     float          snap_t_     = -1e9f;// last stop snap (pin window)
     float          pour_hi_t_  = -1e9f;// last f_ above 1.5 (pin window)
+    float          zero_level_ = 0.0f;// weight at zero latch, not a timestamp
+    bool           zero_held_  = false;// zero hold owns f_/w_ output
+    float          zero_t_     = 0.0f; // consecutive stillness duration
+    float          restart_t_  = 0.0f; // consecutive restart evidence
     float          ungate_f0_  = 0.0f; // flow adopted at last un-gate
     // accel motion veto
     float          motion_ema_ = 0.0f;

@@ -2,10 +2,10 @@
 
 /// Streaming scale pipeline:
 ///     raw counts -> median(3) -> LPF -> plateau snap -> filtered counts
-///       -> grams = (counts - tare - zero - drift(T)) / counts_per_gram
-///       -> stability -> zero-track -> deadband -> grams
-///       -> flow rate (g/s, median-domain regression)
-///       -> display_grams: pour-lag comp -> latch -> quantise+hysteresis
+///       -> calibrated gross weight -> stability -> physical zero tracker
+///       -> tare + zero offset + deadband -> grams
+///     median counts -> calibrated weight - tare -> Kalman flow rate
+///     net median + compensated grams -> display platform + hysteresis
 ///
 /// Feed one push() per ADC conversion (e.g. 80 Hz at NAU7802 80 SPS) with a
 /// real monotone timestamp — flow regression and the zero-track hold timer
@@ -20,7 +20,6 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <limits>
 #include <optional>
 
 #include "scale/calibration.hpp"
@@ -31,6 +30,7 @@
 #include "scale/thermal.hpp"
 #include "scale/tilt.hpp"
 #include "scale/zero_track.hpp"
+#include "scale/weight_display.hpp"
 
 namespace scale {
 
@@ -70,8 +70,8 @@ struct scale_config {
     float       snap_min_g    = 0.05f;
     float       snap_max_gps  = 0.5f;     // max input slope for "quiet"
     /// Display deadband: |grams| below this reads as exactly 0 — hides
-    /// sub-half-division noise and the "-0.0" sign flicker. Persistent
-    /// residuals get pulled inside the band by the zero tracker anyway.
+    /// sub-half-division noise and the "-0.0" sign flicker. Physical empty
+    /// evidence, rather than this band alone, authorizes zero correction.
     float       display_deadband_g = 0.05f;
     /// Display quantiser with hysteresis: the shown weight moves in
     /// `display_res_g` steps and only re-rounds once the continuous value
@@ -88,14 +88,10 @@ struct scale_config {
     /// filter re-converge when the pour stops.
     float       lag_min_gps  = 0.3f;
     float       lag_full_gps = 1.0f;
-    /// Display latch: once the system has been continuously stable for
-    /// `latch_hold` — or, covering vibration the stability detector can't
-    /// bless (a bench fan), once the quantised readout itself has held a
-    /// step that long — the shown weight freezes. Released the moment the
-    /// continuous value drifts past the quantiser's hysteresis bound
-    /// (half a step + display_hyst_g), so a stale digit can never survive
-    /// the drift it hides — e.g. the residual the zero tracker just
-    /// pulled back to 0. latch_hold <= 0 disables the latch.
+    /// Display platform: a short flat window held for `latch_hold` settles
+    /// clean placements. Bounded vibration uses a stable longer mean.
+    /// The anchor is continuous, separate from the rounded digit; edges,
+    /// clean trends or sustained growth release it. <= 0 disables hold.
     clock_ms    latch_hold{300};
     /// Same for the flow readout: the KF's resting estimate otherwise
     /// flickers ±0.x g/s. Real pours are >= 1 g/s.
@@ -148,18 +144,22 @@ public:
             default:                filtered_ = ema_.push(med); break;
         }
         snap_to_plateau();
-        const float net = cal_.to_grams(filtered_ - tare_counts_
-                                        - thermal_.drift_counts(temp_c_));
-        stab_.push(net);
-        zt_.apply(net, system_stable(), now);
-        // Flow runs on the median-domain weight: linear, so the Kalman
-        // sees the raw pour slope — the adaptive EMA's nonlinear tracking
-        // would distort it.
-        const float flow_g = cal_.to_grams(med - tare_counts_
-                                           - thermal_.drift_counts(temp_c_))
-                             - zt_.offset();
+        const float gross = cal_.to_grams(filtered_ - thermal_.drift_counts(temp_c_));
+        const float input = cal_.to_grams(med - thermal_.drift_counts(temp_c_));
+        stab_.push(gross);
+        zt_.apply(gross, input, system_stable(), now);
+        // Zero corrections translate the weight origin; they are not flow.
+        const float flow_g = input - tare_counts_ / cal_.counts_per_gram;
         kf_.push(now, flow_g);
-        update_latch(now);
+        fed_ = true;
+        const float net = grams();
+        const float display_input = input - tare_counts_ / cal_.counts_per_gram - zt_.offset();
+        const std::optional<float> empty_value =
+            zt_.empty() && std::fabs(input-zt_.offset()) < deadband_g_
+                ? std::optional<float>{-tare_counts_ / cal_.counts_per_gram}
+                : std::nullopt;
+        display_.push(display_input, net + lag_comp_g(), flow_gps(),
+                      tilt_.quiet(), empty_value, now);
 
         diag_.t             = now;
         diag_.raw_counts    = counts;
@@ -179,7 +179,6 @@ public:
         diag_.accel_mg      = tilt_.accel();
         diag_.pitch_deg     = tilt_.pitch_deg();
         diag_.roll_deg      = tilt_.roll_deg();
-        fed_ = true;
     }
 
     /// Feed one accelerometer sample (mg) — 10-25 Hz suffices.
@@ -202,7 +201,7 @@ public:
     [[nodiscard]] std::int32_t median_counts() const { return median_.value(); }
 
     /// Net weight in grams after calibration, tare, thermal drift comp and
-    /// zero tracking — this is the displayed value. |value| under
+    /// zero tracking, before display hold/rounding. |value| under
     /// display_deadband_g collapses to exactly 0. Reads 0 until the first
     /// sample primes the filters (an unprimed pipeline would report a full
     /// tare's worth of negative offset).
@@ -214,27 +213,10 @@ public:
         return std::fabs(g) < deadband_g_ ? 0.0f : g;
     }
 
-    /// Display weight: grams() + pour-lag compensation, quantised to
-    /// display_res_g steps with hysteresis — the digit only re-rounds
-    /// once the value has moved half a step + display_hyst_g away from
-    /// the shown step, so a reading parked near a rounding boundary
-    /// holds its last digit instead of flickering. Once the system has
-    /// been stable for latch_hold the value is frozen outright until
-    /// the continuous value drifts past that same hysteresis bound.
-    /// Stateful display cache; logically const — shared by the LCD
-    /// refresh and the web snapshot under g_mtx.
-    [[nodiscard]] float display_grams() const {
-        if (latched_) {
-            return shown_g_ == 0.0f ? 0.0f : shown_g_;   // no "-0.0"
-        }
-        const float g = grams() + lag_comp_g();
-        if (!shown_init_ ||
-            std::fabs(g - shown_g_) > res_g_ * 0.5f + hyst_g_) {
-            shown_g_    = quantize_g(g);
-            shown_init_ = true;
-        }
-        return shown_g_ == 0.0f ? 0.0f : shown_g_;
-    }
+    /// Display weight: compensated grams, platform hold and hysteretic
+    /// rounding. Updated once per push; LCD and web getters share the
+    /// same cached digit without advancing its evidence/history.
+    [[nodiscard]] float display_grams() const { return display_.value(); }
 
     /// Pour rate in g/s from the gated Kalman estimator. |rate| under
     /// flow_deadband_gps reads 0, and the readout is clipped to
@@ -263,7 +245,8 @@ public:
     /// whenever it is read (a few Hz is plenty).
     void set_temperature(float temp_c) { temp_c_ = temp_c; }
 
-    /// Runtime gate for the zero tracker — freeze it during brew sessions.
+    /// Brew freezes slow empty-pan drift; proven unloads still restore
+    /// the physical zero reference in either mode.
     void set_zero_tracking(bool on) { zt_.set_enabled(on); }
 
     /// Zero the display at whatever is on the pan right now. The snapshot
@@ -271,12 +254,12 @@ public:
     /// exactly and stays compensated as temperature moves afterwards.
     void tare() {
         tare_counts_ =
-            filtered_ - cal_.zero_counts - thermal_.drift_counts(temp_c_);
+            filtered_ - cal_.zero_counts - thermal_.drift_counts(temp_c_)
+            - zt_.offset() * cal_.counts_per_gram;
         stab_.reset();
-        zt_.reset();
+        zt_.cancel_pending();
         kf_.reset();
-        latched_ = false;
-        stable_since_.reset();
+        display_.reset();
     }
     void               clear_tare() { tare_counts_ = 0.0f; }
     [[nodiscard]] bool tared() const { return tare_counts_ != 0.0f; }
@@ -294,8 +277,7 @@ public:
         stab_.reset();
         zt_.reset();
         kf_.reset();
-        latched_ = false;
-        stable_since_.reset();
+        display_.reset();
     }
 
     /// Capture span from a known mass currently on the pan.
@@ -310,8 +292,7 @@ public:
         stab_.reset();
         zt_.reset();
         kf_.reset();
-        latched_ = false;
-        stable_since_.reset();
+        display_.reset();
         return true;
     }
 
@@ -319,6 +300,10 @@ public:
     void load_calibration(const calibration& c) {
         cal_ = c;
         ema_.set_counts_per_gram(c.counts_per_gram);
+        stab_.reset();
+        zt_.reset();
+        kf_.reset();
+        display_.reset();
     }
     [[nodiscard]] bool calibrated() const { return cal_.valid(); }
 
@@ -401,53 +386,8 @@ private:
             return 0.0f;
         }
         const float g = grams();
-        const float d = (kf_.primed() ? kf_.weight() : g) - g;
+        const float d = (kf_.primed() ? kf_.weight() - zt_.offset() : g) - g;
         return r * d > 0.0f ? w * d : 0.0f;
-    }
-
-    [[nodiscard]] float quantize_g(float g) const {
-        return res_g_ > 0.0f ? std::round(g / res_g_) * res_g_ : g;
-    }
-
-    /// Freeze the displayed weight once the system has been stable for
-    /// latch_hold_, or once the quantised readout itself has been calm for
-    /// that long (vibration keeps the stability window open even when the
-    /// shown digit isn't moving — latch anyway so the readout doesn't
-    /// flicker). Release when the continuous value drifts past the
-    /// quantiser's hysteresis bound — the same bound the unlatched
-    /// readout obeys, so the latch can neither hold a digit the honest
-    /// readout wouldn't show nor flicker on a rounding boundary.
-    void update_latch(clock_ms now) {
-        if (latch_hold_.count() <= 0) {
-            return;   // latch disabled
-        }
-        if (latched_) {
-            if (std::fabs(grams() - shown_g_) > res_g_ * 0.5f + hyst_g_) {
-                latched_      = false;
-                stable_since_ = now;
-            }
-            return;
-        }
-        const float shown = display_grams();
-        if (shown != last_shown_) {
-            last_shown_  = shown;
-            quiet_since_ = now;   // value-calm arm: shown step just changed
-        }
-        if (!system_stable()) {
-            stable_since_.reset();
-        } else if (!stable_since_) {
-            stable_since_ = now;
-        }
-        // The |flow| gate on the value-calm path keeps the latch from
-        // grabbing a stale step between the quantiser's ticks of a slow
-        // pour — there is no lag compensation on a latched readout.
-        const bool held =
-            (stable_since_ && now - *stable_since_ >= latch_hold_) ||
-            (now - quiet_since_ >= latch_hold_ &&
-             std::fabs(flow_gps()) < 0.5f);
-        if (held) {
-            latched_ = true;   // shown_g_ already holds the displayed step
-        }
     }
 
     void apply_config(const config& cfg) {
@@ -468,17 +408,10 @@ private:
         snap_spread_g_ = cfg.snap_spread_g;
         snap_min_g_    = cfg.snap_min_g;
         snap_max_gps_  = cfg.snap_max_gps;
-        res_g_         = cfg.display_res_g;
-        hyst_g_        = cfg.display_hyst_g;
+        display_.configure({cfg.display_res_g, cfg.display_hyst_g, cfg.latch_hold});
         lag_min_gps_   = cfg.lag_min_gps;
         lag_full_gps_  = cfg.lag_full_gps;
-        latch_hold_    = cfg.latch_hold;
         med_hist_.clear();
-        shown_init_    = false;
-        latched_       = false;
-        stable_since_.reset();
-        quiet_since_   = clock_ms{0};
-        last_shown_    = std::numeric_limits<float>::quiet_NaN();
         // Re-prime running filters at the current level so a mid-stream
         // filter switch doesn't make the display dive to zero and recover.
         // (Not on first configure: an unprimed EMA locks onto sample #1.)
@@ -513,19 +446,9 @@ private:
     float                  snap_spread_g_ = 0.20f;
     float                  snap_min_g_    = 0.05f;
     float                  snap_max_gps_  = 0.5f;
-    float                  res_g_         = 0.1f;
-    float                  hyst_g_        = 0.02f;
     float                  lag_min_gps_   = 0.3f;
     float                  lag_full_gps_  = 1.0f;
-    clock_ms               latch_hold_{300};
-    std::optional<clock_ms> stable_since_{};
-    clock_ms               quiet_since_{0};
-    // NaN sentinel: the first push() always "changes" it, so the calm
-    // timer starts on the first real sample rather than at time 0.
-    float                  last_shown_ = std::numeric_limits<float>::quiet_NaN();
-    bool                   latched_         = false;
-    mutable float          shown_g_       = 0.0f;
-    mutable bool           shown_init_    = false;
+    weight_display         display_{};
     bool                   fed_               = false;
 };
 

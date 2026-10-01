@@ -464,13 +464,14 @@ TEST_CASE("flow_kf: splash-gated onset resumes the pour slope") {
 
 TEST_CASE("flow_kf: a hard stop lands flow at zero and holds it") {
     // Guard for the post-stop tail: a pour that stops dead must land
-    // under 0.3 g/s quickly, never re-rise, and settle momentum may not
-    // drag the readout into a deep negative rebound.
+    // under 0.3 g/s quickly, never re-rise past the deadband, and settle
+    // momentum may not drag the readout into a deep negative rebound.
+    // The zero hold must then pin the readout at exactly 0.
     scale::flow_kf kf;
     for (int i = 0; i < static_cast<int>(2.0f * kFs); ++i) {
         feed_t(kf, i * kDt, 0.0f);
     }
-    float land = -1, rebound = 0, tail = 0;
+    float land = -1, rebound = 0, tail = 0, last_out = -1;
     for (int i = 0; i < static_cast<int>(6.0f * kFs); ++i) {
         const float t = 2.0f + i * kDt;
         const float g = t < 4.5f ? 8.0f * (t - 2.0f) : 20.0f;
@@ -478,14 +479,20 @@ TEST_CASE("flow_kf: a hard stop lands flow at zero and holds it") {
         if (t >= 4.5f) {
             const float r = kf.rate();
             rebound = std::min(rebound, r);
+            if (std::fabs(r) > 0.3f) last_out = t - 4.5f;
             if (land < 0 && std::fabs(r) < 0.3f) land = t - 4.5f;
             if (t > 4.5f + 0.6f) {
                 tail = std::max(tail, std::fabs(r));
+            }
+            if (t >= 5.1f && t <= 7.8f) {
+                CHECK(std::fabs(r) < 1e-5f);   // zero hold: exactly 0
             }
         }
     }
     CHECK(land > 0.0f);
     CHECK(land <= 0.45f);
+    CHECK(last_out >= 0.0f);
+    CHECK(last_out <= 0.45f);
     CHECK(rebound > -0.5f);
     CHECK(tail < 0.6f);         // no residual countdown plateau
 }
@@ -514,4 +521,294 @@ TEST_CASE("flow_kf: oscillation then quiet then a real pour") {
     CHECK(t_half > 0.0f);        // pour actually acquired
     CHECK(t_half < 1.5f);        // ...within a sane response window
     CHECK(fin_err < 1.0f);
+}
+
+TEST_CASE("flow_kf: removal after a rebase keeps its rate") {
+    // Regression for stored lifetimes crossing the ~120 s rebase:
+    // snap_t_/pour_hi_t_ must shift with delta_s like every other
+    // sentinel, or the rebound pin (tp_ - t <= stop_guard_s) stays armed
+    // for ~2 min after the boundary and a real removal reads as settle
+    // momentum — pinned near -rebound_gps instead of -3 g/s. One
+    // estimator runs the level curve continuously across the boundary;
+    // a second runs the identical curve shifted 100 s earlier so it
+    // never rebases — its rate is the ground truth the long run must
+    // reproduce.
+    const auto level = [](float t) {
+        if (t < 118.0f) return 8.0f * t;    // 8 g/s pour to 944 g
+        if (t < 123.0f) return 944.0f;      // hold
+        return 944.0f - 3.0f * (t - 123.0f);// removal at -3 g/s
+    };
+    constexpr int kFs_i = static_cast<int>(kFs);
+    scale::flow_kf kf_long;
+    float r129 = 0.0f, r137 = 0.0f;
+    for (int i = 0; i <= 138 * kFs_i; ++i) {
+        const float t = i * kDt;
+        feed_t(kf_long, t, level(t));
+        if (i == 129 * kFs_i) r129 = kf_long.rate();
+        if (i == 137 * kFs_i) r137 = kf_long.rate();
+    }
+    scale::flow_kf kf_short;
+    float r29 = 0.0f;
+    for (int i = 0; i <= 38 * kFs_i; ++i) {
+        const float t = i * kDt;
+        feed_t(kf_short, t, level(t + 100.0f));   // ramp ends 18, removal 23
+        if (i == 29 * kFs_i) r29 = kf_short.rate();
+    }
+    MESSAGE("rate@129=", r129, " rate@137=", r137, " shifted@29=", r29);
+    CHECK(std::fabs(r129 + 3.0f) <= 0.3f);
+    CHECK(std::fabs(r137 + 3.0f) <= 0.3f);
+    CHECK(std::fabs(r129 - r29) <= 0.05f);
+}
+
+TEST_CASE("flow_kf: slow pours track and still land on exact zero") {
+    // Slow pours sit between zero_slope_gps and stop_flat_gps: the zero
+    // hold may not swallow genuine sub-1.5 g/s growth, yet a true stop
+    // must latch the readout to exactly 0.
+    for (const float rate : {0.3f, 0.5f, 1.0f, 1.5f}) {
+        CAPTURE(rate);
+        scale::flow_kf kf;
+        for (int i = 0; i <= static_cast<int>(10.0f * kFs); ++i) {
+            const float t = i * kDt;
+            const float g = t < 2.0f ? 0.0f
+                          : t < 8.0f ? rate * (t - 2.0f)
+                                     : rate * 6.0f;
+            feed_t(kf, t, g);
+            if (t >= 5.0f && t <= 7.5f) {
+                CHECK(kf.rate() > 0.0f);
+                CHECK(std::fabs(kf.rate() - rate) <=
+                      std::max(0.06f, rate * 0.12f));
+            }
+            if (t >= 9.0f && t <= 9.8f) {
+                CHECK(kf.rate() == 0.0f);
+            }
+        }
+    }
+}
+
+TEST_CASE("flow_kf: zero hold releases instantly on a restart") {
+    // 8 g/s pour, a 0.5 s stop — long enough to latch the zero hold —
+    // then the same pour resumes: restart evidence must release the
+    // hold, the output never reads 0 again, and the 150 ms-held 70%
+    // crossing lands promptly.
+    scale::flow_kf kf;
+    const auto level = [](float t) {
+        if (t < 2.0f) return 0.0f;
+        if (t < 4.5f) return 8.0f * (t - 2.0f);
+        if (t < 5.0f) return 20.0f;
+        return 20.0f + 8.0f * (t - 5.0f);
+    };
+    std::vector<float> r;
+    for (int i = 0; i <= static_cast<int>(7.0f * kFs); ++i) {
+        const float t = i * kDt;
+        feed_t(kf, t, level(t));
+        r.push_back(kf.rate());
+        if (t > 5.6f) {
+            CHECK(std::fabs(kf.rate()) > 1e-5f);   // hold never re-latches
+        }
+    }
+    float t_held = -1.0f;
+    for (std::size_t i = 0; i < r.size(); ++i) {
+        const float t = i * kDt;
+        if (t < 5.0f || r[i] < 5.6f) continue;
+        std::size_t m = i + 1;
+        while (m < r.size() && r[m] >= 5.6f) ++m;
+        if ((m - 1) * kDt - t >= 0.15f) {
+            t_held = t - 5.0f;
+            break;
+        }
+    }
+    CHECK(t_held > 0.0f);
+    CHECK(t_held <= 0.35f);
+    CHECK(std::fabs(r.back() - 8.0f) <= 0.4f);
+}
+
+TEST_CASE("flow_kf: zero hold and restart survive the rebase") {
+    // Same pour/hold/restart timeline shifted +118 s with a continuous
+    // quiet warmup crossing the ~120 s boundary. Not a sample-wise
+    // equality: snap/hold edges legitimately land a sample apart when
+    // absolute-time float rounding shifts a borderline fit. Instead both
+    // runs must satisfy the same behavior contract, and their held
+    // restart delays may differ by at most two samples.
+    const auto level = [](float t) {
+        if (t < 2.0f) return 0.0f;
+        if (t < 4.5f) return 8.0f * (t - 2.0f);
+        if (t < 5.0f) return 20.0f;
+        return 20.0f + 8.0f * (t - 5.0f);
+    };
+    constexpr int kFs_i = static_cast<int>(kFs);
+    // Returns the delay past t=5 of the first 150 ms-held >=5.6 crossing
+    // (or -1); asserts the shared contract on every sample.
+    const auto run = [&](float shift) {
+        scale::flow_kf kf;
+        std::vector<float> r;
+        for (int i = 0; i <= static_cast<int>((shift + 7.0f) * kFs); ++i) {
+            const float t = i * kDt;
+            feed_t(kf, t, t < shift ? 0.0f : level(t - shift));
+            r.push_back(kf.rate());
+        }
+        const int off = static_cast<int>(shift * kFs + 0.5f);
+        float held_delay = -1.0f;
+        for (int i = 2 * kFs_i; i <= 7 * kFs_i; ++i) {
+            const float tau = i * kDt, v = r[i + off];
+            if (tau >= 3.0f && tau <= 4.0f)
+                CHECK(std::fabs(v - 8.0f) <= 0.4f);       // steady pour
+            if (tau >= 4.9f && tau <= 4.98f)
+                CHECK(v == 0.0f);                          // zero hold
+            if (tau >= 5.6f && tau <= 7.0f)
+                CHECK(v > 0.0f);                           // no re-latch
+            if (tau >= 6.0f && tau <= 7.0f)
+                CHECK(std::fabs(v - 8.0f) <= 0.4f);       // steady restart
+            if (held_delay < 0.0f && tau >= 5.0f && v >= 5.6f) {
+                const std::size_t j0 =
+                    static_cast<std::size_t>(i) + off;
+                std::size_t m = j0 + 1;
+                while (m < r.size() && r[m] >= 5.6f) ++m;
+                // Contiguous run length on this run's own clock — the
+                // offset must not inflate the measured hold.
+                if ((m - 1 - j0) * kDt >= 0.15f)
+                    held_delay = tau - 5.0f;
+            }
+        }
+        CHECK(held_delay > 0.0f);
+        CHECK(held_delay <= 0.35f);
+        return held_delay;
+    };
+    const float d_short = run(0.0f);
+    const float d_long  = run(118.0f);
+    CHECK(std::fabs(d_long - d_short) <= 0.025f);
+}
+
+TEST_CASE("flow_kf: a noisy slowest pour still tracks and lands") {
+    // The lowest real pour rate must keep tracking under sensor-scale
+    // noise: 0.3 g/s with a deterministic +-0.02 g, 7 Hz wobble —
+    // the raised restart/stillness evidence must not stall or drop it.
+    // Noise runs only while pouring so the flat tail is static and the
+    // exact-zero hold is assertable.
+    scale::flow_kf kf;
+    float  sum = 0.0f, worst = 0.0f;
+    int    cnt = 0;
+    for (int i = 0; i <= static_cast<int>(10.0f * kFs); ++i) {
+        const float t = i * kDt;
+        float       g = 0.0f;
+        if (t >= 2.0f && t < 8.0f) {
+            g = 0.3f * (t - 2.0f) +
+                0.02f * std::sin(2.0f * 3.14159265f * 7.0f * t);
+        } else if (t >= 8.0f) {
+            g = 1.8f;
+        }
+        feed_t(kf, t, g);
+        const float r = kf.rate();
+        if (t >= 5.0f && t <= 7.5f) {
+            sum += r;
+            worst = std::max(worst, std::fabs(r - 0.3f));
+            ++cnt;
+        }
+        if (t >= 9.5f) CHECK(r == 0.0f);   // static tail: exact zero
+    }
+    const float mean = sum / static_cast<float>(cnt);
+    MESSAGE("mean=", mean, " worst=", worst);
+    CHECK(mean >= 0.24f);
+    CHECK(mean <= 0.36f);
+    CHECK(worst < 0.15f);
+}
+
+TEST_CASE("flow_kf: idle handling sines cannot manufacture flow") {
+    // A certified restart still releases the hold inside a handling
+    // sine — the release must never seed the flow state with a fitted
+    // slope: rest at 0..3 s, then sine to 14 s — the peak |flow| once
+    // the sine is established must stay small.
+    constexpr int kFs_i = static_cast<int>(kFs);
+    for (const auto& [amp, hz] : {std::pair{3.0f, 2.0f},
+                                  std::pair{4.0f, 1.5f}}) {
+        scale::flow_kf kf;
+        float peak = 0.0f;
+        for (int i = 0; i <= 14 * kFs_i; ++i) {
+            const float t = i * kDt;
+            const float g =
+                t < 3.0f ? 0.0f
+                         : amp * std::sin(2.0f * 3.14159265f * hz *
+                                          (t - 3.0f));
+            feed_t(kf, t, g);
+            // The release transient lives ~0.1 s into the sine, so the
+            // window starts at the sine's own start rather than later.
+            if (t >= 3.0f) peak = std::max(peak, std::fabs(kf.rate()));
+        }
+        MESSAGE("amp=", amp, " hz=", hz, " peak=", peak);
+        CHECK(peak < 2.0f);
+    }
+}
+
+TEST_CASE("flow_kf: a high pour can become a noisy slow pour without stopping") {
+    // A long-window stillness path must not turn the tail of a real
+    // pour into a zero hold. This transition sits below the stop-snap
+    // threshold and, at 0.3 g/s, below the fast quiet threshold too.
+    for (const float rate : {0.3f, 0.5f, 1.0f}) {
+        CAPTURE(rate);
+        scale::flow_kf kf;
+        float sum = 0.0f;
+        int n = 0;
+        for (int i = 0; i <= static_cast<int>(8.0f * kFs); ++i) {
+            const float t = i * kDt;
+            const float g = t < 2.0f ? 0.0f
+                : t < 4.5f ? 8.0f * (t - 2.0f)
+                : 20.0f + rate * (t - 4.5f) +
+                  0.02f * std::sin(2.0f * 3.14159265f * 7.0f * t);
+            feed_t(kf, t, g);
+            // Allow the pre-existing deceleration transient (the old
+            // estimator reverses briefly here too); it must recover
+            // within 0.75 s rather than keep holding a genuine tail.
+            if (t >= 5.25f) CHECK(kf.rate() > 0.0f);
+            if (t >= 6.0f) { sum += kf.rate(); ++n; }
+        }
+        CHECK(std::fabs(sum / static_cast<float>(n) - rate) <= 0.06f);
+    }
+}
+
+TEST_CASE("flow_kf: a stopped high pour releases for noisy slow growth or removal") {
+    // Neither sign may be trapped by the stop hold after a short pause.
+    // Signed slow growth is especially vulnerable to extra mass/delay
+    // requirements added to suppress a post-stop ringing crest.
+    for (const float rate : {-0.5f, -0.3f, 0.3f, 0.5f}) {
+        CAPTURE(rate);
+        scale::flow_kf kf;
+        float sum = 0.0f;
+        int n = 0;
+        for (int i = 0; i <= static_cast<int>(8.0f * kFs); ++i) {
+            const float t = i * kDt;
+            const float g = t < 2.0f ? 0.0f
+                : t < 4.5f ? 8.0f * (t - 2.0f)
+                : t < 5.0f ? 20.0f
+                : 20.0f + rate * (t - 5.0f) +
+                  0.02f * std::sin(2.0f * 3.14159265f * 7.0f * t);
+            feed_t(kf, t, g);
+            if (t >= 5.7f) CHECK(kf.rate() * rate > 0.0f);
+            if (t >= 6.5f) { sum += kf.rate(); ++n; }
+        }
+        // Negative cases check release/direction only: the existing
+        // low-rate rebound floor is not a negative-rate accuracy claim.
+        if (rate > 0.0f)
+            CHECK(std::fabs(sum / static_cast<float>(n) - rate) <= 0.06f);
+    }
+}
+
+TEST_CASE("flow_kf: zero hold does not turn a small ringing step into a pour") {
+    // Net weight growth can release a noisy restart. A small mass step
+    // also grows weight, but its now-flat signal must not acquire flow
+    // just because restart covariance was warmed up.
+    for (const float mass : {0.5f, 1.0f, 1.5f, 2.0f}) {
+        CAPTURE(mass);
+        scale::flow_kf kf;
+        float peak = 0.0f;
+        for (int i = 0; i <= static_cast<int>(6.0f * kFs); ++i) {
+            const float t = i * kDt, tau = t - 3.0f;
+            const float g = tau < 0.0f ? 0.0f
+                : mass + 0.07f * std::sin(2.0f * 3.14159265f * 7.0f * tau)
+                         * std::exp(-6.0f * tau);
+            feed_t(kf, t, g);
+            if (tau >= 0.0f) peak = std::max(peak, std::fabs(kf.rate()));
+            if (tau >= 1.0f) CHECK(std::fabs(kf.rate()) < 0.30f);
+        }
+        CHECK(peak < 0.50f);
+        CHECK(std::fabs(kf.weight() - mass) < 0.05f);
+    }
 }

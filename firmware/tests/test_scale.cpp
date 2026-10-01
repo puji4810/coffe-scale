@@ -223,6 +223,8 @@ TEST_CASE("scale: latched digit releases when zero-track eats the residual") {
                                    .max_g = 2.0f}}};
     s.load_calibration({.zero_counts = 0.f, .counts_per_gram = 100.f});
     clock_ms t{0};
+    feed_n(s, 0, 100, t);
+    feed_n(s, 10'000, 100, t);             // known load, then clear unloading
     feed_n(s, 20, 15, t);                  // 0.2 g residual, tracker arming
     CHECK(s.display_grams() == doctest::Approx(0.2f));
     feed_n(s, 20, 400, t);                 // hold + absorb -> back to 0
@@ -376,8 +378,13 @@ TEST_CASE("scale: zero tracking absorbs drift, not a placed object") {
     clock_ms t{0};
     feed_n(s, 0, 100, t);              // 1 s at 0 -> armed, nothing to eat
     CHECK(s.zero_offset_g() == doctest::Approx(0.f));
-    // zero drifts +30 counts = +0.3 g, stays in band -> absorbed
-    feed_n(s, 30, 400, t);             // 4 s > hold
+    // Actual slow zero drift, +0.02 g/s; an instantaneous +0.3 g
+    // is a placed small object and must be retained by the new policy.
+    for (int i = 1; i <= 1500; ++i) {
+        s.push(i / 50, t);
+        t += clock_ms{10};
+    }
+    feed_n(s, 30, 400, t);
     CHECK(s.zero_offset_g() == doctest::Approx(0.3f).epsilon(0.1));
     CHECK(s.grams() == doctest::Approx(0.f).epsilon(0.2));
     // place a 50 g object: tracker freezes, offset stays applied
@@ -402,7 +409,8 @@ TEST_CASE("scale: shaking freezes zero tracking") {
     CHECK(s.system_stable());
     // Same +0.3 g in-band residual as the tracking test, but the IMU sees
     // vibration (|a| spread 400 mg) -> system_stable false -> frozen.
-    for (int i = 0; i < 400; ++i) step(30, i % 2 ? 1'400.f : 1'000.f);
+    for (int i = 1; i <= 1500; ++i)
+        step(i / 50, i % 2 ? 1'400.f : 1'000.f);
     CHECK(std::fabs(s.zero_offset_g()) < 0.001f);
     // Motion stops -> tracking resumes and absorbs the drift.
     for (int i = 0; i < 500; ++i) step(30, 1'000.f);
@@ -418,7 +426,7 @@ TEST_CASE("scale: brew mode freezes the zero tracker") {
     clock_ms t{0};
     for (int i = 0; i < 300; ++i) { a.feed(0, t); t += clock_ms{10}; }
     a.next_mode();                                   // -> brew: freeze
-    for (int i = 0; i < 500; ++i) { a.feed(30, t); t += clock_ms{10}; }
+    for (int i = 1; i <= 1500; ++i) { a.feed(i / 50, t); t += clock_ms{10}; }
     CHECK(std::fabs(a.inner().zero_offset_g()) < 0.001f);
     a.next_mode();                                   // -> weigh: resume
     for (int i = 0; i < 600; ++i) { a.feed(30, t); t += clock_ms{10}; }

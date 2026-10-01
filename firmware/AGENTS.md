@@ -19,7 +19,7 @@ buzzer, VBAT sense).
 # host: configure / build / test / simulate
 xmake f -m release            # once
 xmake build
-xmake run unit_tests          # doctest: 73 cases
+xmake run unit_tests          # doctest: 119 cases
 xmake run sim                 # SDL window; T=tare L=long-tare M=mode Esc=quit
 
 # firmware image
@@ -57,14 +57,25 @@ idf.py -B build-esp32s3 build flash
   re-round past half-step + 0.02 g; `grams()` stays continuous for
   flow/telemetry) + pour-lag compensation (display adds the
   Kalman-weight-vs-LPF lag back, gated on |flow| 0.3→1 g/s and only while
-  the estimate leads the filter along the flow direction) + a display latch
-  (freezes the shown weight after 300 ms of system-stable OR 300 ms with
-  the quantised readout itself calm — the latter keeps a bench fan's
-  vibration from flickering the digit; the value-calm path is suppressed
-  above |flow| 0.5 g/s; releases the moment the continuous value drifts
-  past the same half-step + hysteresis bound, so a stale digit can't
-  survive — e.g. the residual zero-track pulls back to 0;
-  `latch_hold <= 0` disables). Flow (`flow_kf`) is a constant-velocity
+  the estimate leads the filter along the flow direction). Weight display
+  uses `weight_display.hpp`: a continuous platform anchor, separate from
+  the rounded digit, holds after 300 ms of short flat evidence. Bounded
+  vibration can use a stable 2 s mean; clean trends veto that fallback.
+  Edges, clean trends and sustained mean changes release the hold.
+  Evidence uses timestamped fixed-capacity windows (`weight_window.hpp`,
+  sized for the default 80 SPS); sampling gaps invalidate old evidence.
+  Getters only read the cache updated by `push()`. `latch_hold <= 0`
+  disables hold. `zero_track.hpp` operates on physical gross weight before
+  tare: initial empty evidence and slow empty-pan drift are separate from
+  real small loads. A recent large unload may restore a stable residual
+  within 0.25 g after a 300 ms window, in either mode. That residual is
+  inherently ambiguous; a real remaining small load can look identical.
+  Tare retains the physical zero reference, so removing a tared container
+  retains its negative weight. Zero correction does not feed the flow
+  observations; lag compensation translates the KF weight by the same
+  offset. Required weight regressions cover static noise, placement,
+  slow loading, 0.1–0.3 g objects, unloads in both modes, tare, and gaps.
+  Flow (`flow_kf`) is a constant-velocity
   Kalman filter on the median-domain weight, observed on two channels:
   `pre` (2x cascaded 8 Hz Butterworth) feeds the Kalman measurement,
   `fast` (single 16 Hz Butterworth) feeds detection only. Impact and
@@ -81,30 +92,61 @@ idf.py -B build-esp32s3 build flash
   half-window slope when it's flat, or when the WHOLE gate window is
   one clean ramp agreeing with it and the oscillation streak is quiet,
   or — when the strict path can't hold because the gate window contains
-  the trip's own kink — the shallower of two post-transient fits (gate
-  window minus its leading ~0.12 s slice, both channels clean and
-  positive, consistent with the half-window) so a pour that splashes on
-  entry resumes at its real slope instead of 0; else held-or-0 —
+  the trip's own kink — a post-transient rate (gate window minus its
+  leading ~0.12 s slice, both channels clean and positive, consistent
+  with the half-window): the conservative pre rate is blended with the
+  fast ramp only when their slopes agree within the resume margin and
+  fast is within the sanity bound; discrepant fast evidence retains the
+  pre rate, so a pour resumes through its splash without being delayed
+  by a pre-filter ringing trough. A younger gate can use a shorter 0.08 s
+  impact exclusion only when both pre windows clear the oscillation
+  noise floor and a clean fast tail agrees within twice the
+  slope-consistency margin. Full/half pre fits must agree tightly, or
+  within twice the margin with tight full-pre/fast-tail and
+  half-pre/post-transient-pre pairs. This path stays below the boost snap
+  bound and adopts the lowest certified slope with snap damping; else
+  held-or-0 —
   pouring through a gate keeps pouring, a stopped
   pour doesn't resurrect stale flow, a sustained wiggle can't adopt
   its instantaneous slope. Tracking speed is dynamic, never via
   configure() (that resets): same-sign innovation persistence + clean
   window slope evidence snaps f_ to the fit (bounded, damped ~15%,
   steep claims need longer proof) and runs q_boost until settled,
-  then a mid-level q_track rides a confirmed slope for ~0.3 s. A
-  two-sided band vs the shallower adjacent-window slope is split by
-  lifetime: the positive ceiling runs only during boost + ~0.35 s
-  after (chronic clamping biases a noisy pour low — min() of noisy
-  fits is biased), while the negative floor stays armed, and a flat
-  calm-window fit persisting 0.15 s snaps residual |f_| AND the level
-  state to the fitted slope/level (leaky accumulator, shrink-only,
-  capped at the rebound floor, per-sample vetoes on a live fast slope
-  and on an innovation still pushing away — a restart releases it at
-  once) so a stop can't tail ~1 s; a rebound pin armed by flatness, any
-  stop-persistence, a recent snap, or a recently-ended pour keeps
-  settle dips at ~0.35 g/s. Slope-sign
-  flips and a growing
-  hold-off suppress re-entry so handling wiggles can't latch.
+  then a mid-level q_track rides a confirmed slope for ~0.3 s.
+  Positive ceilings run only during boost + its exit window and use a
+  clean pre fit together with the adjacent fast fits, so a fast trough
+  alone cannot cap below smooth measured growth. Direction flips need
+  sustained, clean, same-sign evidence on both channels before arming
+  the boost hold-off. Stop candidates use a short pre fit and saturated
+  persistence; shrink-only snaps trim only flow above stop_flat_gps,
+  preserving genuine slow pours. Separate strict stillness evidence
+  latches exact zero. A recent high pour can also latch through residual
+  ringing when the calm pre fit is quiet, the short pre fit is falling,
+  the flow state is already low, and restart evidence is absent. This
+  requires the falling side so a positive slow tail cannot qualify just
+  by being below the quiet threshold. Restart releases at zero (no adopted slope), then
+  normal tracking re-earns flow; two adjacent clean pre fits also release
+  marginal pours whose fast slope flickers under noise. A fixed weight
+  anchor saved on zero latch also allows a clean 0.3 s positive pre
+  trend with at least 0.5 g net growth to build the same 0.06 s restart
+  proof. A growth release widens flow variance to at least 16 (g/s)^2
+  without adopting flow or granting q_track. Only a release relying on
+  growth rather than clean restart evidence aligns weight to the latest
+  pre observation; clean releases retain the existing weight so their
+  boost proof is preserved. The weight anchor resets on reset, sample
+  gaps and gate transitions; unlike timestamps, it never rebases.
+  A rebound pin
+  inside the display deadband protects non-held transitions, including
+  the boost-entry sample. Every stored timestamp, including snap_t_ and
+  pour_hi_t_, rebases; duration accumulators saturate. Positive gate
+  resumes normally wait until the post-transient evidence window is ready;
+  the stronger young-gate path retains gate_min_s, and flat
+  releases retain their minimum hold. Flow changes must be verified with
+  sustained positive crossings and post-zero residuals, not just first
+  crossings or minimum rebound. Real replay fixtures in tests/fixtures
+  are mandatory; their missing files fail the tests. Noisy-capture bounds
+  are regression tolerances, not a guarantee of physical-action latency
+  or perfect zero under every weight disturbance.
   Boost aborts into the gate when the signal is already flat — a
   gently-placed mass, not a pour. IMU |delta| EMA only vetoes boost.
   A dt >40 ms re-primes the prefilters and drops boost/track evidence.
@@ -115,7 +157,8 @@ idf.py -B build-esp32s3 build flash
   `scale::push(counts, now)` takes a real monotone timestamp — the Kalman
   prediction and the zero-track hold run on it, so dropped DRDY edges
   don't distort rates. `system_stable = loadcell_stable && IMU quiet`
-  gates zero tracking; brew mode freezes the tracker entirely.
+  gates zero tracking; brew mode freezes slow drift but preserves physical
+  load context and proven unload restoration.
 - `components/scale_proto` — header-only wire ABI (`proto.hpp`): GATT
   UUIDs, the 20-byte little-endian state frame, and the command encoding.
   Shared by firmware, the WASM bindings and (later) the Korvo remote —
