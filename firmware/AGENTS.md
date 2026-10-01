@@ -228,7 +228,14 @@ idf.py -B build-esp32s3 build flash
   auto-connect where the browser allows it, infinite 1→10 s backoff
   reconnect on link loss, serialized writes). `app.js` wires it to the
   mirror canvas + controls; vendored uPlot chart, brew auto-record →
-  jsonl download + replay, two-point cal wizard. `smoke.mjs` +
+  jsonl download + replay, two-point cal wizard. Chart extras: weight
+  axis hard-floors at 0 (negative dives clip, the fixed -10..40 g/s
+  flow axis never re-ranges), a dashed ghost overlays the selected
+  bean's ♥/latest brew anchored to brew-timer t=0 (projected back, so
+  mid-brew reconnects align), saved-brew detail can overlay a second
+  brew, and an "auto-timer on pour" toggle starts the clock on
+  sustained >1.5 g/s flow (re-arm needs ~2 s quiet). Wake Lock keeps
+  the screen on while connected. `smoke.mjs` +
   `ble_test.mjs` = node tests. Pages setup: repo Settings → Pages →
   Source: GitHub Actions.
 - `partitions.csv` — dual OTA ~3.9 MB each; the `littlefs` slot is kept

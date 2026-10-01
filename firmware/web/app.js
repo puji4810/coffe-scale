@@ -90,6 +90,23 @@ function setLive(v) {
     document.querySelectorAll('.seg button').forEach(b => b.disabled = !v);
     $('btn-reset').disabled = !(v && lastTimerState !== 0);
     $('cal-off').hidden = v;
+    keepScreen(v);
+}
+
+// keep the phone awake while connected — hands are wet mid-brew.
+// The lock auto-releases when the tab hides; re-acquire on return.
+let wakeLock = null;
+async function keepScreen(on) {
+    if (!('wakeLock' in navigator)) return;
+    if (on && !wakeLock && !document.hidden) {
+        try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            wakeLock.onrelease = () => { wakeLock = null; };
+        } catch { /* unsupported / denied */ }
+    } else if (!on && wakeLock) {
+        wakeLock.release();
+        wakeLock = null;
+    }
 }
 
 // --- snapshot -> UI ----------------------------------------------------------
@@ -103,10 +120,16 @@ function segSet(seg, v) {
 function showFrame(m, tMs) {
     Screen.update(m);                     // canvas mirror
     const s = m.snap;
+    // timer (re)start anchors the ghost curve's t=0 on the live x axis
+    const timerRestarted = s.timerState === 1 &&
+        (lastTimerState !== 1 || s.timerMs < lastTimerMs);
     lastGrams = s.grams;
     lastTimerMs = s.timerMs;
     lastTimerState = s.timerState;
     chart.push(tMs, s.grams, s.flowGps);
+    // project t=0 backwards — covers reconnecting mid-brew too
+    if (timerRestarted)
+        chart.ghostBase = chart.secOf(tMs) - s.timerMs / 1000;
 
     // instrument strip
     $('stable-dot').classList.toggle('on', s.stable);
@@ -149,6 +172,34 @@ function showFrame(m, tMs) {
     updateChartHint();
     recorder.updateStatus(s);
     recorder.onFrame(m, tMs);
+    autoTimer(s, tMs);
+}
+
+// auto-timer: pour evidence (sustained positive flow) while the timer is
+// idle starts it — brewing without the timer records nothing. Re-arms
+// only after ~2 s of quiet flow so post-reset slosh can't re-fire.
+let pourOnAt = null, pourArmed = true, pourQuietAt = null;
+function autoTimer(s, tMs) {
+    if (!pourArmed) {
+        if (Math.abs(s.flowGps) < 0.5) {
+            pourQuietAt ??= tMs;
+            if (tMs - pourQuietAt > 2000) pourArmed = true;
+        } else pourQuietAt = null;
+    }
+    if (!live || s.timerState !== 0 || !autoTimerEl.checked) {
+        pourOnAt = null;
+        return;
+    }
+    if (s.flowGps > 1.5) {
+        pourOnAt ??= tMs;
+        if (pourArmed && tMs - pourOnAt > 800) {
+            pourArmed = false;
+            cmd(OP.timerToggle);
+            toast('检测到注水，已自动开始计时');
+        }
+    } else if (s.flowGps < 0.5) {
+        pourOnAt = null;
+    }
 }
 
 // empty-chart hint — offline invite, or "waiting" while live with no data
@@ -311,7 +362,7 @@ link.autoConnect();
 // Chrome drops advertisement watches while the window is hidden —
 // re-arm the reconnect when we come back.
 document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) link.resume();
+    if (!document.hidden) { link.resume(); keepScreen(live); }
 });
 addEventListener('focus', () => link.resume());
 
@@ -489,10 +540,12 @@ function beanCard(b, bs) {
     const meta = b ? `
       <div class="bean-meta">
         <label>名称<input data-bf="name" data-bid="${b.id}" value="${esc(b.name)}"></label>
-        <label>品牌<input data-bf="brand" data-bid="${b.id}" value="${esc(b.brand)}"></label>
-        <label>品种<input data-bf="variety" data-bid="${b.id}" value="${esc(b.variety)}"></label>
+        <label>品牌<input data-bf="brand" data-bid="${b.id}" list="dl-brand" value="${esc(b.brand)}"></label>
+        <label>处理法<input data-bf="process" data-bid="${b.id}" list="dl-process" value="${esc(b.process)}"></label>
+        <label>豆种<input data-bf="variety" data-bid="${b.id}" list="dl-variety" value="${esc(b.variety)}"></label>
+        <label>庄园<input data-bf="estate" data-bid="${b.id}" list="dl-estate" value="${esc(b.estate)}"></label>
         <label>默认粉量 g<input type="number" step="0.1" min="0" data-bf="dose" data-bid="${b.id}" value="${b.dose || ''}"></label>
-        <label class="wide">备注<input data-bf="note" data-bid="${b.id}" value="${esc(b.note)}"></label>
+        <label class="wide">备注<textarea rows="2" data-bf="note" data-bid="${b.id}">${esc(b.note)}</textarea></label>
         <button class="textbtn danger-text" data-delbean="${b.id}">删除豆子</button>
       </div>` : '';
     const rows = bs.map(w => `
@@ -516,7 +569,7 @@ function beanCard(b, bs) {
       </div>`).join('')
         || '<div class="empty">这支豆子还没有冲煮记录。</div>';
     const sub = b
-        ? [b.brand, b.variety].filter(Boolean)
+        ? [b.brand, b.process, b.variety].filter(Boolean)
             .map(x => `<span class="meta">${esc(x)}</span>`).join('')
         : '';
     const last = bs.length ? bs[0].date.slice(5, 10) : '';
@@ -556,6 +609,9 @@ async function renderBeans() {
     acc.innerHTML = groups.length === 0
         ? '<div class="empty">还没有豆子。添加第一支豆子后，冲煮记录会自动归到它名下。</div>'
         : groups.map(({ b, bs }) => beanCard(b, bs)).join('');
+    renderDatalists();
+    renderBrandChips();
+    pickGhost();
 
     // open brew details need a sized box — mount plots after the DOM exists
     for (const w of brewCache) {
@@ -563,10 +619,20 @@ async function renderBeans() {
     }
 }
 
+// comparison overlay: brew id -> other brew id, survives re-renders
+const cmpSel = new Map();
+
+function plotBrew(bd, w) {
+    const other = brewCache.find(x => x.id === cmpSel.get(w.id));
+    return brewPlot(bd.querySelector('.bd-curve'), w.t, w.w, w.f,
+                    other || null);
+}
+
 function mountBrewDetail(w) {
     const bd = document.querySelector(`.brew-detail[data-bd="${w.id}"]`);
     if (!bd || bd.dataset.mounted) return;
     bd.dataset.mounted = '1';
+    const others = brewCache.filter(x => x.id !== w.id);
     bd.innerHTML = `
       <div class="bd-curve"></div>
       <div class="bd-data">
@@ -574,13 +640,22 @@ function mountBrewDetail(w) {
         <div>${w.dose || '?'} g → <span class="v">${w.liquid} g</span>` +
         `${w.dose ? ` <span class="v">1:${(w.liquid / w.dose).toFixed(1)}</span>` : ''}</div>
         <div>${fmtDur(w.durationS)} · ${w.t.length} 个点</div>
-        <input class="note" data-note="${w.id}" placeholder="备注：风味、改进…" value="${esc(w.note || '')}">
+        <textarea class="note" rows="2" data-note="${w.id}"
+                  placeholder="备注：风味、改进…">${esc(w.note || '')}</textarea>
+        ${others.length ? `<select class="cmp" data-cmp="${w.id}">
+          <option value="">叠加对比…</option>
+          ${others.map(x => `<option value="${x.id}">${
+            esc(x.date.slice(5, 16).replace('T', ' '))} · ${
+            esc(beanName(x.beanId))} · ${x.liquid} g</option>`).join('')}
+        </select>` : ''}
         <div class="row" style="margin-top:2px">
           <button data-expbrew="${w.id}">导出</button>
           <button class="danger-text" data-delbrew="${w.id}">删除</button>
         </div>
       </div>`;
-    brewPlot(bd.querySelector('.bd-curve'), w.t, w.w, w.f);
+    const cmp = bd.querySelector('[data-cmp]');
+    if (cmp) cmp.value = cmpSel.get(w.id) || '';
+    bd._u = plotBrew(bd, w);
 }
 
 function exportBrew(w) {
@@ -665,6 +740,15 @@ $('bean-accordion').addEventListener('keydown', e => {
 
 // bean meta fields + per-brew note — saved on blur/enter
 $('bean-accordion').addEventListener('change', async e => {
+    const cmp = e.target.closest('[data-cmp]');
+    if (cmp) {
+        const wid = +cmp.dataset.cmp;
+        if (cmp.value) cmpSel.set(wid, +cmp.value); else cmpSel.delete(wid);
+        const bd = cmp.closest('.brew-detail');
+        const w = brewCache.find(x => x.id === wid);
+        if (bd && w) { bd._u?.destroy(); bd._u = plotBrew(bd, w); }
+        return;
+    }
     const bf = e.target.closest('[data-bf]');
     if (bf) {
         const b = beanCache.find(b => b.id === +bf.dataset.bid);
@@ -681,6 +765,65 @@ $('bean-accordion').addEventListener('change', async e => {
         await DB.brews.update(w);
         toast('备注已保存');
     }
+});
+
+// --- bean field suggestions --------------------------------------------------
+// `bean-brands` is a small preset list in localStorage so common brands are
+// picked from the datalist instead of retyped; anything already used on a
+// card is suggested too. Process/variety seed with common values.
+
+const BRAND_KEY = 'bean-brands';
+const getBrands = () => {
+    try { return JSON.parse(localStorage.getItem(BRAND_KEY)) || []; }
+    catch { return []; }
+};
+const PROCESS_PRESET = ['水洗', '日晒', '蜜处理', '厌氧日晒', '水洗厌氧', '酒桶发酵', '湿刨'];
+const VARIETY_PRESET = ['瑰夏', '铁皮卡', '波旁', '卡杜拉', '卡蒂姆', 'SL28', 'SL34', '原生种', '帕卡马拉'];
+
+function renderDatalists() {
+    const box = $('bean-datalists');
+    if (!box) return;
+    const used = f => [...new Set(beanCache.map(b => b[f]).filter(Boolean))];
+    const opts = (id, vals) => `<datalist id="${id}">${
+        [...new Set(vals)].map(v => `<option value="${esc(v)}">`).join('')
+    }</datalist>`;
+    box.innerHTML =
+        opts('dl-brand', [...getBrands(), ...used('brand')]) +
+        opts('dl-process', [...PROCESS_PRESET, ...used('process')]) +
+        opts('dl-variety', [...VARIETY_PRESET, ...used('variety')]) +
+        opts('dl-estate', used('estate'));
+}
+
+function renderBrandChips() {
+    const box = $('brand-chips');
+    if (!box) return;
+    box.innerHTML = getBrands().map(n =>
+        `<span class="bchip">${esc(n)}<button type="button"
+            data-branddel="${esc(n)}" aria-label="删除品牌">×</button></span>`
+    ).join('') || '<span class="dim">还没有</span>';
+}
+
+$('brand-new').addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const n = e.target.value.trim();
+    if (!n) return;
+    const list = getBrands();
+    if (!list.includes(n)) {
+        list.push(n);
+        localStorage.setItem(BRAND_KEY, JSON.stringify(list));
+    }
+    e.target.value = '';
+    renderBrandChips();
+    renderDatalists();
+});
+$('brand-chips').addEventListener('click', e => {
+    const del = e.target.closest('[data-branddel]');
+    if (!del) return;
+    localStorage.setItem(BRAND_KEY,
+        JSON.stringify(getBrands().filter(n => n !== del.dataset.branddel)));
+    renderBrandChips();
+    renderDatalists();
 });
 
 // add-bean form — submit on Enter or the button; disabled while empty
@@ -704,7 +847,25 @@ $('bean-form').addEventListener('submit', async e => {
 beanSel.onchange = async () => {
     const b = beanCache.find(b => b.id === curBeanId());
     if (b && b.dose) { doseIn.value = b.dose; doseIn.onchange(); }
+    pickGhost();
 };
+
+// ghost reference on the live chart: the selected bean's ♥ brew,
+// else its newest. Anchored to the brew timer, not wall time.
+function pickGhost() {
+    const b = curBeanId();
+    const list = b === null ? [] : brewCache.filter(w => w.beanId === b);
+    const ref = list.find(w => w.fav) || list[0];
+    chart.setGhost(ref || null);
+    $('chip-ref').hidden = !ref;
+}
+
+// auto-timer toggle persists; default on — a pour without the timer
+// records nothing.
+const autoTimerEl = $('autotimer-toggle');
+autoTimerEl.checked = localStorage.getItem('auto-timer') !== '0';
+autoTimerEl.onchange = () =>
+    localStorage.setItem('auto-timer', autoTimerEl.checked ? '1' : '0');
 
 // --- backup / clear ---------------------------------------------------------------
 

@@ -150,7 +150,8 @@
   .wide { max-width: 720px; }
 
   /* --- material: raised keys / recessed wells ------------------------------- */
-  button, select, input[type=text], input[type=number], input:not([type]) {
+  button, select, input[type=text], input[type=number], input:not([type]),
+  textarea {
     background: var(--key); color: var(--ink);
     border: 1px solid var(--rule); border-bottom: 3px solid var(--key-edge);
     border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer;
@@ -158,11 +159,12 @@
     transition: background .15s, border-color .15s, color .15s,
                 transform .06s ease, opacity .15s;
   }
-  input[type=text], input[type=number], input:not([type]) {
+  input[type=text], input[type=number], input:not([type]), textarea {
     cursor: text; background: var(--well);
     border-bottom-width: 1px;
     box-shadow: inset 0 1px 2px rgb(0 0 0 / .12);
   }
+  textarea { resize: vertical; line-height: 1.45; }
   button:active:not(:disabled) {
     transform: translateY(2px); border-bottom-width: 1px;
   }
@@ -319,9 +321,17 @@
   }
   .chip { display: inline-flex; align-items: center; gap: 6px;
           color: var(--dim); font-size: 12px; white-space: nowrap; }
+  .chip[hidden] { display: none; }
   .chip-line { width: 14px; height: 0; border-top: 2px solid; flex: none; }
   .chip-line.ink { border-color: var(--ink); }
   .chip-line.amber { border-color: var(--amber-fill); }
+  .chip-line.ref { border-top-style: dashed; border-color: var(--dim); }
+  .autotimer {
+    display: inline-flex; align-items: center; gap: 5px;
+    color: var(--dim); font-size: 13px; white-space: nowrap;
+    cursor: pointer; user-select: none;
+  }
+  .autotimer input { accent-color: var(--amber-fill); min-height: 0; margin: 0; }
   #rec-status {
     display: inline-flex; align-items: center; gap: 6px;
     color: var(--dim); font-size: 13px; white-space: nowrap;
@@ -405,9 +415,32 @@
     gap: 8px 10px; margin-bottom: 12px;
   }
   .bean-meta label { color: var(--dim); font-size: 12px; display: block; }
-  .bean-meta input { width: 100%; margin-top: 3px; min-height: 34px; padding: 5px 9px; }
+  .bean-meta input, .bean-meta textarea {
+    width: 100%; margin-top: 3px; min-height: 34px; padding: 5px 9px;
+  }
+  .bean-meta textarea { font-size: 14px; min-height: 56px; }
   .bean-meta .wide { grid-column: 1 / -1; }
   .bean-meta .danger-text { align-self: end; justify-self: start; }
+
+  /* preset brand chips — the bean card's 品牌 field offers them via datalist */
+  .brand-mgr {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    font-size: 13px; color: var(--dim); margin-bottom: 10px;
+  }
+  .brand-mgr input {
+    width: 96px; min-height: 30px; padding: 3px 9px; font-size: 13px;
+  }
+  .bchip {
+    display: inline-flex; align-items: center; gap: 1px;
+    border: 1px solid var(--rule); border-radius: 999px;
+    padding: 1px 4px 1px 9px; font-size: 12px; color: var(--ink);
+    background: var(--key);
+  }
+  .bchip button {
+    border: none; background: none; min-height: 0; padding: 0 4px;
+    color: var(--dim); font-size: 14px; line-height: 1;
+  }
+  .bchip button:hover { color: var(--red); }
 
   .brew { border-top: 1px solid var(--rule); }
   .brew-head {
@@ -437,6 +470,8 @@
   .bd-data { color: var(--dim); font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
   .bd-data .v { color: var(--ink); }
   .bd-data .note { width: 100%; font-size: 13px; min-height: 32px; padding: 5px 9px; }
+  .bd-data .cmp { width: 100%; text-align: left; min-height: 34px;
+                  padding: 4px 8px; font-size: 13px; }
   .bd-data button { min-height: 32px; padding: 4px 10px; font-size: 13px; }
   .empty { color: var(--dim); font-size: 14px; padding: 18px 14px; }
 
@@ -622,8 +657,12 @@
           <span class="legend">
             <span class="chip"><i class="chip-line ink"></i>重量 g</span>
             <span class="chip"><i class="chip-line amber"></i>流速 g/s</span>
+            <span class="chip" id="chip-ref" hidden><i class="chip-line ref"></i>参考</span>
           </span>
           <span class="spacer"></span>
+          <label class="autotimer" title="检测到持续注水时自动开始计时">
+            <input type="checkbox" id="autotimer-toggle">注水自动计时
+          </label>
           <span id="rec-status"><i class="rec-dot"></i><span id="rec-txt">计时开始后自动录制</span></span>
           <label class="switch" title="显示曲线">
             <input type="checkbox" id="chart-toggle" checked><span class="knob"></span>
@@ -648,6 +687,12 @@
         <input type="text" id="bean-name" placeholder="新豆子名称" autocomplete="off">
         <button type="submit" id="btn-addbean" disabled>添加</button>
       </form>
+      <div class="brand-mgr">
+        <span>常用品牌</span>
+        <span id="brand-chips"></span>
+        <input type="text" id="brand-new" placeholder="+ 添加品牌" autocomplete="off">
+      </div>
+      <div id="bean-datalists" hidden></div>
       <div class="well bean-list" id="bean-accordion"></div>
     </div>
   </section>
@@ -704,7 +749,8 @@
         <h2>关于</h2>
         <p>通过 Web 蓝牙连接，需要 Chrome 或 Edge；Linux 需开启
            chrome://flags/#enable-experimental-web-platform-features。
-           授权过的秤会自动重连。冲煮计时开始时自动录制，暂停计时同时暂停录制，复位计时后保存。<br>
+           授权过的秤会自动重连。冲煮计时开始时自动录制，暂停计时同时暂停录制，复位计时后保存；
+           称重页的"注水自动计时"开启时，检测到持续注水会自动开始计时。<br>
            快捷键：T 去皮，L 计时，M 切换模式。</p>
       </div>
     </div>

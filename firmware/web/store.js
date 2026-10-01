@@ -2,7 +2,7 @@
 // and survives cache clears, which matters because brew curves are the
 // user's data, not app state.
 //
-//   beans { id, name, brand, variety, dose, note, created }
+//   beans { id, name, brand, process, variety, estate, dose, note, created }
 //   brews { id, beanId|null, date, durationS, dose, liquid, rating 0-5,
 //           fav, note, t[], w[], f[] }   // curve: seconds / g / g/s
 
@@ -44,8 +44,8 @@ async function store(name, mode, fn) {
 export const beans = {
     list: () => store('beans', 'readonly', s => wrap(s.getAll())),
     add: b => store('beans', 'readwrite', s =>
-        wrap(s.add({ brand: '', variety: '', note: '', dose: 0,
-                     created: Date.now(), ...b }))),
+        wrap(s.add({ brand: '', process: '', variety: '', estate: '',
+                     note: '', dose: 0, created: Date.now(), ...b }))),
     update: b => store('beans', 'readwrite', s => wrap(s.put(b))),
     del: id => store('beans', 'readwrite', s => wrap(s.delete(id))),
 };

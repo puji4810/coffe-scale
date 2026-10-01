@@ -22,6 +22,24 @@ function fmtTime(v) {
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
+/// uPlot series share one x array — a second brew's points have their
+/// own timestamps, so merge the two sorted streams into one x, padding
+/// the other columns with nulls (uPlot draws nulls as gaps).
+function mergeSeries(t, w, f, g, base = 0) {
+    const n = t.length, m = g.t.length;
+    const X = [], W = [], F = [], G = [];
+    let i = 0, j = 0;
+    while (i < n || j < m) {
+        const gx = g.t[j] + base;
+        if (j >= m || (i < n && t[i] < gx)) {
+            X.push(t[i]); W.push(w[i]); F.push(f[i]); G.push(null); i++;
+        } else {
+            X.push(gx); W.push(null); F.push(null); G.push(g.w[j]); j++;
+        }
+    }
+    return [X, W, F, G];
+}
+
 function chartOpts(el, c) {
     return {
         width: el.clientWidth,
@@ -46,6 +64,8 @@ function chartOpts(el, c) {
               points: { show: false } },
             { label: 'g/s', scale: 'f', stroke: c.amber, width: 1.5,
               points: { show: false } },
+            { label: '参考 g', scale: 'w', stroke: c.dim, width: 1,
+              dash: [5, 4], points: { show: false } },
         ],
         axes: [
             { stroke: c.dim, grid: { stroke: c.grid }, font: c.font,
@@ -72,7 +92,11 @@ export class ScaleChart {
 
         const opts = chartOpts(el, theme());
         opts.hooks = { setCursor: [u => this.updateTip(u)] };
-        this.u = new uPlot(opts, [[], [], []], el);
+        this.u = new uPlot(opts, [[], [], [], []], el);
+
+        this.ghost = null;              // brew {t[],w[]} to overlay
+        this.ghostBase = null;          // live-x seconds where ghost t=0 lands
+        this.lastData = [[], [], [], []];
 
         this.tip = document.createElement('div');
         this.tip.className = 'chart-tip';
@@ -82,13 +106,38 @@ export class ScaleChart {
         this.visible = true;            // hidden = collect, don't redraw
     }
 
+    /// Reference brew overlay — pass a saved brew {t,w} or null. The
+    /// ghost is drawn once the brew timer anchors its t=0 via ghostBase;
+    /// before that it stays hidden (there is no meaningful alignment).
+    setGhost(brew) {
+        this.ghost = brew;
+        this.ghostBase = null;
+        if (this.visible) this.redraw();
+    }
+
+    /// Live-chart seconds for a raw frame timestamp (null until t0).
+    secOf(t) { return this.t0 === null ? null : (t - this.t0) / 1000; }
+
+    data4() {
+        if (this.ghost && this.ghostBase !== null)
+            return mergeSeries(this.x, this.w, this.f, this.ghost,
+                               this.ghostBase);
+        return [this.x, this.w, this.f, this.x.map(() => null)];
+    }
+
+    redraw() {
+        const d = this.data4();
+        this.lastData = d;
+        this.u.setData(d);
+    }
+
     /// Rebuild the uPlot instance with the current theme, keeping the
     /// rolling x/w/f buffers (prefers-color-scheme changed).
     retheme() {
         this.u.destroy();
         const opts = chartOpts(this.el, theme());
         opts.hooks = { setCursor: [u => this.updateTip(u)] };
-        this.u = new uPlot(opts, [this.x, this.w, this.f], this.el);
+        this.u = new uPlot(opts, this.data4(), this.el);
         this.tip = document.createElement('div');
         this.tip.className = 'chart-tip';
         this.tip.style.display = 'none';
@@ -106,7 +155,7 @@ export class ScaleChart {
             const el = this.u.root.parentElement;
             this.u.setSize({ width: el.clientWidth,
                              height: el.clientHeight });
-            this.u.setData([this.x, this.w, this.f]);
+            this.redraw();
         } else {
             this.u.root.style.visibility = 'hidden';
         }
@@ -115,13 +164,16 @@ export class ScaleChart {
     updateTip(u) {
         const i = u.cursor.idx;
         if (!this.tip) return;            // hook can fire during construction
-        if (i == null || i >= this.x.length) {
+        const d = this.lastData;
+        if (i == null || i >= d[0].length) {
             this.tip.style.display = 'none';
             return;
         }
         this.tip.style.display = 'block';
-        this.tip.textContent =
-            `${fmtTime(this.x[i])}  ${this.w[i].toFixed(1)} g  ${this.f[i].toFixed(1)} g/s`;
+        const v = (x, u) => x == null ? '' : `  ${x.toFixed(1)} ${u}`;
+        this.tip.textContent = fmtTime(d[0][i]) + v(d[1][i], 'g') +
+            v(d[2][i], 'g/s') +
+            (d[3][i] == null ? '' : `  参考 ${d[3][i].toFixed(1)} g`);
         const bw = u.bbox.width / devicePixelRatio;
         const left = Math.min(u.cursor.left + 12, bw - this.tip.offsetWidth - 4);
         this.tip.style.left = `${Math.max(0, left)}px`;
@@ -142,14 +194,15 @@ export class ScaleChart {
         let i = 0;
         while (i < x.length && x[i] < cut) i++;
         if (i) { x.splice(0, i); this.w.splice(0, i); this.f.splice(0, i); }
-        if (this.visible) this.u.setData([x, this.w, this.f]);
+        if (this.visible) this.redraw();
     }
 
     clear() {
         this.t0 = null;
         this.lastT = -Infinity;
         this.x.length = this.w.length = this.f.length = 0;
-        this.u.setData([[], [], []]);
+        this.ghostBase = null;
+        this.u.setData([[], [], [], []]);
         this.tip.style.display = 'none';
     }
 
@@ -158,9 +211,13 @@ export class ScaleChart {
 
 /// Static weight/flow curve for a saved brew — same axes/series language
 /// as the live chart, but a plain one-shot plot for the bean library.
-/// Plots the stored raw weight and stored device flow verbatim.
-export function brewPlot(el, t, w, f) {
+/// Plots the stored raw weight and stored device flow verbatim. Pass a
+/// second brew as `other` to overlay its weight curve for comparison.
+export function brewPlot(el, t, w, f, other = null) {
     const c = theme();
+    const data = other
+        ? mergeSeries(t, w, f, other)
+        : [t, w, f, t.map(() => null)];
     return new uPlot({
         width: el.clientWidth,
         height: 190,
@@ -178,6 +235,8 @@ export function brewPlot(el, t, w, f) {
               points: { show: false } },
             { label: 'g/s', scale: 'f', stroke: c.amber, width: 1.5,
               points: { show: false } },
+            { label: '参考 g', scale: 'w', stroke: c.dim, width: 1,
+              dash: [5, 4], points: { show: false } },
         ],
         axes: [
             { stroke: c.dim, grid: { stroke: c.grid }, font: c.font,
@@ -187,7 +246,7 @@ export function brewPlot(el, t, w, f) {
             { scale: 'f', side: 1, stroke: c.amber, grid: { show: false },
               font: c.font, size: 42 },
         ],
-        legend: { show: false },
+        legend: { show: !!other },
         cursor: { show: true, drag: { x: false, y: false } },
-    }, [t, w, f], el);
+    }, data, el);
 }
