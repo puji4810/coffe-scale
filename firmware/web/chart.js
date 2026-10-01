@@ -24,21 +24,23 @@ function fmtTime(v) {
 }
 
 /// uPlot series share one x array — a second brew's points have their
-/// own timestamps, so merge the two sorted streams into one x, padding
-/// the other columns with nulls (uPlot draws nulls as gaps).
-function mergeSeries(t, w, f, g, base = 0) {
-    const n = t.length, m = g.t.length;
-    const X = [], W = [], F = [], G = [];
-    let i = 0, j = 0;
-    while (i < n || j < m) {
-        const gx = g.t[j] + base;
-        if (j >= m || (i < n && t[i] < gx)) {
-            X.push(t[i]); W.push(w[i]); F.push(f[i]); G.push(null); i++;
-        } else {
-            X.push(gx); W.push(null); F.push(null); G.push(g.w[j]); j++;
-        }
+/// own timestamps. Interleaving them into the x array would punch null
+/// gaps into the weight/flow columns at every ghost point and make the
+/// solid lines render as dots, so resample the ghost onto the existing
+/// x grid instead (linear interpolation, null outside its range).
+function resample(x, g, base = 0) {
+    const t = g.t, w = g.w, n = t.length;
+    const G = new Array(x.length).fill(null);
+    let j = 0;
+    for (let i = 0; i < x.length; i++) {
+        const gt = x[i] - base;
+        if (gt < t[0] || gt > t[n - 1]) continue;
+        while (j < n - 2 && t[j + 1] < gt) j++;
+        const t0 = t[j], t1 = t[j + 1];
+        G[i] = gt === t0 || t1 === t0 ? w[j]
+             : w[j] + (w[j + 1] - w[j]) * (gt - t0) / (t1 - t0);
     }
-    return [X, W, F, G];
+    return G;
 }
 
 function chartOpts(el, c) {
@@ -121,8 +123,8 @@ export class ScaleChart {
 
     data4() {
         if (this.ghost && this.ghostBase !== null)
-            return mergeSeries(this.x, this.w, this.f, this.ghost,
-                               this.ghostBase);
+            return [this.x, this.w, this.f,
+                    resample(this.x, this.ghost, this.ghostBase)];
         return [this.x, this.w, this.f, this.x.map(() => null)];
     }
 
@@ -216,9 +218,15 @@ export class ScaleChart {
 /// second brew as `other` to overlay its weight curve for comparison.
 export function brewPlot(el, t, w, f, other = null) {
     const c = theme();
-    const data = other
-        ? mergeSeries(t, w, f, other)
-        : [t, w, f, t.map(() => null)];
+    // union x so a longer comparison brew keeps its tail; the main
+    // curve just ends early (trailing nulls = line stops, not dots)
+    const X = other && other.t[other.t.length - 1] > t[t.length - 1]
+        ? t.concat(other.t.filter(v => v > t[t.length - 1]))
+        : t;
+    const pad = a => a.length === X.length ? a
+        : a.concat(new Array(X.length - a.length).fill(null));
+    const data = [X, pad(w), pad(f),
+                  other ? resample(X, other) : X.map(() => null)];
     return new uPlot({
         width: el.clientWidth,
         height: 190,
