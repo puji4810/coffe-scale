@@ -21,5 +21,11 @@ cp vendor/uPlot.iife.min.js vendor/uPlot.min.css vendor/logo.woff2 \
 cp icons/*.png "$OUT/icons/"
 cp dist/scale_screen.mjs dist/scale_screen.wasm "$OUT/dist/"
 
-echo "site -> $OUT"
+# Stamp the service-worker cache name with a hash of everything it will
+# precache — a changed asset => different sw.js => browser updates.
+HASH=$(find "$OUT" -type f ! -name sw.js -print0 | sort -z |
+       xargs -0 sha256sum | sha256sum | cut -c1-12)
+sed -i "s/__BUILD__/$HASH/" "$OUT/sw.js"
+
+echo "site -> $OUT (sw cache $HASH)"
 find "$OUT" -type f | sort

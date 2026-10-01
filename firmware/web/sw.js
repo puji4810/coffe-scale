@@ -1,7 +1,8 @@
 // coffee-scale service worker — precaches the whole app shell so the PWA
-// opens offline (BLE doesn't need the network). Bump CACHE on every
-// deploy that changes any listed asset.
-const CACHE = 'coffee-scale-v6';
+// opens offline (BLE doesn't need the network). site.sh stamps __BUILD__
+// with a hash of the assembled assets, so any content change produces a
+// new sw.js and browsers pick it up on the next update check.
+const CACHE = 'coffee-scale-__BUILD__';
 const ASSETS = [
   './',
   './index.html',
@@ -36,11 +37,19 @@ self.addEventListener('activate', e => {
       .then(() => self.clients.claim()));
 });
 
-// Cache-first: app shell never changes within a version. Non-GET and
-// cross-origin requests go straight to the network.
+// Navigations go network-first so a deployed update lands on the very
+// next load; the precached shell is only the offline fallback. Hashed
+// asset requests stay cache-first — they are immutable within a build.
+// Non-GET and cross-origin requests go straight to the network.
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) {
+    return;
+  }
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).catch(() =>
+        caches.match('./index.html', { ignoreSearch: true })));
     return;
   }
   e.respondWith(
