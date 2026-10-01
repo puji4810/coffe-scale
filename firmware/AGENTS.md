@@ -80,7 +80,12 @@ idf.py -B build-esp32s3 build flash
   half are calm (<1.5 g / ~1.05 g residual); the resume flow is the
   half-window slope when it's flat, or when the WHOLE gate window is
   one clean ramp agreeing with it and the oscillation streak is quiet,
-  else held-or-0 — pouring through a gate keeps pouring, a stopped
+  or — when the strict path can't hold because the gate window contains
+  the trip's own kink — the shallower of two post-transient fits (gate
+  window minus its leading ~0.12 s slice, both channels clean and
+  positive, consistent with the half-window) so a pour that splashes on
+  entry resumes at its real slope instead of 0; else held-or-0 —
+  pouring through a gate keeps pouring, a stopped
   pour doesn't resurrect stale flow, a sustained wiggle can't adopt
   its instantaneous slope. Tracking speed is dynamic, never via
   configure() (that resets): same-sign innovation persistence + clean
@@ -90,11 +95,14 @@ idf.py -B build-esp32s3 build flash
   two-sided band vs the shallower adjacent-window slope is split by
   lifetime: the positive ceiling runs only during boost + ~0.35 s
   after (chronic clamping biases a noisy pour low — min() of noisy
-  fits is biased), while the negative floor stays armed and a
-  flat-signal rebound pin keeps settle dips ~0.35 g/s, and a flat
-  calm-window fit persisting 0.15 s pulls residual |f_| toward the
-  measured slope (leaky accumulator, per-sample veto on a live fast
-  slope, shrink-only) so a stop can't tail ~1 s. Slope-sign
+  fits is biased), while the negative floor stays armed, and a flat
+  calm-window fit persisting 0.15 s snaps residual |f_| AND the level
+  state to the fitted slope/level (leaky accumulator, shrink-only,
+  capped at the rebound floor, per-sample vetoes on a live fast slope
+  and on an innovation still pushing away — a restart releases it at
+  once) so a stop can't tail ~1 s; a rebound pin armed by flatness, any
+  stop-persistence, a recent snap, or a recently-ended pour keeps
+  settle dips at ~0.35 g/s. Slope-sign
   flips and a growing
   hold-off suppress re-entry so handling wiggles can't latch.
   Boost aborts into the gate when the signal is already flat — a

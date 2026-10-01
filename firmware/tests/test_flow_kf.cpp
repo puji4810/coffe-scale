@@ -428,6 +428,68 @@ TEST_CASE("flow_kf: rebase keeps gate policy and live timers valid") {
     CHECK(pour_err < 1.0f);
 }
 
+TEST_CASE("flow_kf: splash-gated onset resumes the pour slope") {
+    // Capture pour-onset.txt: the pour's own splash notches the first
+    // ~0.1 s and trips the gate; the un-gate then resumed at f0=0 — the
+    // gate window contains the splash kink so the whole-window ramp
+    // test can't pass, and one counted ring flip vetoed the newest-half
+    // slope — and the pour re-acquired at base q for ~0.4 s. The
+    // post-transient fit (gate window minus its leading slice) must
+    // resume the real ramp instead.
+    scale::flow_kf kf;
+    for (int i = 0; i < static_cast<int>(2.0f * kFs); ++i) {
+        feed_t(kf, i * kDt, 0.0f);
+    }
+    float t70 = -1, fin_err = -1;
+    bool  saw_gate = false;
+    for (int i = 0; i < static_cast<int>(4.0f * kFs); ++i) {
+        const float t   = 2.0f + i * kDt;
+        const float tau = t - 2.0f;
+        float       g   = 9.0f * tau;                    // the pour
+        if (tau < 0.12f) {
+            g -= 3.0f * std::sin(3.14159265f * tau / 0.12f);  // splash
+        }
+        feed_t(kf, t, g);
+        saw_gate |= kf.disturbed();
+        if (t70 < 0 && tau >= 0.05f && kf.rate() >= 6.3f) {
+            t70 = tau;                                   // 70% of 9 g/s
+        }
+        if (t >= 4.5f) fin_err = std::fabs(kf.rate() - 9.0f);
+    }
+    CHECK(saw_gate);
+    CHECK(t70 > 0.0f);
+    CHECK(t70 <= 0.45f);        // was ~0.55-0.83 s before the fix
+    CHECK(fin_err < 0.8f);
+}
+
+TEST_CASE("flow_kf: a hard stop lands flow at zero and holds it") {
+    // Guard for the post-stop tail: a pour that stops dead must land
+    // under 0.3 g/s quickly, never re-rise, and settle momentum may not
+    // drag the readout into a deep negative rebound.
+    scale::flow_kf kf;
+    for (int i = 0; i < static_cast<int>(2.0f * kFs); ++i) {
+        feed_t(kf, i * kDt, 0.0f);
+    }
+    float land = -1, rebound = 0, tail = 0;
+    for (int i = 0; i < static_cast<int>(6.0f * kFs); ++i) {
+        const float t = 2.0f + i * kDt;
+        const float g = t < 4.5f ? 8.0f * (t - 2.0f) : 20.0f;
+        feed_t(kf, t, g);
+        if (t >= 4.5f) {
+            const float r = kf.rate();
+            rebound = std::min(rebound, r);
+            if (land < 0 && std::fabs(r) < 0.3f) land = t - 4.5f;
+            if (t > 4.5f + 0.6f) {
+                tail = std::max(tail, std::fabs(r));
+            }
+        }
+    }
+    CHECK(land > 0.0f);
+    CHECK(land <= 0.45f);
+    CHECK(rebound > -0.5f);
+    CHECK(tail < 0.6f);         // no residual countdown plateau
+}
+
 TEST_CASE("flow_kf: oscillation then quiet then a real pour") {
     // +-4 g at 1.5 Hz for 6 s, 1.5 s quiet, then a genuine 20 g/s pour:
     // the oscillation streak must expire during the quiet gap so the

@@ -150,8 +150,14 @@ struct flow_kf_config {
                                   //   so post-stop slosh can't jitter it
     float stop_s            = 0.15f;
     float stop_veto_gps     = 2.0f; // a live fast-channel slope past this
-                                  //   blocks the pull (re-start)
-    float stop_pull_hz      = 15.0f;// pull rate once a stop declares
+                                  //   blocks the snap (re-start)
+    float gate_skip_s       = 0.12f;// leading slice of a gate excluded
+                                  //   from the post-transient ramp fit —
+                                  //   it contains the trip's own impact
+    float stop_guard_s      = 0.45f;// rebound pin stays armed this long
+                                  //   after each stop snap — the settle
+                                  //   dip lands while the calm fit still
+                                  //   contains the ramp tail
     float boost_steep_gps = 12.f; // beyond this |slope| evidence must persist
     float boost_steep_s   = 0.35f;// ...this long instead of boost_min_s
     float q_track      = 30.0f;   // post-settle tracking density on a slope
@@ -198,6 +204,8 @@ public:
         steep_run_n_   = 0;
         steep_n_       = 0;
         stop_t_        = 0.0f;
+        snap_t_        = -1e9f;
+        pour_hi_t_     = -1e9f;
         track_t_    = -1e9f;
         lost_t_     = 0.0f;
         abort_t_    = 0.0f;
@@ -249,6 +257,8 @@ public:
             steep_run_n_   = 0;
             steep_n_       = 0;
             stop_t_        = 0.0f;
+            snap_t_        = -1e9f;
+            pour_hi_t_     = -1e9f;
         }
         const float pre  = b2_.push(b1_.push(g));
         const float fast = fb_.push(g);
@@ -602,6 +612,62 @@ private:
         // Both use the SHALLOWER of two adjacent windows so an onset
         // can't extrapolate its steepest instant into a spike.
         const auto apply_band = [&](bool pos_cap) {
+            // Stop snap: judge flatness on the PRE channel over the
+            // full calm window — post-stop slosh spikes the fast fit
+            // past the bound while the smooth channel still reads ~0.
+            // A persistently flat calm fit with a nonzero f_ is residual
+            // momentum draining exponentially through the Kalman — once
+            // the flatness has persisted, land f_ on the measured slope
+            // at once instead of tailing ~1 s. The accumulator leaks
+            // rather than resets so one noisy fit pauses the count
+            // instead of restarting it. The snap only ever shrinks |f_|
+            // and is vetoed per-sample by a live fast slope (a re-start
+            // breaks out within ~3 samples) AND by an innovation still
+            // pushing f_ away from the target — an onset's positive
+            // innovation run releases it at once.
+            const fit_res calm =
+                line_fit(buf_, cfg_.calm_s, 8, cfg_.calm_s * 0.85f);
+            const float tgt = calm.ok ? calm.slope : 0.0f;
+            const bool flat_calm = calm.ok &&
+                std::fabs(calm.slope) < cfg_.stop_flat_gps;
+            stop_t_ = flat_calm ? stop_t_ + dt
+                                : std::max(0.0f, stop_t_ - dt);
+            const bool pushing = std::fabs(inn) > cfg_.boost_inn_g &&
+                                 inn * (f_ - tgt) > 0.0f;
+            if (stop_t_ >= cfg_.stop_s &&
+                (!now.ok ||
+                 std::fabs(now.slope) < cfg_.stop_veto_gps) &&
+                !pushing && std::fabs(tgt) < std::fabs(f_)) {
+                // Cap the target at the rebound floor: a deeply
+                // negative calm slope inside a flat declaration is the
+                // settle tail contaminating the fit, and snapping to it
+                // manufactures the dip it was meant to kill. If the
+                // downtrend were real the Kalman pulls f_ back within
+                // samples anyway.
+                f_ = std::max(tgt, -cfg_.rebound_gps);
+                snap_t_ = tp_;
+                // The level state still carries the pour's overshoot —
+                // left alone its residual innovation drags the snapped
+                // f_ right back negative. Land it on the fitted level
+                // too so the whole state agrees with the stop.
+                if (calm.ok) w_ = calm.level;
+            }
+            // Flat-signal rebound guard: a deeply negative f_ while the
+            // signal reads flat (PRE channel) or within a short window
+            // after a snap is settle momentum, not weight leaving —
+            // pin it. The fast fit spikes past quiet exactly when the
+            // dip develops, so neither gate can key on it. The
+            // pour_hi_t_ term covers the settle transient itself: a
+            // boosted q can drag f_ below zero in a single step right
+            // after the pour stops, before the calm fit reads flat —
+            // a real removal gates instead.
+            if (f_ > 1.5f) pour_hi_t_ = tp_;
+            if ((flat_calm || stop_t_ > 0.0f ||
+                 tp_ - snap_t_ <= cfg_.stop_guard_s ||
+                 tp_ - pour_hi_t_ <= cfg_.stop_guard_s) &&
+                f_ < -cfg_.rebound_gps) {
+                f_ = -cfg_.rebound_gps;
+            }
             if (!now.ok ||
                 std::fabs(now.slope) > cfg_.fit_slope_max_gps)
                 return;
@@ -616,40 +682,6 @@ private:
                 if (pos_cap) f_ = std::min(f_, ref + cfg_.boost_band_gps);
             } else {
                 f_ = std::max(f_, ref - cfg_.boost_band_gps);
-            }
-            // Flat-signal rebound guard: after a stop the residual
-            // innovation can drag f_ well below 0 even though nothing
-            // is leaving — pin the dip, the Kalman re-settles.
-            if (std::fabs(now.slope) < cfg_.boost_quiet_gps &&
-                f_ < -cfg_.rebound_gps) {
-                f_ = -cfg_.rebound_gps;
-            }
-            // Stop snap: judge flatness on the PRE channel over the
-            // full calm window — post-stop slosh spikes the fast fit
-            // past the bound while the smooth channel still reads ~0.
-            // A persistently flat calm fit with a nonzero f_ is residual
-            // momentum draining exponentially through the Kalman — pull
-            // it toward the measured slope instead of tailing ~1 s.
-            // The accumulator leaks rather than resets so one noisy fit
-            // pauses the count instead of restarting it. The pull itself
-            // is vetoed per-sample by a live fast slope so a re-start
-            // (slope breaks out within ~3 samples) releases it at once;
-            // and it only ever shrinks |f_| — on a pour onset the fit
-            // slope leads f_ and the pull can't fight the rise.
-            const fit_res calm =
-                line_fit(buf_, cfg_.calm_s, 8, cfg_.calm_s * 0.85f);
-            const bool flat_calm = calm.ok &&
-                std::fabs(calm.slope) < cfg_.stop_flat_gps;
-            stop_t_ = flat_calm ? stop_t_ + dt
-                                : std::max(0.0f, stop_t_ - dt);
-            if (stop_t_ >= cfg_.stop_s &&
-                (!now.ok ||
-                 std::fabs(now.slope) < cfg_.stop_veto_gps)) {
-                const float tgt = calm.ok ? calm.slope : 0.0f;
-                if (std::fabs(tgt) < std::fabs(f_)) {
-                    f_ += (tgt - f_) *
-                          std::min(1.0f, dt * cfg_.stop_pull_hz);
-                }
             }
         };
 
@@ -810,25 +842,49 @@ private:
         const float gspan = std::min(t - gate_t_, 0.6f);
         const fit_res fg = line_fit(buf_, gspan, 8, gspan * 0.75f);
         const bool gate_ramp = fg.ok && fg.worst <= cfg_.calm_g;
+        // Post-transient ramp: the gate's own leading slice (the splash
+        // or bump that tripped it) is excluded, so an onset impact can't
+        // poison the resume evidence. Both channels must read one clean
+        // positive ramp over the remaining window — a sustained wiggle
+        // flips inside it and fails the residual bound — so one counted
+        // flip from the trip's ring no longer vetoes a real pour.
+        const float pspan = (t - gate_t_) - cfg_.gate_skip_s;
+        const fit_res fp = pspan >= 0.12f
+            ? line_fit(buf_, pspan, 8, pspan * 0.7f) : fit_res{};
+        const fit_res ff = pspan >= 0.12f
+            ? line_fit(fbuf_, pspan, 8, pspan * 0.7f) : fit_res{};
+        const bool post_ramp =
+            fp.ok && fp.worst <= cfg_.calm_g && fp.slope > 0.0f &&
+            ff.ok && ff.worst <= cfg_.calm_g && ff.slope > 0.0f &&
+            std::fabs(fp.slope - h.slope) <= cfg_.gate_diff_gps &&
+            osc_flips_ <= cfg_.resume_flip_max;
         float f0;
         if (std::fabs(h.slope) < cfg_.boost_quiet_gps) {
             f0 = h.slope;   // flat half-window: stopped
-        } else if (osc_flips_ >= cfg_.resume_flip_max) {
-            f0 = 0.0f;      // the slope genuinely reversed recently —
-                            // oscillation or removal, never a pour to
-                            // resume (a ~12 Hz ring can't produce
-                            // counted flips: its gaps are too dense)
         } else if (h.slope > 0.0f && gate_ramp &&
                    h.slope <= cfg_.fit_slope_max_gps &&
                    std::fabs(fg.slope - h.slope) <=
                        cfg_.slope_consist_gps &&
                    std::fabs(f.slope - h.slope) <=
-                       cfg_.slope_consist_gps) {
+                       cfg_.slope_consist_gps &&
+                   osc_flips_ < cfg_.resume_flip_max) {
             // Only a positive slope is adoptable (a steep negative ramp
             // is a lift-off, not a pour), and it must agree with BOTH
             // the whole-gate ramp and the trailing calm fit — a sine
             // segment can pass either one alone.
             f0 = h.slope;
+        } else if (h.slope > 0.0f && h.slope <= cfg_.fit_slope_max_gps &&
+                   post_ramp) {
+            // Pour resumed through its own splash: the strict triple
+            // agreement can't hold (the gate window contains the trip's
+            // kink), so adopt the shallower of the two post-transient
+            // fits instead.
+            f0 = std::min(h.slope, fp.slope);
+        } else if (osc_flips_ >= cfg_.resume_flip_max) {
+            f0 = 0.0f;      // the slope genuinely reversed recently —
+                            // oscillation or removal, never a pour to
+                            // resume (a ~12 Hz ring can't produce
+                            // counted flips: its gaps are too dense)
         } else {
             const float pred = gate_w_ + held_f_ * (t - gate_t_);
             f0 = std::fabs(f.level - pred) < cfg_.step_g ? held_f_ : 0.0f;
@@ -841,6 +897,8 @@ private:
         steep_run_n_   = 0;
         steep_n_       = 0;
         stop_t_        = 0.0f;
+        snap_t_        = -1e9f;
+        pour_hi_t_     = -1e9f;
         lost_t_     = 0.0f;
         abort_t_    = 0.0f;
         slope_sign_ = 0.0f;
@@ -970,6 +1028,8 @@ private:
     int            steep_n_    = 0; // consecutive steep-fit samples
     int            steep_run_n_ = 0;//   same, for steep-claim grading
     float          stop_t_     = 0.0f; // flat-slope persistence timer
+    float          snap_t_     = -1e9f;// last stop snap (pin window)
+    float          pour_hi_t_  = -1e9f;// last f_ above 1.5 (pin window)
     float          ungate_f0_  = 0.0f; // flow adopted at last un-gate
     // accel motion veto
     float          motion_ema_ = 0.0f;
