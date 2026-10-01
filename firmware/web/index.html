@@ -71,13 +71,12 @@
   }
 
   /* --- header ------------------------------------------------------------- */
+  /* not sticky — on phones it followed the scroll and covered content */
   header {
-    position: sticky; top: 0; z-index: 20;
     display: flex; gap: 10px; align-items: center;
     padding: 10px calc(16px + env(safe-area-inset-right))
              10px calc(16px + env(safe-area-inset-left));
-    background: color-mix(in srgb, var(--plate) 85%, transparent);
-    backdrop-filter: blur(10px);
+    background: var(--plate);
     border-bottom: 1px solid var(--rule);
   }
   header .logo {
@@ -192,6 +191,11 @@
     position: relative;
     background: #000; border-radius: 16px; padding: 10px;
     box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06);
+  }
+  /* phones: cap the mirror near its 320px native width so the screen,
+     controls and chart can share one viewport */
+  @media (max-width: 959px) {
+    .bezel { max-width: 340px; margin-inline: auto; }
   }
   #screen {
     width: 100%; aspect-ratio: 320 / 172; display: block;
@@ -571,6 +575,21 @@
       grid-template-columns: minmax(300px, 640px) minmax(0, 1fr);
     }
     #toast { bottom: 28px; }
+  }
+
+  /* short landscape (phone sideways): mirror + chart side by side like the
+     desktop rail; the chart stays pinned while the control column scrolls */
+  @media (orientation: landscape) and (max-height: 640px) and (max-width: 959px) {
+    main { padding: 8px; }
+    #page-weigh.active {
+      grid-template-columns: minmax(240px, 42vw) minmax(0, 1fr);
+      gap: 10px;
+    }
+    .chart-panel { position: sticky; top: 8px; }
+    .chart-wrap > #chart {
+      height: calc(100vh - 170px);
+      height: calc(100dvh - 170px); min-height: 140px;
+    }
   }
 
   @media (max-width: 420px) {
