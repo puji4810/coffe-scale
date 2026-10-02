@@ -10,6 +10,8 @@ let hooks = {};
 let worker = null, workerReady = false, workerErr = '';
 let stream = null, track = null, wakeLock = null;
 let detTimer = 0, detBusy = false, readBusy = false, reqId = 0;
+let session = 0, cameraReady = false, workerGpu = false, warmTimer = 0;
+let workerRestarts = 0;
 let open_ = false, focusedField = 'scan-f-name';
 let lastLines = [];            // accumulated OCR lines across rescans
 const reqDims = new Map();     // request id → grabbed frame {w,h}
@@ -55,23 +57,27 @@ export function initScan(h) {
 // --- lifecycle ---------------------------------------------------------------
 
 function open() {
+    if (open_) return;
     open_ = true;
+    const current = ++session;
+    cameraReady = false; workerRestarts = 0;
     $('scan-ov').hidden = false;
-    $('scan-read').disabled = false;
+    $('scan-read').disabled = true;
     $('scan-torch').hidden = true;
     hidePanel(); lastLines = [];
     setStatus('启动相机…');
-    startCamera();
+    startCamera(current);
     warmWorker();
-    if (worker && !workerReady) {   // retry a previously failed warm
-        workerErr = '';
-        worker.postMessage({ t: 'warm' });
-    }
-    navigator.wakeLock?.request('screen').then(l => wakeLock = l).catch(() => {});
+    navigator.wakeLock?.request('screen').then(l => {
+        if (open_ && current === session) wakeLock = l;
+        else l.release().catch(() => {});
+    }).catch(() => {});
 }
 
 function close() {
     open_ = false;
+    ++session; cameraReady = false;
+    worker?.postMessage({ t: 'cancel' });
     clearTimeout(detTimer); detBusy = readBusy = false;
     for (const t of reqTimers.values()) clearTimeout(t);
     reqTimers.clear(); reqDims.clear();
@@ -79,12 +85,14 @@ function close() {
     stream = track = null;
     $('scan-video').srcObject = null;
     $('scan-ov').hidden = true;
+    $('scan-torch').classList.remove('on');
     wakeLock?.release().catch(() => {}); wakeLock = null;
 }
 
-async function startCamera() {
+async function startCamera(current) {
+    let acquired;
     try {
-        stream = await navigator.mediaDevices.getUserMedia({
+        acquired = await navigator.mediaDevices.getUserMedia({
             audio: false,
             video: {
                 facingMode: { ideal: 'environment' },
@@ -92,19 +100,36 @@ async function startCamera() {
             },
         });
     } catch (e) {
+        if (!open_ || current !== session) return;
         setStatus(e.name === 'NotAllowedError'
             ? '相机被拒绝授权 — 可用下方「相册」选照片识别'
             : `相机不可用(${e.name}) — 可用「相册」选照片`);
         $('scan-read').disabled = true;
         return;
     }
+    if (!open_ || current !== session) {
+        acquired.getTracks().forEach(t => t.stop());
+        return;
+    }
+    stream = acquired;
     const video = $('scan-video');
     video.srcObject = stream;
     await video.play().catch(() => {});
+    if (!open_ || current !== session) return;
     track = stream.getVideoTracks()[0];
+    cameraReady = true;
     if (track?.getCapabilities?.().torch) $('scan-torch').hidden = false;
     sizeFx();
+    readyStatus();
     scheduleDet(0);
+}
+
+function readyStatus() {
+    if (!open_ || readBusy) return;
+    $('scan-read').disabled = !cameraReady;
+    if (workerReady && cameraReady)
+        setStatus(`就绪 (${workerGpu ? 'WebGPU' : 'WASM'}) — 对准标签，点击识别`);
+    else if (cameraReady) setStatus(workerErr || '加载识别模型…');
 }
 
 async function toggleTorch() {
@@ -115,49 +140,74 @@ async function toggleTorch() {
 
 function warmWorker() {
     if (worker) return;
-    worker = new Worker('./ocr_worker.js', { type: 'module' });
-    worker.onmessage = e => {
+    workerErr = '';
+    const instance = worker = new Worker('./ocr_worker.js', { type: 'module' });
+    watchWarm();
+    instance.onmessage = e => {
+        if (worker !== instance) return;
         const m = e.data;
+        // Closed sessions discard their requests; late results must not clear
+        // the busy flag or overwrite the status of a newly opened scanner.
+        if (m.id != null && !reqDims.has(m.id)) return;
         const t = reqTimers.get(m.id);
         if (t) { clearTimeout(t); reqTimers.delete(m.id); }
         if (m.t === 'progress') {
+            watchWarm();
+            if (!open_) return;
             setStatus(m.building ? `加载模型…(${m.building})`
                 : `下载模型 ${(m.got / 1048576).toFixed(1)} MB` +
                   (m.total ? ` / ${(m.total / 1048576).toFixed(0)} MB` : ''));
         } else if (m.t === 'ready') {
-            workerReady = true;
-            setStatus(`就绪 (${m.gpu ? 'WebGPU' : 'WASM'}) — 对准标签会自动框出文字`);
+            clearTimeout(warmTimer);
+            workerReady = true; workerGpu = m.gpu; workerErr = '';
+            readyStatus();
+            if (open_ && track) scheduleDet(0);
         } else if (m.t === 'boxes') {
             detBusy = false;
             const d = reqDims.get(m.id); reqDims.delete(m.id);
-            if (d) drawQuads(m.boxes.map(b => b.pts), d, 'rgba(232,163,61,.9)');
-            scheduleDet();
+            if (d && !readBusy) drawQuads(m.boxes.map(b => b.pts), d, 'rgba(232,163,61,.9)');
+            if (!readBusy) scheduleDet();
         } else if (m.t === 'lines') {
             readBusy = false;
             const d = reqDims.get(m.id); reqDims.delete(m.id);
             if (open_) showResult(m.lines, m.ms, d);
         } else if (m.t === 'error') {
-            detBusy = readBusy = false;
-            if (m.stage === 'warm') workerErr = m.message;
+            const failed = reqDims.get(m.id);
+            reqDims.delete(m.id);
+            if (m.stage === 'warm') { killWorker(`模型加载失败：${m.message}`, false); return; }
+            if (failed?.read) readBusy = false; else detBusy = false;
+            if (readBusy) return; // a failed preview must not unlock a pending read
+            $('scan-read').disabled = !cameraReady;
             setStatus(`出错：${m.message}`);
             if (open_ && m.stage !== 'warm') scheduleDet(1500);
         }
     };
-    worker.onerror = () => killWorker('识别引擎崩溃');
-    worker.onmessageerror = () => killWorker('识别引擎消息异常');
-    worker.postMessage({ t: 'warm' });
+    instance.onerror = () => { if (worker === instance) killWorker('识别引擎崩溃'); };
+    instance.onmessageerror = () => { if (worker === instance) killWorker('识别引擎消息异常'); };
+    instance.postMessage({ t: 'warm' });
+}
+
+function watchWarm() {
+    clearTimeout(warmTimer);
+    warmTimer = setTimeout(() => killWorker('模型加载超时', false), 45000);
 }
 
 // A wedged worker (WASM OOM kill, WebGPU stall) must never pin the UI at
 // "识别中…" forever — terminate it and respawn; assets are cache-hot by then.
-function killWorker(why) {
+function killWorker(why, retry = true) {
+    clearTimeout(warmTimer);
     try { worker?.terminate(); } catch {}
     worker = null; workerReady = false;
     detBusy = readBusy = false;
     for (const t of reqTimers.values()) clearTimeout(t);
     reqTimers.clear(); reqDims.clear();
-    setStatus(`${why} — 重启中…`);
-    if (open_) warmWorker();
+    workerErr = why;
+    if (!open_) return;
+    $('scan-read').disabled = !cameraReady;
+    if (retry && workerRestarts++ < 1) {
+        setStatus(`${why} — 重启中…`);
+        warmWorker();
+    } else setStatus(`${why} — 点击识别重试，也可重新打开相机`);
 }
 
 function send(msg, timeoutMs) {
@@ -220,12 +270,13 @@ function grab(limit) {
 
 function detTick() {
     if (!open_) return;
+    if (!$('scan-panel').hidden) return;
     if (!workerReady || detBusy || readBusy || !track) { scheduleDet(700); return; }
-    const f = grab(960);
+    const f = grab(640);
     if (!f) { scheduleDet(700); return; }
     detBusy = true;
     const id = ++reqId;
-    reqDims.set(id, { w: f.w, h: f.h });
+    reqDims.set(id, { w: f.w, h: f.h, read: false });
     send({ t: 'detect', id, w: f.w, h: f.h,
            rgba: f.img.data.buffer }, 25000);
 }
@@ -234,21 +285,30 @@ function detTick() {
 
 async function read() {
     if (readBusy) return;
+    if (!worker) warmWorker();
     if (!workerReady) { setStatus(workerErr || '模型还在加载，稍等…'); return; }
     const f = grab(1600);
     if (!f) { setStatus('相机还没出画面'); return; }
     readBusy = true;
+    $('scan-read').disabled = true;
     setStatus('识别中…');
     clearTimeout(detTimer);
     const id = ++reqId;
-    reqDims.set(id, { w: f.w, h: f.h });
+    reqDims.set(id, { w: f.w, h: f.h, read: true });
     send({ t: 'read', id, w: f.w, h: f.h,
-           rgba: f.img.data.buffer }, 90000);
+           rgba: f.img.data.buffer }, 15000);
 }
 
 async function readFile(file) {
+    if (readBusy || !open_) return;
+    if (!worker) warmWorker();
+    const current = session;
+    readBusy = true;
+    $('scan-read').disabled = true;
+    clearTimeout(detTimer);
     try {
         const bmp = await createImageBitmap(file);
+        if (!open_ || current !== session) { bmp.close(); return; }
         const r = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
         const w = Math.round(bmp.width * r), h = Math.round(bmp.height * r);
         const c = $('scan-cap');
@@ -257,14 +317,20 @@ async function readFile(file) {
         ctx.drawImage(bmp, 0, 0, w, h);
         bmp.close();
         if (!workerReady) { setStatus('模型还在加载…'); return; }
-        readBusy = true; setStatus('识别中…');
+        $('scan-read').disabled = true; setStatus('识别中…');
         clearTimeout(detTimer);
         const id = ++reqId;
-        reqDims.set(id, { w, h });
+        reqDims.set(id, { w, h, read: true });
         const img = ctx.getImageData(0, 0, w, h);
         send({ t: 'read', id, w, h,
-               rgba: img.data.buffer }, 90000);
-    } catch (e) { setStatus(`图片读取失败：${e.message}`); }
+               rgba: img.data.buffer }, 15000);
+    } catch (e) { if (open_ && current === session) setStatus(`图片读取失败：${e.message}`); }
+    finally {
+        if (current === session && ![...reqDims.values()].some(d => d.read)) {
+            readBusy = false;
+            $('scan-read').disabled = !cameraReady;
+        }
+    }
 }
 
 // --- result panel ---------------------------------------------------------------
@@ -272,6 +338,7 @@ async function readFile(file) {
 const FIELDS = ['name', 'brand', 'process', 'variety', 'estate', 'note'];
 
 function showResult(lines, ms, dims) {
+    $('scan-read').disabled = !cameraReady;
     setStatus(lines.length ? `识别到 ${lines.length} 行文字 (${ms} ms)` :
                              '没识别到文字，凑近一点或改善光线');
     if (!lines.length) { scheduleDet(400); return; }

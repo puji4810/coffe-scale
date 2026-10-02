@@ -38,7 +38,7 @@ function decodePNG(buf) {
     const img = new Uint8Array(h * stride);
     for (let y = 0; y < h; y++) {
         const f = raw[y * (stride + 1)];
-        const row = raw.subarray(y * (stride + 1), (y + 1) * (stride + 1));
+        const row = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
         const out = img.subarray(y * stride, (y + 1) * stride);
         const up = y ? img.subarray((y - 1) * stride, y * stride) : null;
         for (let x = 0; x < stride; x++) {
@@ -103,6 +103,21 @@ function decodePNG(buf) {
     const r = PP.ctcDecode(L, T, C, keys);
     check('ctc decode', r.text === '咖啡', `(${r.text})`);
     check('ctc score', r.score > 0.9, `(${r.score})`);
+}
+
+// Equivalent min-area rectangles may choose the opposite hull edge due to
+// floating-point ties. The crop must still read left-to-right, not upside-down.
+for (const degrees of [-35, -25, -15, -5, 0, 5, 15, 25, 35]) {
+    const W = 160, H = 96, a = degrees * Math.PI / 180;
+    const prob = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const rx = (x - 80) * Math.cos(a) + (y - 48) * Math.sin(a);
+        const ry = -(x - 80) * Math.sin(a) + (y - 48) * Math.cos(a);
+        if (Math.abs(rx) < 45 && Math.abs(ry) < 8) prob[y * W + x] = .9;
+    }
+    const [b] = PP.findTextBoxes(prob, W, H);
+    check(`crop orientation ${degrees}°`, b && b.pts[1][0] > b.pts[0][0] &&
+          b.pts[2][0] > b.pts[3][0]);
 }
 
 {
@@ -244,9 +259,9 @@ if (ortNode && existsSync(FIXTURE) && existsSync(
     if (keys.at(-1) === '') keys.pop();
 
     const det = await ortNode.InferenceSession.create(
-        new URL('./vendor/ocr/v5/det.onnx', import.meta.url).pathname);
+        new URL('./vendor/ocr/v5/det.onnx', import.meta.url).pathname, { logSeverityLevel: 3 });
     const rec = await ortNode.InferenceSession.create(
-        new URL('./vendor/ocr/v5/rec.onnx', import.meta.url).pathname);
+        new URL('./vendor/ocr/v5/rec.onnx', import.meta.url).pathname, { logSeverityLevel: 3 });
 
     const inp = PP.detInput(rgba, w, h);
     const t = new ortNode.Tensor('float32', inp.data, [1, 3, inp.H, inp.W]);
@@ -282,4 +297,6 @@ if (ortNode && existsSync(FIXTURE) && existsSync(
 }
 
 if (failures) { console.error(`${failures} FAILED`); process.exit(1); }
+await import('./scan_test.mjs');
+await import('./ocr_worker_test.mjs');
 console.log('all checks passed');

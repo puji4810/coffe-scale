@@ -1,4 +1,4 @@
-// OCR worker — PaddleOCR (PP-OCRv4) det+rec on onnxruntime-web, WebGPU with
+// OCR worker — PaddleOCR (PP-OCRv5) det+rec on onnxruntime-web, WebGPU with
 // WASM fallback. Runs entirely off the main thread; everything below
 // vendor/ort|ocr is fetched lazily on first `warm` and cached by the SW.
 //
@@ -34,11 +34,17 @@ const FALLBACK_TOTAL = 49e6;          // if manifest.json is absent
 let ort = null, detSess = null, recSess = null, keys = null;
 let rec4Sess = null, keys4 = null, rec4Loading = null;
 let warming = null;
+let jobs = Promise.resolve(), epoch = 0;
+const enqueue = fn => {
+    const job = jobs.then(fn);
+    jobs = job.catch(() => {});
+    return job;
+};
 
 const post = m => self.postMessage(m);
 
-async function fetchBuf(url, onBytes) {
-    const r = await fetch(url);
+async function fetchBuf(url, onBytes, discard = false) {
+    const r = await fetch(url, { signal: AbortSignal.timeout(30000) });
     if (!r.ok) throw new Error(`${url} → HTTP ${r.status}`);
     const total = +r.headers.get('content-length') || 0;
     const rd = r.body.getReader(), chunks = [];
@@ -46,9 +52,11 @@ async function fetchBuf(url, onBytes) {
     for (;;) {
         const { done, value } = await rd.read();
         if (done) break;
-        chunks.push(value); got += value.length;
+        if (!discard) chunks.push(value);
+        got += value.length;
         onBytes?.(got, total);
     }
+    if (discard) return;
     const buf = new Uint8Array(got);
     let o = 0;
     for (const c of chunks) { buf.set(c, o); o += c.length; }
@@ -76,14 +84,18 @@ function warm() {
         };
         // prefetch the mjs glue + wasm binaries so ort's own internal
         // fetch (which can't report progress) is a cache hit
-        for (const f of WARM.slice(0, 3)) await fetchBuf('./' + f, track(f));
+        await Promise.all(WARM.slice(0, 3).map(f => fetchBuf('./' + f, track(f), true)));
         ort = await import(ORT_MJS);
         ort.env.logLevel = 'warning';
         ort.env.wasm.wasmPaths = new URL('./vendor/ort/', import.meta.url).href;
 
-        keys = decodeKeys(await fetchBuf(ASSETS.keys, track(WARM[5])));
-        for (const [name, url] of [['det', ASSETS.det], ['rec', ASSETS.rec]]) {
-            const buf = await fetchBuf(url, track(url.slice(2)));
+        const [keyBuf, detBuf, recBuf] = await Promise.all([
+            fetchBuf(ASSETS.keys, track(WARM[5])),
+            fetchBuf(ASSETS.det, track(WARM[3])),
+            fetchBuf(ASSETS.rec, track(WARM[4])),
+        ]);
+        keys = decodeKeys(keyBuf);
+        for (const [name, buf] of [['det', detBuf], ['rec', recBuf]]) {
             post({ t: 'progress', building: name });
             const sess = await ort.InferenceSession.create(buf, {
                 executionProviders: ['webgpu', 'wasm'],
@@ -93,7 +105,8 @@ function warm() {
         }
         post({ t: 'ready', gpu: !!navigator.gpu });
     })().catch(e => {
-        warming = null;
+        // The UI replaces this worker on a failed warm, releasing any partial
+        // sessions rather than building another detector in the same heap.
         post({ t: 'error', stage: 'warm', message: String(e.message || e) });
     });
     return warming;
@@ -113,66 +126,80 @@ function ensureRec4() {
     rec4Loading ??= (async () => {
         keys4 = decodeKeys(await fetchBuf(ASSETS.keys4));
         const buf = await fetchBuf(ASSETS.rec4);
-        rec4Sess = await ort.InferenceSession.create(buf, {
-            executionProviders: ['webgpu', 'wasm'],
-            graphOptimizationLevel: 'all',
+        // Download off the critical path, but session creation still shares
+        // ORT's WASM/GPU runtime and must use the same queue as inference.
+        await enqueue(async () => {
+            rec4Sess = await ort.InferenceSession.create(buf, {
+                executionProviders: ['webgpu', 'wasm'],
+                graphOptimizationLevel: 'all',
+            });
         });
-    })();
+    })().catch(() => { rec4Loading = null; });
     return rec4Loading;
 }
 
 async function recRun(sess, keyset, inp) {
     const t = new ort.Tensor('float32', inp.data, [1, 3, 48, inp.W]);
-    const out = await sess.run({ [sess.inputNames[0]]: t });
-    const lg = out[sess.outputNames[0]];
-    const r = PP.ctcDecode(lg.data, lg.dims[1], lg.dims[2], keyset);
-    t.dispose();
-    for (const k in out) out[k].dispose();
-    return r;
+    let out;
+    try {
+        out = await sess.run({ [sess.inputNames[0]]: t });
+        const lg = out[sess.outputNames[0]];
+        return PP.ctcDecode(lg.data, lg.dims[1], lg.dims[2], keyset);
+    } finally {
+        t.dispose();
+        for (const tensor of Object.values(out || {})) tensor.dispose();
+    }
 }
 
 // One text box → best-effort text. Weak reads (<0.55) retry inverted
 // (light-on-dark labels) and then ask the v4 recognizer — it handles
 // italic/decorative latin that v5 drops.
 const WEAK = 0.55;
-async function readBox(rgba, w, h, b) {
+const RETRY_BUDGET_MS = 300;
+async function readBox(rgba, w, h, b, best = null, canRetry = () => false) {
     const { pts } = b;
     const wTop = Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]);
     const hSide = Math.hypot(pts[3][0] - pts[0][0], pts[3][1] - pts[0][1]);
     const pw = Math.max(8, Math.round(wTop)), ph = Math.max(8, Math.round(hSide));
     const patch = PP.warpQuad(rgba, w, h, pts, pw, ph);
 
-    let best = await recRun(recSess, keys, PP.recInput(patch, pw, ph));
-    if (best.score < WEAK) {
+    if (!best) return recRun(recSess, keys, PP.recInput(patch, pw, ph));
+    if (best.score < WEAK && canRetry()) {
         const r = await recRun(recSess, keys,
             PP.recInput(PP.invertPatch(patch), pw, ph));
         if (r.score > best.score) best = r;
     }
     if (best.score < WEAK) {
-        try {
-            await ensureRec4();
-            for (const p of [patch, PP.invertPatch(patch)]) {
-                const r = await recRun(rec4Sess, keys4,
-                    PP.recInput(p, pw, ph));
-                if (r.score > best.score) best = r;
-            }
-        } catch { /* second opinion is optional */ }
+        ensureRec4(); // optional model download must never hold up this scan
+        if (rec4Sess && canRetry()) {
+            try {
+                for (const p of [patch, PP.invertPatch(patch)]) {
+                    if (best.score >= WEAK || !canRetry()) break;
+                    const r = await recRun(rec4Sess, keys4,
+                        PP.recInput(p, pw, ph));
+                    if (r.score > best.score) best = r;
+                }
+            } catch { /* optional second opinion must retain the primary read */ }
+        }
     }
     return best;
 }
 
-function runDet(w, h, rgba) {
+async function runDet(w, h, rgba) {
     const inp = PP.detInput(rgba, w, h);
     const t = new ort.Tensor('float32', inp.data, [1, 3, inp.H, inp.W]);
-    return detSess.run({ [detSess.inputNames[0]]: t }).then(out => {
+    let out;
+    try {
+        out = await detSess.run({ [detSess.inputNames[0]]: t });
         const prob = out[detSess.outputNames[0]];
         const boxes = PP.findTextBoxes(prob.data, inp.W, inp.H)
             .map(b => ({ pts: PP.scaleQuad(b.pts, 1 / inp.sx, 1 / inp.sy),
                          score: b.score }));
-        t.dispose();
-        for (const k in out) out[k].dispose();
         return boxes;
-    });
+    } finally {
+        t.dispose();
+        for (const tensor of Object.values(out || {})) tensor.dispose();
+    }
 }
 
 // reading order: cluster by vertical centre, left→right inside a line
@@ -186,23 +213,41 @@ function readOrder(boxes) {
         .map(o => o.b);
 }
 
-self.onmessage = async e => {
-    const m = e.data;
+async function handle(m, current) {
     try {
+        if (current !== epoch && m.t !== 'warm') return;
         if (m.t === 'warm') { await warm(); return; }
-        if (!detSess) await warm();
-        if (!detSess) return; // warm error already reported
+        if (!recSess) await warm();
+        if (!recSess || current !== epoch) return;
         const rgba = new Uint8Array(m.rgba);
         if (m.t === 'detect') {
             const t0 = performance.now();
             const boxes = await runDet(m.w, m.h, rgba);
+            if (current !== epoch) return;
             post({ t: 'boxes', id: m.id, boxes, ms: performance.now() - t0 });
         } else if (m.t === 'read') {
             const t0 = performance.now();
             const boxes = readOrder(await runDet(m.w, m.h, rgba)).slice(0, 24);
-            const lines = [];
+            const results = [];
             for (const b of boxes) {
-                const { text, score } = await readBox(rgba, m.w, m.h, b);
+                if (current !== epoch) return;
+                results.push(await readBox(rgba, m.w, m.h, b));
+            }
+            // One pass over ALL lines first; retries share one time budget
+            // for the frame, rather than multiplying latency by four per box.
+            const retryStart = performance.now();
+            const canRetry = () => current === epoch &&
+                performance.now() - retryStart < RETRY_BUDGET_MS;
+            const weak = results.map((r, i) => ({ r, i }))
+                .filter(({ r }) => r.score < WEAK).sort((a, b) => a.r.score - b.r.score);
+            for (const { r, i } of weak) {
+                if (!canRetry()) break;
+                results[i] = await readBox(rgba, m.w, m.h, boxes[i], r, canRetry);
+            }
+            if (current !== epoch) return;
+            const lines = [];
+            for (let i = 0; i < results.length; i++) {
+                const { text, score } = results[i], b = boxes[i];
                 if (text.trim()) lines.push({ text, score: +score.toFixed(3),
                     quad: b.pts.map(p => p.map(v => +v.toFixed(1))) });
             }
@@ -212,4 +257,14 @@ self.onmessage = async e => {
     } catch (err) {
         post({ t: 'error', id: m.id, message: String(err.message || err) });
     }
+}
+
+// Async message handlers otherwise overlap whenever session.run() yields.
+// Cancellation invalidates old queued work immediately; the one active ORT
+// call finishes before the next session can touch the shared runtime.
+self.onmessage = e => {
+    const m = e.data;
+    if (m.t === 'cancel') { ++epoch; return; }
+    const current = epoch;
+    return enqueue(() => handle(m, current));
 };

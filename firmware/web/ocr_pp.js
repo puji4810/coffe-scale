@@ -132,7 +132,14 @@ function minAreaRect(hp) {
 
 // Order quad corners tl,tr,br,bl from a rotated rect.
 function rectQuad(r, wExp, hExp) {
-    const ca = Math.cos(r.ang), sa = Math.sin(r.ang);
+    // A minimum-area rect has four equivalent edge angles. Tiny rounding
+    // differences can select its bottom edge and turn a horizontal word 180°.
+    // Canonicalise the angle before constructing tl,tr,br,bl; vertical strips
+    // remain tall so recInput() can rotate them consistently.
+    let ang = r.ang;
+    while (ang < -Math.PI / 4) { ang += Math.PI / 2; [wExp, hExp] = [hExp, wExp]; }
+    while (ang >= Math.PI / 4) { ang -= Math.PI / 2; [wExp, hExp] = [hExp, wExp]; }
+    const ca = Math.cos(ang), sa = Math.sin(ang);
     const hw = wExp / 2, hh = hExp / 2;
     return [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]]
         .map(([x, y]) => [r.cx + x * ca - y * sa, r.cy + x * sa + y * ca]);
