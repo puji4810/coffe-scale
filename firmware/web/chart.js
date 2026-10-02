@@ -43,7 +43,7 @@ function resample(x, g, base = 0) {
     return G;
 }
 
-function chartOpts(el, c) {
+function chartOpts(el, c, getTarget) {
     return {
         width: el.clientWidth,
         height: el.clientHeight,
@@ -55,8 +55,11 @@ function chartOpts(el, c) {
             // tared cup) clips at the plot edge instead of re-ranging the
             // axis — the fixed-position flow curve would otherwise land
             // inside negative axis labels and read as "flow below zero".
-            w: { range: { min: { hard: 0, soft: 0, mode: 1, pad: 0.05 },
-                          max: { soft: 50, mode: 1, pad: 0.08 } } },
+            // max must clear the target line too, not just the data.
+            w: { range: (u, lo, hi) => {
+                     const mx = Math.max(hi ?? 0, getTarget?.() || 0);
+                     return [0, Math.ceil(mx * 1.06) || 50];
+                 } },
             // flow is physically bounded (clipped at ±30 g/s), so a fixed
             // axis keeps every value at a stable position.
             f: { range: [-10, 40] },
@@ -93,8 +96,10 @@ export class ScaleChart {
         this.el = el;
         this.x = []; this.w = []; this.f = [];
 
-        const opts = chartOpts(el, theme());
-        opts.hooks = { setCursor: [u => this.updateTip(u)] };
+        this.c = theme();
+        const opts = chartOpts(el, this.c, () => this.target);
+        opts.hooks = { setCursor: [u => this.updateTip(u)],
+                       draw: [u => this.drawTarget(u)] };
         this.u = new uPlot(opts, [[], [], [], []], el);
 
         this.ghost = null;              // brew {t[],w[]} to overlay
@@ -106,7 +111,37 @@ export class ScaleChart {
         this.tip.style.display = 'none';
         this.u.over.appendChild(this.tip);
 
+        this.target = null;             // target liquid weight, g (dashed line)
         this.visible = true;            // hidden = collect, don't redraw
+    }
+
+    /// Horizontal target line on the weight axis (dose × ratio). Null hides.
+    setTarget(v) {
+        this.target = v;
+        if (this.visible) this.redraw();
+    }
+
+    drawTarget(u) {
+        const t = this.target;
+        if (!t || t <= 0) return;
+        const y = u.valToPos(t, 'w', true);
+        const ctx = u.ctx;
+        const dim = this.c.dim;
+        ctx.save();
+        ctx.strokeStyle = dim;
+        ctx.setLineDash([3, 5]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(u.bbox.left, y);
+        ctx.lineTo(u.bbox.left + u.bbox.width, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = this.c.font;
+        ctx.fillStyle = dim;
+        ctx.textAlign = 'right';
+        ctx.fillText(`目标 ${Math.round(t)} g`,
+                     u.bbox.left + u.bbox.width - 4, y - 5);
+        ctx.restore();
     }
 
     /// Reference brew overlay — pass a saved brew {t,w} or null. The
@@ -138,8 +173,10 @@ export class ScaleChart {
     /// rolling x/w/f buffers (prefers-color-scheme changed).
     retheme() {
         this.u.destroy();
-        const opts = chartOpts(this.el, theme());
-        opts.hooks = { setCursor: [u => this.updateTip(u)] };
+        this.c = theme();
+        const opts = chartOpts(this.el, this.c, () => this.target);
+        opts.hooks = { setCursor: [u => this.updateTip(u)],
+                       draw: [u => this.drawTarget(u)] };
         this.u = new uPlot(opts, this.data4(), this.el);
         this.tip = document.createElement('div');
         this.tip.className = 'chart-tip';
