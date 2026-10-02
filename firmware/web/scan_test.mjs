@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { createContext, runInContext } from 'node:vm';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { parseBeanLabel } from './bean_parse.js';
 
 const deferred = () => {
     let resolve;
@@ -12,7 +13,7 @@ const deferred = () => {
 };
 const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
 
-async function scanner() {
+async function scanner(hooks = {}) {
     const elements = new Map(), cameras = [], workers = [], timers = new Map();
     const inputs = [], images = [];
     let timerId = 0;
@@ -37,7 +38,7 @@ async function scanner() {
         emit(m) { this.onmessage({ data: m }); }
     }
     const context = createContext({
-        parseBeanLabel: () => ({ fields: {}, matches: [], used: [] }),
+        parseBeanLabel,
         document: { getElementById: element, addEventListener() {}, createElement() {
             const input = { files: [{}], click() {} }; inputs.push(input); return input;
         } },
@@ -53,7 +54,7 @@ async function scanner() {
         .replace("import { parseBeanLabel } from './bean_parse.js';", '')
         .replace('export function initScan', 'function initScan');
     runInContext(source, context);
-    context.initScan({ getBrands: () => [], listBeans: () => [] });
+    context.initScan({ getBrands: () => ['小满咖啡', 'Torch'], listBeans: () => [], ...hooks });
     function media() {
         const track = { stopped: false, stop() { this.stopped = true; } };
         return { track, getTracks: () => [track], getVideoTracks: () => [track] };
@@ -71,6 +72,117 @@ async function scanner() {
         },
     };
 }
+
+const label = texts => texts.map((text, i) => ({ text, score: .98,
+    quad: [[10, 10 + i * 30], [200, 10 + i * 30], [200, 30 + i * 30], [10, 30 + i * 30]],
+}));
+const LABEL_A = label(['小满咖啡', '埃塞俄比亚 耶加雪菲 水洗 瑰夏', '净含量 100g']);
+const LABEL_B = label(['Torch', '肯尼亚 日晒 SL28', '烘焙日期 2026-10-02']);
+async function readyScanner(hooks = {}) {
+    const s = await scanner(hooks); s.open();
+    s.cameras[0].resolve(s.media()); await s.flush();
+    s.workers[0].emit({ t: 'ready', gpu: false });
+    s.result = lines => {
+        const request = s.workers[0].sent.filter(m => m.t === 'read').at(-1);
+        s.workers[0].emit({ t: 'lines', id: request.id, lines, ms: 600 });
+    };
+    return s;
+}
+
+await test('opening another label clears the previous label fields and chips', async () => {
+    const s = await readyScanner(); s.read(); s.result(LABEL_A);
+    assert.equal(s.element('scan-f-brand').value, '小满咖啡');
+    s.close(); s.open(); s.cameras[1].resolve(s.media()); await s.flush();
+    assert.equal(s.element('scan-f-name').value, '');
+    assert.equal(s.element('scan-lines').innerHTML, '');
+    s.read(); s.result(LABEL_B);
+    assert.match(s.element('scan-f-name').value, /肯尼亚/);
+    assert.equal(s.element('scan-f-brand').value, 'Torch');
+    assert.equal(s.element('scan-f-process').value, '日晒');
+    assert.equal(s.element('scan-f-variety').value, 'SL28');
+    assert.doesNotMatch(s.element('scan-f-note').value, /100g/);
+});
+
+await test('consecutive camera scans show only the current label', async () => {
+    const s = await readyScanner(); s.read(); s.result(LABEL_A);
+    s.read(); s.result(LABEL_B);
+    assert.match(s.element('scan-f-name').value, /肯尼亚/);
+    assert.equal(s.element('scan-f-brand').value, 'Torch');
+    assert.doesNotMatch(s.element('scan-lines').innerHTML, /耶加雪菲|小满咖啡|100g/);
+    assert.doesNotMatch(s.element('scan-f-note').value, /100g/);
+});
+
+await test('a new scan hides old results immediately, including a blank result', async () => {
+    const s = await readyScanner(); s.read(); s.result(LABEL_A);
+    assert.equal(s.element('scan-panel').hidden, false);
+    s.read();
+    assert.equal(s.element('scan-panel').hidden, true);
+    assert.equal(s.element('scan-f-name').value, '');
+    s.result([]);
+    assert.equal(s.element('scan-panel').hidden, true);
+    assert.equal(s.element('scan-lines').innerHTML, '');
+});
+
+await test('retake cancels an unfinished read instead of reviving its old label', async () => {
+    const s = await readyScanner(); s.read(); s.result(LABEL_A);
+    s.read();
+    const old = s.workers[0].sent.filter(m => m.t === 'read').at(-1);
+    s.element('scan-again').onclick();
+    s.read();
+    const current = s.workers[0].sent.filter(m => m.t === 'read').at(-1);
+    assert.notEqual(current.id, old.id);
+    s.workers[0].emit({ t: 'lines', id: old.id, lines: LABEL_A, ms: 600 });
+    assert.equal(s.element('scan-panel').hidden, true);
+    s.result(LABEL_B);
+    assert.match(s.element('scan-f-name').value, /肯尼亚/);
+    assert.doesNotMatch(s.element('scan-lines').innerHTML, /耶加雪菲/);
+});
+
+await test('consecutive album scans replace the label fields and matching beans', async () => {
+    const s = await readyScanner({ listBeans: () => [
+        { id: 1, name: '耶加雪菲 水洗', brand: '小满咖啡', process: '水洗', variety: '瑰夏' },
+        { id: 2, name: '肯尼亚 日晒', brand: 'Torch', process: '日晒', variety: 'SL28' },
+    ] });
+    s.album(); s.images[0].resolve({ width: 640, height: 480, close() {} }); await s.flush();
+    s.result(LABEL_A);
+    assert.match(s.element('scan-match').innerHTML, /耶加雪菲/);
+    s.album();
+    assert.equal(s.element('scan-match').innerHTML, '');
+    s.images[1].resolve({ width: 640, height: 480, close() {} }); await s.flush();
+    s.result(LABEL_B);
+    assert.match(s.element('scan-match').innerHTML, /肯尼亚/);
+    assert.doesNotMatch(s.element('scan-match').innerHTML, /耶加雪菲/);
+    assert.equal(s.element('scan-f-brand').value, 'Torch');
+    assert.equal(s.element('scan-f-estate').value, '肯尼亚');
+    assert.doesNotMatch(s.element('scan-f-note').value, /100g/);
+});
+
+await test('retake discards a late album decode without unlocking the new scan', async () => {
+    const s = await readyScanner(); s.album();
+    s.element('scan-again').onclick(); s.read();
+    let released = false;
+    s.images[0].resolve({ width: 640, height: 480, close() { released = true; } }); await s.flush();
+    assert.equal(released, true);
+    assert.equal(s.element('scan-read').disabled, true);
+    assert.equal(s.workers[0].sent.filter(m => m.t === 'read').length, 1);
+    s.result(LABEL_B);
+    assert.match(s.element('scan-f-name').value, /肯尼亚/);
+});
+
+await test('saving after scanning two labels stores only the second bean', async () => {
+    const saved = [];
+    const s = await readyScanner({ addBean: async bean => saved.push(bean), toast() {} });
+    s.read(); s.result(LABEL_A); s.close();
+    s.open(); s.cameras[1].resolve(s.media()); await s.flush();
+    s.read(); s.result(LABEL_B);
+    await s.element('scan-save').onclick();
+    assert.equal(saved.length, 1);
+    assert.match(saved[0].name, /肯尼亚/);
+    assert.equal(saved[0].brand, 'Torch');
+    assert.equal(saved[0].process, '日晒');
+    assert.equal(saved[0].estate, '肯尼亚');
+    assert.doesNotMatch(saved[0].note, /100g/);
+});
 
 await test('a warm scanner reopened after a scan leaves camera-start status', async () => {
     const s = await scanner(); s.open();

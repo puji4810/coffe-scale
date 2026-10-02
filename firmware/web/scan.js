@@ -12,8 +12,8 @@ let stream = null, track = null, wakeLock = null;
 let detTimer = 0, detBusy = false, readBusy = false, reqId = 0;
 let session = 0, cameraReady = false, workerGpu = false, warmTimer = 0;
 let workerRestarts = 0;
+let scanGeneration = 0;
 let open_ = false, focusedField = 'scan-f-name';
-let lastLines = [];            // accumulated OCR lines across rescans
 const reqDims = new Map();     // request id → grabbed frame {w,h}
 const reqTimers = new Map();   // request id → watchdog timer
 
@@ -23,17 +23,20 @@ export function initScan(h) {
     $('scan-close').onclick = close;
     $('scan-read').onclick = () => read();
     $('scan-again').onclick = () => {
-        hidePanel(); lastLines = [];
-        for (const f of FIELDS) $(`scan-f-${f}`).value = '';
-        $('scan-match').innerHTML = $('scan-lines').innerHTML = '';
+        resetResult();
+        readyStatus();
         scheduleDet(0);
     };
     $('scan-save').onclick = save;
     $('scan-torch').onclick = toggleTorch;
     $('scan-file').onclick = () => {
+        const current = session, generation = scanGeneration;
         const inp = document.createElement('input');
         inp.type = 'file'; inp.accept = 'image/*';
-        inp.onchange = () => inp.files[0] && readFile(inp.files[0]);
+        inp.onchange = () => {
+            if (open_ && current === session && generation === scanGeneration && inp.files[0])
+                readFile(inp.files[0]);
+        };
         inp.click();
     };
     // field focus tracking — tapping an OCR line fills the focused input
@@ -64,7 +67,7 @@ function open() {
     $('scan-ov').hidden = false;
     $('scan-read').disabled = true;
     $('scan-torch').hidden = true;
-    hidePanel(); lastLines = [];
+    resetResult();
     setStatus('启动相机…');
     startCamera(current);
     warmWorker();
@@ -77,10 +80,7 @@ function open() {
 function close() {
     open_ = false;
     ++session; cameraReady = false;
-    worker?.postMessage({ t: 'cancel' });
-    clearTimeout(detTimer); detBusy = readBusy = false;
-    for (const t of reqTimers.values()) clearTimeout(t);
-    reqTimers.clear(); reqDims.clear();
+    cancelScan();
     stream?.getTracks().forEach(t => t.stop());
     stream = track = null;
     $('scan-video').srcObject = null;
@@ -289,6 +289,7 @@ async function read() {
     if (!workerReady) { setStatus(workerErr || '模型还在加载，稍等…'); return; }
     const f = grab(1600);
     if (!f) { setStatus('相机还没出画面'); return; }
+    resetResult();
     readBusy = true;
     $('scan-read').disabled = true;
     setStatus('识别中…');
@@ -302,13 +303,15 @@ async function read() {
 async function readFile(file) {
     if (readBusy || !open_) return;
     if (!worker) warmWorker();
-    const current = session;
+    resetResult();
+    const current = session, generation = scanGeneration;
     readBusy = true;
     $('scan-read').disabled = true;
+    setStatus('读取图片…');
     clearTimeout(detTimer);
     try {
         const bmp = await createImageBitmap(file);
-        if (!open_ || current !== session) { bmp.close(); return; }
+        if (!open_ || current !== session || generation !== scanGeneration) { bmp.close(); return; }
         const r = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
         const w = Math.round(bmp.width * r), h = Math.round(bmp.height * r);
         const c = $('scan-cap');
@@ -324,9 +327,13 @@ async function readFile(file) {
         const img = ctx.getImageData(0, 0, w, h);
         send({ t: 'read', id, w, h,
                rgba: img.data.buffer }, 15000);
-    } catch (e) { if (open_ && current === session) setStatus(`图片读取失败：${e.message}`); }
+    } catch (e) {
+        if (open_ && current === session && generation === scanGeneration)
+            setStatus(`图片读取失败：${e.message}`);
+    }
     finally {
-        if (current === session && ![...reqDims.values()].some(d => d.read)) {
+        if (current === session && generation === scanGeneration &&
+            ![...reqDims.values()].some(d => d.read)) {
             readBusy = false;
             $('scan-read').disabled = !cameraReady;
         }
@@ -337,33 +344,36 @@ async function readFile(file) {
 
 const FIELDS = ['name', 'brand', 'process', 'variety', 'estate', 'note'];
 
+function cancelScan() {
+    ++scanGeneration;
+    worker?.postMessage({ t: 'cancel' });
+    clearTimeout(detTimer); detBusy = readBusy = false;
+    for (const t of reqTimers.values()) clearTimeout(t);
+    reqTimers.clear(); reqDims.clear();
+}
+
+function resetResult() {
+    cancelScan();
+    hidePanel();
+    for (const f of FIELDS) $(`scan-f-${f}`).value = '';
+    $('scan-match').innerHTML = $('scan-lines').innerHTML = '';
+    focusedField = 'scan-f-name';
+    drawQuads([]);
+}
+
 function showResult(lines, ms, dims) {
     $('scan-read').disabled = !cameraReady;
     setStatus(lines.length ? `识别到 ${lines.length} 行文字 (${ms} ms)` :
                              '没识别到文字，凑近一点或改善光线');
     if (!lines.length) { scheduleDet(400); return; }
-    // re-scanning appends rather than replaces: dedupe lines by text (the
-    // new shot's version wins so its quad/raw stay fresh), and parsed fields
-    // only fill inputs the user left empty — note segments merge.
-    const merged = new Map(lastLines.map(l => [l.text, l]));
-    for (const l of lines) merged.set(l.text, l);
-    lastLines = [...merged.values()];
-
+    // Each recognition describes one label. Mixing earlier lines or retaining
+    // their fields can silently save the previous bean under the current scan.
     const { fields, matches, used } =
-        parseBeanLabel(lastLines, { brands: hooks.getBrands(), beans: hooks.listBeans() });
-    for (const f of FIELDS) {
-        const el = $(`scan-f-${f}`);
-        if (f === 'note') {
-            const segs = s => s.split('；').map(x => x.trim()).filter(Boolean);
-            el.value = [...new Set([...segs(el.value), ...segs(fields.note || '')])]
-                .join('；');
-        } else if (!el.value.trim()) {
-            el.value = fields[f] || '';
-        }
-    }
+        parseBeanLabel(lines, { brands: hooks.getBrands(), beans: hooks.listBeans() });
+    for (const f of FIELDS) $(`scan-f-${f}`).value = fields[f] || '';
 
     const tagOf = new Map(used.map(u => [u.line, u.as]));
-    $('scan-lines').innerHTML = lastLines.map(l =>
+    $('scan-lines').innerHTML = lines.map(l =>
         `<button type="button" class="scan-line ${tagOf.get(l) ? 'tagged' : ''}"
                  ${l.raw ? `title="原文：${esc(l.raw)}"` : ''}
                  data-txt="${esc(l.text)}">${esc(l.text)}
