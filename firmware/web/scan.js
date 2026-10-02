@@ -11,14 +11,21 @@ let worker = null, workerReady = false, workerErr = '';
 let stream = null, track = null, wakeLock = null;
 let detTimer = 0, detBusy = false, readBusy = false, reqId = 0;
 let open_ = false, focusedField = 'scan-f-name';
-const reqDims = new Map();   // request id → grabbed frame {w,h}
+let lastLines = [];            // accumulated OCR lines across rescans
+const reqDims = new Map();     // request id → grabbed frame {w,h}
+const reqTimers = new Map();   // request id → watchdog timer
 
 export function initScan(h) {
     hooks = h;
     $('btn-scan').onclick = open;
     $('scan-close').onclick = close;
     $('scan-read').onclick = () => read();
-    $('scan-again').onclick = () => { hidePanel(); scheduleDet(0); };
+    $('scan-again').onclick = () => {
+        hidePanel(); lastLines = [];
+        for (const f of FIELDS) $(`scan-f-${f}`).value = '';
+        $('scan-match').innerHTML = $('scan-lines').innerHTML = '';
+        scheduleDet(0);
+    };
     $('scan-save').onclick = save;
     $('scan-torch').onclick = toggleTorch;
     $('scan-file').onclick = () => {
@@ -52,16 +59,22 @@ function open() {
     $('scan-ov').hidden = false;
     $('scan-read').disabled = false;
     $('scan-torch').hidden = true;
-    hidePanel();
+    hidePanel(); lastLines = [];
     setStatus('启动相机…');
     startCamera();
     warmWorker();
+    if (worker && !workerReady) {   // retry a previously failed warm
+        workerErr = '';
+        worker.postMessage({ t: 'warm' });
+    }
     navigator.wakeLock?.request('screen').then(l => wakeLock = l).catch(() => {});
 }
 
 function close() {
     open_ = false;
-    clearTimeout(detTimer); detBusy = false;
+    clearTimeout(detTimer); detBusy = readBusy = false;
+    for (const t of reqTimers.values()) clearTimeout(t);
+    reqTimers.clear(); reqDims.clear();
     stream?.getTracks().forEach(t => t.stop());
     stream = track = null;
     $('scan-video').srcObject = null;
@@ -105,6 +118,8 @@ function warmWorker() {
     worker = new Worker('./ocr_worker.js', { type: 'module' });
     worker.onmessage = e => {
         const m = e.data;
+        const t = reqTimers.get(m.id);
+        if (t) { clearTimeout(t); reqTimers.delete(m.id); }
         if (m.t === 'progress') {
             setStatus(m.building ? `加载模型…(${m.building})`
                 : `下载模型 ${(m.got / 1048576).toFixed(1)} MB` +
@@ -119,15 +134,38 @@ function warmWorker() {
             scheduleDet();
         } else if (m.t === 'lines') {
             readBusy = false;
-            showResult(m.lines, m.ms, reqDims.get(m.id));
-            reqDims.delete(m.id);
+            const d = reqDims.get(m.id); reqDims.delete(m.id);
+            if (open_) showResult(m.lines, m.ms, d);
         } else if (m.t === 'error') {
             detBusy = readBusy = false;
             if (m.stage === 'warm') workerErr = m.message;
             setStatus(`出错：${m.message}`);
+            if (open_ && m.stage !== 'warm') scheduleDet(1500);
         }
     };
+    worker.onerror = () => killWorker('识别引擎崩溃');
+    worker.onmessageerror = () => killWorker('识别引擎消息异常');
     worker.postMessage({ t: 'warm' });
+}
+
+// A wedged worker (WASM OOM kill, WebGPU stall) must never pin the UI at
+// "识别中…" forever — terminate it and respawn; assets are cache-hot by then.
+function killWorker(why) {
+    try { worker?.terminate(); } catch {}
+    worker = null; workerReady = false;
+    detBusy = readBusy = false;
+    for (const t of reqTimers.values()) clearTimeout(t);
+    reqTimers.clear(); reqDims.clear();
+    setStatus(`${why} — 重启中…`);
+    if (open_) warmWorker();
+}
+
+function send(msg, timeoutMs) {
+    reqTimers.set(msg.id, setTimeout(() =>
+        killWorker('识别超时'), timeoutMs));
+    try {
+        worker.postMessage(msg, msg.rgba ? [msg.rgba] : undefined);
+    } catch { killWorker('识别引擎异常'); }
 }
 
 // --- live detection -----------------------------------------------------------
@@ -188,8 +226,8 @@ function detTick() {
     detBusy = true;
     const id = ++reqId;
     reqDims.set(id, { w: f.w, h: f.h });
-    worker.postMessage({ t: 'detect', id, w: f.w, h: f.h,
-                         rgba: f.img.data.buffer }, [f.img.data.buffer]);
+    send({ t: 'detect', id, w: f.w, h: f.h,
+           rgba: f.img.data.buffer }, 25000);
 }
 
 // --- recognize ----------------------------------------------------------------
@@ -204,8 +242,8 @@ async function read() {
     clearTimeout(detTimer);
     const id = ++reqId;
     reqDims.set(id, { w: f.w, h: f.h });
-    worker.postMessage({ t: 'read', id, w: f.w, h: f.h,
-                         rgba: f.img.data.buffer }, [f.img.data.buffer]);
+    send({ t: 'read', id, w: f.w, h: f.h,
+           rgba: f.img.data.buffer }, 90000);
 }
 
 async function readFile(file) {
@@ -224,8 +262,8 @@ async function readFile(file) {
         const id = ++reqId;
         reqDims.set(id, { w, h });
         const img = ctx.getImageData(0, 0, w, h);
-        worker.postMessage({ t: 'read', id, w, h,
-                             rgba: img.data.buffer }, [img.data.buffer]);
+        send({ t: 'read', id, w, h,
+               rgba: img.data.buffer }, 90000);
     } catch (e) { setStatus(`图片读取失败：${e.message}`); }
 }
 
@@ -237,19 +275,37 @@ function showResult(lines, ms, dims) {
     setStatus(lines.length ? `识别到 ${lines.length} 行文字 (${ms} ms)` :
                              '没识别到文字，凑近一点或改善光线');
     if (!lines.length) { scheduleDet(400); return; }
+    // re-scanning appends rather than replaces: dedupe lines by text (the
+    // new shot's version wins so its quad/raw stay fresh), and parsed fields
+    // only fill inputs the user left empty — note segments merge.
+    const merged = new Map(lastLines.map(l => [l.text, l]));
+    for (const l of lines) merged.set(l.text, l);
+    lastLines = [...merged.values()];
+
     const { fields, matches, used } =
-        parseBeanLabel(lines, { brands: hooks.getBrands(), beans: hooks.listBeans() });
-    for (const f of FIELDS) $(`scan-f-${f}`).value = fields[f] || '';
+        parseBeanLabel(lastLines, { brands: hooks.getBrands(), beans: hooks.listBeans() });
+    for (const f of FIELDS) {
+        const el = $(`scan-f-${f}`);
+        if (f === 'note') {
+            const segs = s => s.split('；').map(x => x.trim()).filter(Boolean);
+            el.value = [...new Set([...segs(el.value), ...segs(fields.note || '')])]
+                .join('；');
+        } else if (!el.value.trim()) {
+            el.value = fields[f] || '';
+        }
+    }
 
     const tagOf = new Map(used.map(u => [u.line, u.as]));
-    $('scan-lines').innerHTML = lines.map(l =>
+    $('scan-lines').innerHTML = lastLines.map(l =>
         `<button type="button" class="scan-line ${tagOf.get(l) ? 'tagged' : ''}"
+                 ${l.raw ? `title="原文：${esc(l.raw)}"` : ''}
                  data-txt="${esc(l.text)}">${esc(l.text)}
+           ${l.raw ? '<i>改</i>' : ''}
            ${tagOf.get(l) ? `<i>${asLabel(tagOf.get(l))}</i>` : ''}</button>`).join('');
     $('scan-match').innerHTML = matches.map(m =>
         `<button type="button" class="scan-line match" data-bean="${m.bean.id}">
-           已有：${esc(m.bean.name)}${m.bean.brand ? ' · ' + esc(m.bean.brand) : ''}</button>`
-    ).join('');
+           已有：${esc(m.bean.name)}${m.bean.brand ? ' · ' + esc(m.bean.brand) : ''}
+           <i>${Math.round(m.s * 100)}%</i></button>`).join('');
     drawQuads(lines.map(l => l.quad), dims, 'rgba(61,214,140,.9)');
     $('scan-panel').hidden = false;
 }

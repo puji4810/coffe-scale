@@ -477,6 +477,35 @@
   .bd-data .cmp { width: 100%; text-align: left; min-height: 34px;
                   padding: 4px 8px; font-size: 13px; }
   .bd-data button { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+
+  /* selection / reorder mode — entered by long-pressing a row */
+  #bean-bar {
+    display: flex; gap: 8px; margin-bottom: 10px; align-items: center;
+    position: sticky; top: 8px; z-index: 5;
+  }
+  #bean-bar[hidden] { display: none; }
+  #bean-bar button, #bean-bar select {
+    min-height: 38px; padding: 4px 12px; font-size: 13px; flex: none;
+  }
+  #bean-bar select { flex: 1; min-width: 0; }
+  #bean-accordion.editing .bean-head,
+  #bean-accordion.editing .brew-head { padding-left: 6px; }
+  #bean-accordion.editing .bean-head::before,
+  #bean-accordion.editing .brew-head::before {
+    content: ''; flex: none; width: 17px; height: 17px; border-radius: 50%;
+    border: 1.5px solid var(--rule);
+  }
+  #bean-accordion.editing .bean-head.sel::before,
+  #bean-accordion.editing .brew-head.sel::before {
+    background: var(--amber-fill); border-color: var(--amber-fill);
+    box-shadow: inset 0 0 0 3px var(--key);
+  }
+  #bean-accordion.editing .bean-head.sel,
+  #bean-accordion.editing .brew-head.sel {
+    background: color-mix(in srgb, var(--amber-fill) 16%, transparent);
+  }
+  .bean.dragging { opacity: .55; }
+  #bean-accordion.dragging { touch-action: none; }
   .empty { color: var(--dim); font-size: 14px; padding: 18px 14px; }
 
   /* --- calibrate ----------------------------------------------------------------------- */
@@ -792,6 +821,12 @@
         <input type="text" id="brand-new" placeholder="+ 添加品牌" autocomplete="off">
       </div>
       <div id="bean-datalists" hidden></div>
+      <div id="bean-bar" hidden>
+        <button id="bar-all" type="button">全选</button>
+        <select id="bar-move"><option value="-1">归档到…</option></select>
+        <button id="bar-del" type="button" class="danger-text">删除</button>
+        <button id="bar-done" type="button">完成</button>
+      </div>
       <div class="well bean-list" id="bean-accordion"></div>
     </div>
   </section>
@@ -879,7 +914,7 @@
       <label>处理法<input id="scan-f-process" list="dl-process" autocomplete="off"></label>
       <label>豆种<input id="scan-f-variety" list="dl-variety" autocomplete="off"></label>
       <label>庄园<input id="scan-f-estate" list="dl-estate" autocomplete="off"></label>
-      <label class="wide">备注<input id="scan-f-note" autocomplete="off"></label>
+      <label class="wide">备注<textarea id="scan-f-note" rows="2" autocomplete="off"></textarea></label>
     </div>
     <div id="scan-match"></div>
     <div id="scan-lines"></div>

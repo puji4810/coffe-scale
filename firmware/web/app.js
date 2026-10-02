@@ -551,7 +551,7 @@ function beanCard(b, bs) {
       </div>` : '';
     const rows = bs.map(w => `
       <div class="brew ${openBrews.has(w.id) ? 'open' : ''}">
-        <div class="brew-head" role="button" tabindex="0"
+        <div class="brew-head ${selBrews.has(w.id) ? 'sel' : ''}" role="button" tabindex="0"
              aria-expanded="${openBrews.has(w.id)}" data-brewhead="${w.id}">
           <span class="tw">▸</span>
           <span class="brew-meta">
@@ -575,8 +575,8 @@ function beanCard(b, bs) {
         : '';
     const last = bs.length ? bs[0].date.slice(5, 10) : '';
     return `
-    <div class="bean ${open ? 'open' : ''}">
-      <div class="bean-head" role="button" tabindex="0"
+    <div class="bean ${b ? '' : 'loose'} ${open ? 'open' : ''}">
+      <div class="bean-head ${b && selBeans.has(id) ? 'sel' : ''}" role="button" tabindex="0"
            aria-expanded="${open}" data-beanhead="${id}">
         <span class="tw">▸</span><span class="bname">${b ? esc(b.name) : '未归档'}</span>
         ${sub}
@@ -590,6 +590,10 @@ function beanCard(b, bs) {
 
 async function renderBeans() {
     beanCache = await DB.beans.list();
+    beanCache.sort((a, b) => {
+        const ai = beanOrder.indexOf(a.id), bi = beanOrder.indexOf(b.id);
+        return (ai < 0 ? 1e9 : ai) - (bi < 0 ? 1e9 : bi) || a.id - b.id;
+    });
     brewCache = await DB.brews.list();
     brewCache.sort((a, b) => (a.date < b.date ? 1 : -1));   // newest first
 
@@ -598,6 +602,9 @@ async function renderBeans() {
     beanSel.innerHTML = '<option value="">不选豆子</option>' +
         beanCache.map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('');
     beanSel.value = sel;
+    $('bar-move').innerHTML = '<option value="-1">归档到…</option>' +
+        '<option value="">未归档</option>' +
+        beanCache.map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('');
 
     const groups = beanCache.map(b => ({
         b, bs: brewCache.filter(w => w.beanId === b.id),
@@ -649,6 +656,11 @@ function mountBrewDetail(w) {
             esc(x.date.slice(5, 16).replace('T', ' '))} · ${
             esc(beanName(x.beanId))} · ${x.liquid} g</option>`).join('')}
         </select>` : ''}
+        <select class="cmp" data-assign="${w.id}">
+          <option value="">未归档</option>
+          ${beanCache.map(b => `<option value="${b.id}"${
+            w.beanId === b.id ? ' selected' : ''}>${esc(b.name)}</option>`).join('')}
+        </select>
         <div class="row" style="margin-top:2px">
           <button data-expbrew="${w.id}">导出</button>
           <button class="danger-text" data-delbrew="${w.id}">删除</button>
@@ -715,6 +727,9 @@ $('bean-accordion').addEventListener('click', async e => {
         });
         return;
     }
+    if (suppressHeadClick) { suppressHeadClick = false; return; }
+    const head = e.target.closest('[data-brewhead], [data-beanhead]');
+    if (head && editMode) { toggleSel(head); return; }
     const bh = e.target.closest('[data-brewhead]');
     if (bh) {
         const id = +bh.dataset.brewhead;
@@ -730,6 +745,136 @@ $('bean-accordion').addEventListener('click', async e => {
     }
 });
 
+// --- selection / reorder mode --------------------------------------------------
+// Long-press any bean/brew row → selection mode: circles appear, taps toggle,
+// the toolbar offers select-all / batch assign / batch delete. Long-pressing a
+// bean and keeping hold lets you drag it to a new position (order persists in
+// localStorage; the 未归档 group always stays last and can't be reordered).
+
+let editMode = false;
+const selBeans = new Set(), selBrews = new Set();
+let beanOrder = [];
+try { beanOrder = JSON.parse(localStorage.getItem('beanOrder') || '[]'); } catch {}
+
+let lpTimer = 0, lpPt = null, suppressHeadClick = false, dragBean = null;
+const beanAcc = $('bean-accordion');
+
+function toggleSel(head) {
+    const isBrew = head.dataset.brewhead !== undefined;
+    if (!isBrew && head.dataset.beanhead === '0') return;  // 未归档 card isn't an item
+    const id = +(isBrew ? head.dataset.brewhead : head.dataset.beanhead);
+    const set = isBrew ? selBrews : selBeans;
+    set.has(id) ? set.delete(id) : set.add(id);
+    head.classList.toggle('sel', set.has(id));
+}
+function enterEdit() {
+    if (editMode) return;
+    editMode = true;
+    beanAcc.classList.add('editing');
+    $('bean-bar').hidden = false;
+}
+function exitEdit() {
+    editMode = false;
+    selBeans.clear(); selBrews.clear();
+    beanAcc.classList.remove('editing');
+    $('bean-bar').hidden = true;
+    for (const h of beanAcc.querySelectorAll('.sel')) h.classList.remove('sel');
+}
+
+beanAcc.addEventListener('pointerdown', e => {
+    const head = e.target.closest('[data-brewhead], [data-beanhead]');
+    if (!head) return;
+    lpPt = { x: e.clientX, y: e.clientY };
+    lpTimer = setTimeout(() => {
+        lpTimer = 0;
+        enterEdit();
+        toggleSel(head);
+        suppressHeadClick = true;          // the click on release would re-toggle
+        const id = head.dataset.beanhead;
+        if (id !== undefined && id !== '0') dragBean = { id, armed: true };
+    }, 450);
+});
+beanAcc.addEventListener('pointermove', e => {
+    if (lpTimer && Math.hypot(e.clientX - lpPt.x, e.clientY - lpPt.y) > 10) {
+        clearTimeout(lpTimer); lpTimer = 0;                  // it's a scroll
+    }
+    if (!dragBean) return;
+    if (dragBean.armed) {
+        if (Math.abs(e.clientY - lpPt.y) < 6) return;
+        dragBean.armed = false;
+        beanAcc.classList.add('dragging');
+        beanAcc.querySelector(`.bean-head[data-beanhead="${dragBean.id}"]`)
+            ?.closest('.bean').classList.add('dragging');
+    }
+    e.preventDefault();
+    const cards = [...beanAcc.querySelectorAll('.bean:not(.loose)')];
+    const card = cards.find(c =>
+        +c.querySelector('.bean-head').dataset.beanhead === dragBean.id);
+    for (const c of cards) {
+        if (c === card) continue;
+        const r = c.getBoundingClientRect();
+        if (e.clientY < r.top + r.height / 2) {
+            beanAcc.insertBefore(card, c);
+            return;
+        }
+    }
+    beanAcc.insertBefore(card, beanAcc.querySelector('.bean.loose'));
+});
+const endPress = () => {
+    if (lpTimer) { clearTimeout(lpTimer); lpTimer = 0; }
+    if (dragBean && !dragBean.armed) {
+        beanOrder = [...beanAcc.querySelectorAll('.bean:not(.loose) .bean-head')]
+            .map(h => +h.dataset.beanhead);
+        localStorage.setItem('beanOrder', JSON.stringify(beanOrder));
+    }
+    if (dragBean) {
+        beanAcc.classList.remove('dragging');
+        beanAcc.querySelector('.bean.dragging')?.classList.remove('dragging');
+        dragBean = null;
+    }
+};
+beanAcc.addEventListener('pointerup', endPress);
+beanAcc.addEventListener('pointercancel', endPress);
+beanAcc.addEventListener('contextmenu', e => {
+    if (editMode || suppressHeadClick) e.preventDefault();
+});
+
+$('bar-all').onclick = () => {
+    const allB = beanCache.map(b => b.id), allW = brewCache.map(w => w.id);
+    const full = allB.every(i => selBeans.has(i)) && allW.every(i => selBrews.has(i));
+    selBeans.clear(); selBrews.clear();
+    if (!full) { allB.forEach(i => selBeans.add(i)); allW.forEach(i => selBrews.add(i)); }
+    renderBeans();
+};
+$('bar-del').onclick = () => {
+    if (!selBeans.size && !selBrews.size) { toast('先选中要删的项'); return; }
+    armConfirm($('bar-del'), `确认删除 ${selBeans.size + selBrews.size} 项？`, async () => {
+        for (const id of selBeans) {
+            for (const w of brewCache.filter(w => w.beanId === id)) {
+                w.beanId = null; await DB.brews.update(w);
+            }
+            openBeans.delete(id);
+            await DB.beans.del(id);
+        }
+        for (const id of selBrews) { openBrews.delete(id); await DB.brews.del(id); }
+        exitEdit(); renderBeans(); toast('已删除');
+    });
+};
+$('bar-move').onchange = async () => {
+    const v = $('bar-move').value;
+    $('bar-move').value = '-1';
+    if (v === '-1') return;
+    const beanId = v === '' ? null : +v;
+    let n = 0;
+    for (const id of selBrews) {
+        const w = brewCache.find(w => w.id === id);
+        if (w && w.beanId !== beanId) { w.beanId = beanId; await DB.brews.update(w); n++; }
+    }
+    toast(n ? `已归档 ${n} 条记录` : '没有选中冲煮记录');
+    exitEdit(); renderBeans();
+};
+$('bar-done').onclick = () => { exitEdit(); renderBeans(); };
+
 // rows are divs with role=button — Enter/Space toggles like a real button
 $('bean-accordion').addEventListener('keydown', e => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -741,6 +886,15 @@ $('bean-accordion').addEventListener('keydown', e => {
 
 // bean meta fields + per-brew note — saved on blur/enter
 $('bean-accordion').addEventListener('change', async e => {
+    const asg = e.target.closest('[data-assign]');
+    if (asg) {
+        const w = brewCache.find(w => w.id === +asg.dataset.assign);
+        w.beanId = asg.value === '' ? null : +asg.value;
+        await DB.brews.update(w);
+        toast(w.beanId === null ? '已移到未归档' : `已归入 ${beanName(w.beanId)}`);
+        renderBeans();
+        return;
+    }
     const cmp = e.target.closest('[data-cmp]');
     if (cmp) {
         const wid = +cmp.dataset.cmp;
