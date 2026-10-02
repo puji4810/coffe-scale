@@ -595,7 +595,9 @@ private:
     /// (leaks when invalid) — the snap is residual control only: it
     /// requires the candidate live, acts only on |f_| above
     /// stop_flat_gps, shrinks toward the fit floored at rebound_gps,
-    /// and re-anchors w_. Held: stillness on both channels, or a quiet
+    /// and re-anchors w_. A tightly fitted longer positive trend vetoes
+    /// the snap while fast is flat/recovering, so a pour's ripple cannot
+    /// masquerade as a stop. Held: stillness on both channels, or a quiet
     /// calm-window pre fit with low residual flow just after a high
     /// pour, for zero_confirm_s latches f_ = 0 exactly with w_ riding
     /// the fitted level. Restart: a clean same-sign slope on both
@@ -736,13 +738,23 @@ private:
         const float tgt = short_pre.ok ? short_pre.slope : 0.0f;
         const bool pushing = std::fabs(inn) > cfg_.boost_inn_g &&
                              inn * (f_ - tgt) > 0.0f;
+        // Short flat fits also occur in a continuous pour's weight
+        // ripple. A tightly fitted longer positive trend contradicts
+        // that stop while the fast channel is flat or recovering.
+        // Require twice the usual fit precision for this veto; a noisy
+        // ramp tail or a falling fast fit must still allow a real stop.
+        const bool continuing_pour =
+            pre_calm.ok && pre_calm.worst <= cfg_.boost_resid_g * 0.5f &&
+            f_ > 0.0f && pre_calm.slope > cfg_.boost_quiet_gps &&
+            (!now.ok || now.slope >= -cfg_.boost_quiet_gps);
         // Shrink-only is not enough on its own: under pour-rate noise the
         // fit reads low often enough to ratchet a genuine marginal pour
         // down. Snap only trims leftover momentum above stop_flat_gps;
         // low residual is the zero hold's job.
         if (cand && stop_t_ >= cfg_.stop_s &&
             (!now.ok || std::fabs(now.slope) < cfg_.stop_veto_gps) &&
-            !pushing && std::fabs(f_) > cfg_.stop_flat_gps &&
+            !pushing && !continuing_pour &&
+            std::fabs(f_) > cfg_.stop_flat_gps &&
             std::fabs(tgt) < std::fabs(f_)) {
             f_ = std::max(tgt, -cfg_.rebound_gps);
             snap_t_ = tp_;

@@ -1,5 +1,20 @@
 # Flow Replay Fixtures
 
+`brew-continuous-weight.csv` contains the full weight curve from the
+2026-10-01 exported brew (103.6 s). The user confirmed continuous pouring
+after a pause around 50 s; the regression checks 56–75 s. Equal exported
+timer timestamps retain the last weight, and the test interpolates the
+remaining points to 80 Hz before feeding the production `scale::app`.
+This is a diagnostic proxy from approximately 10 Hz filtered weight,
+not a raw ADC capture: unseen weight and IMU disturbances cannot be
+reconstructed. The original proxy snapped into the zero display band
+for 17 samples (212.5 ms) despite sustained growth. The minimized
+65–68 s slice also reproduced the failure without a disturbance gate.
+The regression forbids zero throughout the confirmed pour interval.
+A separate constant 3 g/s pour with a 0.2 g, 3 Hz measurement ripple
+checks continuity, mean accuracy, and variance; it also checks a real
+stop afterward. Existing raw-capture onset/stop bounds remain in force.
+
 `pour-onset.txt` and `pulsed-pour.txt` are local recorded raw captures,
 kept in the test source tree because `firmware/captures/` is ignored.
 They preserve the captured header and W/A/event order; no physical-action
