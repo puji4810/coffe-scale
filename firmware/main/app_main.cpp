@@ -38,6 +38,7 @@
 #include "lis2dw12/lis2dw12.hpp"
 #include "nau7802/nau7802.hpp"
 #include "scale/app.hpp"
+#include "scale/button_press.hpp"
 #include "scale/calibration.hpp"
 #include "scale/telemetry.hpp"
 #include "tmp102/tmp102.hpp"
@@ -115,6 +116,8 @@ void         ble_command(void*, const proto::command& cmd);
 TaskHandle_t  g_adc_task   = nullptr;
 TaskHandle_t  g_accel_task = nullptr;
 QueueHandle_t g_btn_q      = nullptr;
+// Protected by g_mtx together with the model; sleep/wake drops old presses.
+scale::button_press g_tare_button, g_mode_button;
 
 // Devices live for the whole run; keep them in static storage.
 std::optional<bus::i2c_dev_esp>                   s_adc_dev, s_acc_dev, s_tmp_dev;
@@ -397,41 +400,30 @@ void beep(int ms) {
 }
 
 void button_task(void*) {
-    struct BtnState {
-        int64_t last_edge = 0;
-        int64_t since     = 0;
-    } tare, mode;
-
     int pin = 0;
     for (;;) {
         if (xQueueReceive(g_btn_q, &pin, portMAX_DELAY) != pdTRUE) {
             continue;
         }
-        auto& s      = pin == board::pins::btn_tare ? tare : mode;
         const int64_t t = esp_timer_get_time() / 1000;
-        if (t - s.last_edge < 30) {   // debounce
-            continue;
-        }
-        s.last_edge = t;
-
-        if (gpio_get_level(static_cast<gpio_num_t>(pin)) == 0) {   // active-low press
-            s.since = t;
-            continue;
-        }
-        const int64_t held = t - s.since;   // released: judge by hold time
-        s.since            = 0;
-        mark_activity();
         {
             std::lock_guard lk(g_mtx);
+            if (g_app.sleeping()) continue;
+            auto& s = pin == board::pins::btn_tare ? g_tare_button : g_mode_button;
+            const auto action = s.push(
+                gpio_get_level(static_cast<gpio_num_t>(pin)) == 0,
+                scale::clock_ms{t});
+            if (action == scale::button_press::action::none) continue;
+            mark_activity();
             if (pin == board::pins::btn_tare) {
-                if (held >= 800) {
-                    g_app.tare_long();
+                if (action == scale::button_press::action::long_press) {
+                    g_app.tare_long(scale::clock_ms{t});
                     raw_event("tare_long");
                 } else {
                     g_app.tare();
                     raw_event("tare");
                 }
-            } else if (held < 800) {
+            } else if (action == scale::button_press::action::short_press) {
                 g_app.next_mode();
                 raw_event("mode");
             }
@@ -455,6 +447,12 @@ const ble::source s_ble_src = {
 };
 
 void enter_sleep() {
+    {
+        std::lock_guard lk(g_mtx);
+        g_app.prepare_sleep(scale::clock_ms{esp_timer_get_time() / 1000});
+        g_tare_button.reset();
+        g_mode_button.reset();
+    }
     ESP_LOGI(kTag, "idle — low power (double-tap / MODE to wake)");
     beep(80);
 
@@ -519,6 +517,15 @@ void enter_sleep() {
             ESP_LOGW(kTag, "adc power_up failed: errc %d",
                      static_cast<int>(r.error()));
         }
+    }
+    {
+        std::lock_guard lk(g_mtx);
+        xQueueReset(g_btn_q);
+        g_tare_button.reset(
+            gpio_get_level(static_cast<gpio_num_t>(board::pins::btn_tare)) == 0);
+        g_mode_button.reset(
+            gpio_get_level(static_cast<gpio_num_t>(board::pins::btn_mode)) == 0);
+        g_app.wake(scale::clock_ms{esp_timer_get_time() / 1000});
     }
     // gpio_wakeup_enable reprogrammed the pins to level mode — restore the
     // awake-time edge interrupts and re-unmask the ISRs.
@@ -719,6 +726,11 @@ proto::state ble_snapshot(void*) {
 void ble_command(void*, const proto::command& cmd) {
     mark_activity();
     if (cmd.o == proto::op::sleep) {
+        std::lock_guard lk(g_mtx);
+        if (g_app.sleeping()) return;
+        // Freeze immediately: power_task may be up to a second away,
+        // and a queued web auto-timer command must not start a brew then.
+        g_app.prepare_sleep(scale::clock_ms{esp_timer_get_time() / 1000});
         g_sleep_request.store(true, std::memory_order_relaxed);
         return;
     }
@@ -726,13 +738,14 @@ void ble_command(void*, const proto::command& cmd) {
     bool               save_cal = false;   // an NVS write is too slow
     {                                        // to hold g_mtx through it
         std::lock_guard lk(g_mtx);
+        if (g_app.sleeping()) return;
         switch (cmd.o) {
             case proto::op::tare:
                 g_app.tare();
                 raw_event("tare");
                 break;
             case proto::op::timer_toggle:
-                g_app.tare_long();   // long-press equivalent: toggles brew timer
+                g_app.tare_long(scale::clock_ms{esp_timer_get_time() / 1000});
                 raw_event("timer_toggle");
                 break;
             case proto::op::timer_reset:

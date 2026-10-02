@@ -41,6 +41,86 @@ TEST_CASE("app: tare_long only acts in brew mode") {
     CHECK(a.state().timer_state == brew_timer::state::idle);
 }
 
+TEST_CASE("app: sleeping idle brew rejects late starts and wakes at zero") {
+    app a;
+    a.next_mode();
+    a.feed(0, clock_ms{1000});
+    a.prepare_sleep(clock_ms{2000});
+    CHECK(a.sleeping());
+    // A queued web auto-timer or button event arrives during teardown.
+    a.tare_long();
+    a.tare_long(clock_ms{2100});
+    a.feed(0, clock_ms{1'802'000});
+    CHECK(a.state().timer_state == brew_timer::state::idle);
+    CHECK(a.state().timer_elapsed == clock_ms{0});
+    a.wake(clock_ms{1'802'000});
+    CHECK(!a.sleeping());
+    CHECK(a.state().m == app::mode::brew);
+    CHECK(a.state().timer_state == brew_timer::state::idle);
+    CHECK(a.state().timer_elapsed == clock_ms{0});
+    // A genuine post-wake command, before the first new ADC sample,
+    // starts at wake time instead of the last pre-sleep sample's time.
+    a.tare_long();
+    a.feed(0, clock_ms{1'803'000});
+    CHECK(a.state().timer_elapsed == clock_ms{1000});
+}
+
+TEST_CASE("app: sleep freezes a running brew and requires explicit resume") {
+    app a;
+    a.next_mode();
+    a.feed(0, clock_ms{1000});
+    a.tare_long();
+    a.feed(0, clock_ms{4000});
+    a.prepare_sleep(clock_ms{5000});
+    CHECK(a.state().timer_state == brew_timer::state::paused);
+    CHECK(a.state().timer_elapsed == clock_ms{4000});
+    a.prepare_sleep(clock_ms{5100});  // actual entry after the request
+    a.tare_long(clock_ms{5200});       // cannot resume during teardown
+    a.wake(clock_ms{605000});
+    a.feed(0, clock_ms{605500});
+    CHECK(a.state().timer_state == brew_timer::state::paused);
+    CHECK(a.state().timer_elapsed == clock_ms{4000});
+    a.tare_long(clock_ms{606000});
+    a.feed(0, clock_ms{608000});
+    CHECK(a.state().timer_elapsed == clock_ms{6000});
+    a.prepare_sleep(clock_ms{608000});
+    a.wake(clock_ms{1'208'000});
+    CHECK(a.state().timer_state == brew_timer::state::paused);
+    CHECK(a.state().timer_elapsed == clock_ms{6000});
+}
+
+TEST_CASE("app: already paused and weigh timers survive sleep unchanged") {
+    app a;
+    a.next_mode();
+    a.feed(0, clock_ms{1000});
+    a.tare_long();
+    a.feed(0, clock_ms{2000});
+    a.tare_long();
+    a.prepare_sleep(clock_ms{3000});
+    a.wake(clock_ms{903000});
+    CHECK(a.state().timer_state == brew_timer::state::paused);
+    CHECK(a.state().timer_elapsed == clock_ms{1000});
+    a.next_mode();
+    a.prepare_sleep(clock_ms{904000});
+    a.wake(clock_ms{1'804'000});
+    CHECK(a.state().m == app::mode::weigh);
+    CHECK(a.state().timer_state == brew_timer::state::idle);
+    CHECK(a.state().timer_elapsed == clock_ms{0});
+}
+
+TEST_CASE("app: timer commands use arrival time independently of ADC time") {
+    app a;
+    a.next_mode();
+    a.feed(0, clock_ms{1000});
+    a.tare_long(clock_ms{1'801'000});
+    CHECK(a.state().timer_elapsed == clock_ms{0});
+    a.feed(0, clock_ms{1'801'500});
+    CHECK(a.state().timer_elapsed == clock_ms{500});
+    a.tare_long(clock_ms{1'802'000});
+    CHECK(a.state().timer_state == brew_timer::state::paused);
+    CHECK(a.state().timer_elapsed == clock_ms{1000});
+}
+
 TEST_CASE("brew_timer: start/pause/resume/elapsed") {
     brew_timer t;
     t.toggle(clock_ms{1000});            // idle -> start

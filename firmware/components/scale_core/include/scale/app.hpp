@@ -34,6 +34,7 @@ public:
     /// timer APIs (e.g. esp_timer_get_time()/1000 on target, steady_clock in
     /// tests/sim). Also feeds the flow/zero-track time axis — keep it real.
     void feed(std::int32_t counts, clock_ms now) {
+        if (sleeping_) return;
         scale_.push(counts, now);
         now_ = now;
     }
@@ -48,10 +49,36 @@ public:
 
     /// TARE (long press): in brew mode toggles the timer; elsewhere ignored.
     void tare_long() {
-        if (mode_ == mode::brew) {
+        if (!sleeping_ && mode_ == mode::brew) {
             timer_.toggle(now_);
         }
     }
+
+    /// Hardware commands use their arrival time, even before the first
+    /// ADC conversion after wake. Sim/replay may use the injected feed time.
+    void tare_long(clock_ms now) {
+        if (sleeping_) return;
+        now_ = now;
+        tare_long();
+    }
+
+    /// Freeze at the sleep request, before peripherals are torn down.
+    /// Idle stays idle; a running timer pauses and retains its elapsed time.
+    void prepare_sleep(clock_ms now) {
+        if (sleeping_) return;
+        now_ = now;
+        timer_.pause(now);
+        sleeping_ = true;
+    }
+
+    /// Resume the model clock before enabling controls or BLE. The timer
+    /// stays idle/paused until the user explicitly starts/resumes it.
+    void wake(clock_ms now) {
+        now_ = now;
+        sleeping_ = false;
+    }
+
+    [[nodiscard]] bool sleeping() const { return sleeping_; }
 
     /// Reset the brew timer to 0:0.0 in any mode (does not touch tare).
     void timer_reset() { timer_.reset(); }
@@ -108,6 +135,7 @@ private:
     unit       unit_ = unit::gram;
     mode       mode_ = mode::weigh;
     clock_ms   now_{0};
+    bool       sleeping_ = false;
 };
 
 } // namespace scale
