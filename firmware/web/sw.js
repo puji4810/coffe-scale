@@ -3,6 +3,11 @@
 // with a hash of the assembled assets, so any content change produces a
 // new sw.js and browsers pick it up on the next update check.
 const CACHE = 'coffee-scale-__BUILD__';
+// OCR vendor assets (~49 MB) live in a version-independent cache that
+// survives app updates — they are the dominant download and must not be
+// evicted every deploy. Bump the name only to purge stale models; the
+// vendor/ocr/vN/ path versioning means old entries simply go unused.
+const OCR_CACHE = 'coffee-scale-ocr-2';
 const ASSETS = [
   './',
   './index.html',
@@ -37,7 +42,8 @@ self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
-        keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+        keys.filter(k => k !== CACHE && k !== OCR_CACHE)
+            .map(k => caches.delete(k))))
       .then(() => self.clients.claim()));
 });
 
@@ -57,13 +63,17 @@ self.addEventListener('fetch', e => {
     return;
   }
   // Big lazy assets (vendor/ort wasm runtime, vendor/ocr models) are NOT in
-  // the precache — they download on first scan use, then this populates the
-  // cache so subsequent scans are offline/instant.
+  // the precache — they download on first scan use, then land in OCR_CACHE
+  // which outlives app-version caches so redeploys don't re-download ~49 MB.
+  const ocrAsset = url.pathname.startsWith(
+      new URL('./vendor/ort/', location.href).pathname) ||
+      url.pathname.startsWith(
+      new URL('./vendor/ocr/', location.href).pathname);
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then(hit =>
+    caches.match(e.request).then(hit =>
       hit || fetch(e.request).then(res => {
         if (res.ok) {
-          const put = caches.open(CACHE)
+          const put = caches.open(ocrAsset ? OCR_CACHE : CACHE)
             .then(c => c.put(e.request, res.clone()));
           e.waitUntil(put);
         }

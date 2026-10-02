@@ -27,7 +27,7 @@ cp dist/scale_screen.mjs dist/scale_screen.wasm "$OUT/dist/"
 for d in ort ocr; do
     if [ -d "vendor/$d" ]; then
         mkdir -p "$OUT/vendor/$d"
-        cp "vendor/$d"/* "$OUT/vendor/$d/"
+        cp -r "vendor/$d/." "$OUT/vendor/$d/"
     else
         echo "warn: vendor/$d missing — run web/fetch_ocr.sh for label OCR" >&2
     fi

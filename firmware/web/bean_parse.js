@@ -107,8 +107,127 @@ const pick = (lines, table) => {
     return null;
 };
 
+// --- domain lexicon correction -------------------------------------------------
+// Coffee labels are a closed vocabulary. OCR misreads ("耶咖雪菲",
+// "GESCHA", "水诜") snap to known terms BEFORE keyword matching — this is
+// the domain knowledge a CTC model lacks. Conservative on purpose: a wrong
+// correction costs more than a missed one, so tolerances stay at
+// ~1 edit per ~4 chars.
+const LEXICON = [
+    // origins / regions
+    '耶加雪菲', '西达摩', '古姬', '花魁', '果丁丁', '科契尔', '乌拉嘎', '罕贝拉',
+    '班奇马吉', '卡法', '利姆', '西达玛', '沃卡', '雪冽图', '巴拿马',
+    '埃塞俄比亚', '肯尼亚', '哥伦比亚', '危地马拉', '哥斯达黎加', '洪都拉斯',
+    '萨尔瓦多', '巴西', '秘鲁', '卢旺达', '坦桑尼亚', '牙买加', '印度尼西亚',
+    '曼特宁', '云南', '巴布亚新几内亚', '夏威夷', '墨西哥', '蓝山',
+    // estates / stations
+    '翡翠庄园', '黛博拉', '黛博拉庄园', '哈特曼', '哈特曼庄园', '艾丽达',
+    '艾利达', '艾丽达庄园', '瑰夏村', '圣塔玛丽亚', '圣妮莎', '柏林娜',
+    '卡门庄园', '骡子庄园', '詹森庄园', '索菲亚庄园', '极光庄园',
+    '圣特雷莎', '天堂庄园', '希望庄园', '分界线庄园', '云雾庄园',
+    '棕榈树与大嘴鸟', '果丁丁处理站', '科契尔处理站',
+    // varieties
+    '瑰夏', '帕卡马拉', '粉波旁', '黄波旁', '红波旁', '波旁', '卡杜艾',
+    '卡杜拉', '卡蒂姆', '卡斯蒂略', '铁皮卡', '原生种', '帕卡斯',
+    '薇拉萨奇', '新世界', '马拉戈吉佩', '尤金尼奥德斯', '希爪', '奇洛索',
+    '塔比', '帕帕拉', '苏丹汝梅', '摩卡', '可娜',
+    // process words ≥3 chars (2-char ones stay regex-only — too risky to snap)
+    '厌氧日晒', '水洗厌氧', '双重厌氧', '蜜处理', '葡萄干处理', '酒桶发酵',
+    '湿刨', '冷发酵', '热冲击', '乳酸发酵', '二氧化碳浸渍',
+    // label vocabulary
+    '庄园', '处理站', '合作社', '竞标', '批次', '微批次', '瑰夏种',
+    // latin (uppercase-insensitive)
+    'GESHA', 'GEISHA', 'HEIRLOOM', 'BOURBON', 'CATURRA', 'CATUAI', 'TYPICA',
+    'PACAMARA', 'PACAS', 'MARAGOGIPE', 'WASHED', 'NATURAL', 'HONEY',
+    'ANAEROBIC', 'ESTATE', 'FINCA', 'HACIENDA', 'YIRGACHEFFE', 'GUJI',
+    'SIDAMO', 'SIDAMA', 'KENYA', 'PANAMA', 'ETHIOPIA', 'COLOMBIA',
+    'MANDHELING', 'YUNNAN', 'HONDURAS', 'SALVADOR', 'BRAZIL', 'PERU',
+    'GEISHA VILLAGE', 'ESMERALDA', 'HARTMANN', 'ELIDA', 'DEBORAH',
+    'SANTA MARIA', 'JANSON', 'LAMASTUS', 'GRAND CRU', 'MICROLOT',
+];
+const CJK_TERMS = LEXICON.filter(t => /[一-鿿]/.test(t) && [...t].length >= 3)
+    .sort((a, b) => [...b].length - [...a].length);
+const LAT_TERMS = LEXICON.filter(t => !/[一-鿿]/.test(t));
+const LAT_WORD_TERMS = LAT_TERMS.filter(t => !t.includes(' '));
+const LAT_PAIR_TERMS = LAT_TERMS.filter(t => t.includes(' '));
+
+// Extra terms come from the user's own bean library — their names, brands
+// and estates are the most likely words on the labels they actually scan.
+function termLists(extra) {
+    if (!extra?.length) return [CJK_TERMS, LAT_WORD_TERMS, LAT_PAIR_TERMS];
+    const cjk = new Set(CJK_TERMS), lat = new Set(LAT_TERMS);
+    for (const t0 of extra) {
+        const t = String(t0 || '');
+        for (const run of t.match(/[一-鿿]+/g) || [])
+            if ([...run].length >= 3) cjk.add(run);
+        for (const w of t.match(/[A-Za-z]{3,}(?:\s+[A-Za-z]{3,})?/g) || [])
+            lat.add(w);
+    }
+    return [[...cjk].sort((a, b) => [...b].length - [...a].length),
+            [...lat].filter(t => !t.includes(' ')),
+            [...lat].filter(t => t.includes(' '))];
+}
+
+function editDist(a, b) {
+    const A = [...a], B = [...b];
+    let prev = Array.from({ length: B.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= A.length; i++) {
+        const cur = [i];
+        for (let j = 1; j <= B.length; j++)
+            cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1,
+                prev[j - 1] + (A[i - 1] === B[j - 1] ? 0 : 1));
+        prev = cur;
+    }
+    return prev[B.length];
+}
+
+// Snap OCR output toward the lexicon (+ caller's bean library terms).
+// Mutates nothing — returns the text to use for parsing/display; callers
+// keep the raw OCR in `l.raw`.
+export function fixLine(text, extraTerms = []) {
+    const [cjkTerms, latWords, latPairs] = termLists(extraTerms);
+    let s = String(text);
+    // latin: two-word terms first ('GEISHA VILLAGE', 'SANTA MARIA'), then
+    // single words — so 'YUNNAN GESCHA' still fixes the second word
+    const latSnap = terms => w => {
+        let best = null, bd = Infinity;
+        for (const t of terms) {
+            const d = editDist(w.toUpperCase(), t.toUpperCase());
+            if (d < bd) { bd = d; best = t; }
+        }
+        return best && bd <= (w.length >= 7 ? 2 : 1) ? best : w;
+    };
+    s = s.replace(/[A-Za-z]{3,}\s+[A-Za-z]{3,}/g, latSnap(latPairs));
+    s = s.replace(/[A-Za-z]{3,}/g, latSnap(latWords));
+    // CJK: slide a same-length window, snap near-misses once per term
+    const chars = [...s], n = chars.length, busy = new Array(n).fill(false);
+    for (const t of cjkTerms) {
+        const tc = [...t], L = tc.length, tol = L >= 5 ? 2 : 1;
+        for (let i = 0; i + L <= n; i++) {
+            if (busy.slice(i, i + L).some(Boolean)) continue;
+            const w = chars.slice(i, i + L).join('');
+            const d = w === t ? 0 : editDist(w, t);
+            if (d <= tol) {
+                chars.splice(i, L, ...tc);
+                busy.fill(true, i, i + L);
+                break;
+            }
+        }
+    }
+    return chars.join('');
+}
+
 export function parseBeanLabel(lines, { brands = [], beans = [] } = {}) {
     const usable = lines.filter(l => l.text && l.text.trim().length >= 1 && l.score >= 0.4);
+    // lexicon + bean-library snap: corrected text drives parsing/display,
+    // raw kept in l.raw
+    const lib = [...brands];
+    for (const b of beans)
+        lib.push(b.name, b.brand, b.estate, b.variety, b.process);
+    for (const l of usable) {
+        const f = fixLine(l.text, lib);
+        if (f !== l.text) { l.raw = l.raw || l.text; l.text = f; }
+    }
     const used = usable.map(l => ({ line: l, as: null }));
     const fields = { name: '', brand: '', process: '', variety: '', estate: '', note: '' };
     const notes = [];
@@ -168,16 +287,31 @@ export function parseBeanLabel(lines, { brands = [], beans = [] } = {}) {
         if (FLAVOR.test(l.text) && norm(l.text).length >= 3) { notes.push(l.text.trim()); tag(l, 'note'); continue; }
         if (GRADE.test(l.text)) { notes.push(`等级 ${l.text.match(GRADE)[0].toUpperCase()}`); tag(l, 'note'); }
     }
-    fields.note = [...new Set(notes)].join('；').slice(0, 200);
+    fields.note = [...new Set(notes)].join('；');
 
-    // match existing beans by name similarity against any line / full text
+    // match existing beans: name similarity vs the whole label and vs any
+    // single line is the primary signal. A brand found on the label plus
+    // agreeing parsed fields (variety/process/estate) add corroborating
+    // bonuses — enough to rescue a marginal name, never enough to invent
+    // a match from nothing (gate: sName must reach 0.35 first).
     const full = usable.map(l => l.text).join(' ');
+    const nFull = norm(full);
     const matches = beans.map(b => {
-        let s = sim(b.name, full);
-        for (const l of usable) s = Math.max(s, sim(b.name, l.text));
-        if (b.brand) s = Math.max(s, Math.min(1, sim(b.name, full) * (allBrands.includes(b.brand) ? 1.05 : 1)));
-        return { bean: b, s };
-    }).filter(m => m.s >= 0.55).sort((a, b) => b.s - a.s).slice(0, 3);
+        let sName = sim(b.name, full);
+        for (const l of usable) sName = Math.max(sName, sim(b.name, l.text));
+        const brandHit = !!(b.brand && (
+            nFull.includes(norm(b.brand)) ||
+            sim(b.brand, fields.brand) >= 0.5 ||
+            usable.some(l => sim(b.brand, l.text) >= 0.7)));
+        let agree = 0;
+        if (b.variety && fields.variety && sim(b.variety, fields.variety) >= 0.6) agree++;
+        if (b.process && fields.process && sim(b.process, fields.process) >= 0.6) agree++;
+        if (b.estate && fields.estate && sim(b.estate, fields.estate) >= 0.6) agree++;
+        const s = sName >= 0.35
+            ? Math.min(1, sName + (brandHit ? 0.18 : 0) + agree * 0.06)
+            : sName;
+        return { bean: b, s, brandHit, agree };
+    }).filter(m => m.s >= 0.5).sort((a, b) => b.s - a.s).slice(0, 3);
 
     return { fields, matches, used };
 }

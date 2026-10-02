@@ -240,23 +240,42 @@ idf.py -B build-esp32s3 build flash
   the screen on while connected.
   `scan.js` + `ocr_worker.js` + `ocr_pp.js` + `bean_parse.js` = the
   bean-page 扫标签 scanner: phone camera (getUserMedia, live text-box
-  overlay ~1 Hz) → tap 识别 → PP-OCRv4 det+rec entirely on-device in a
+  overlay ~1 Hz) → tap 识别 → PP-OCRv5 det+rec entirely on-device in a
   module worker via vendored `onnxruntime-web` (`['webgpu','wasm']` EPs,
-  i.e. WebGPU with WASM fallback; ~42 MB lazy-downloaded on first open,
-  SW-cache populated on miss so later scans work offline), no data ever
-  leaves the phone. `ocr_pp.js` is pure postprocess (DB binarize →
+  i.e. WebGPU with WASM fallback; ~49 MB lazy-downloaded on first open),
+  no data ever leaves the phone. Weak lines (score<0.55) retry inverted
+  (light-on-dark bags) then get a second opinion from lazily-fetched
+  PP-OCRv4 rec — v4 reads italic/decorative latin that v5 drops.
+  `ocr_pp.js` is pure postprocess (DB binarize →
   8-conn components → hull → min-area rect → unclip → homography crop →
-  CTC decode over `keys.txt` = blank+6623+space). `bean_parse.js` maps
-  lines → bean fields via keyword tables (process/variety/origin/
-  net-wt/roast-date) + fuzzy-matches the bean library; tapping a raw
-  line fills the focused field. The 已存在 chip selects a matched bean
-  instead of duplicating. `fetch_ocr.sh` pulls
-  `vendor/ort` (ort.webgpu.min.mjs + asyncify wasm) and `vendor/ocr`
-  (PP-OCRv4 det/rec ONNX from HF SWHL/RapidOCR + ppocr_keys_v1.txt) —
-  gitignored, fetched again in the pages.yml workflow; site.sh ships
-  them when present and the scanner reports a missing-model error
-  otherwise. `ocr_test.mjs` = node tests: pure postprocess/parse always,
-  real-model e2e when `onnxruntime-node` is resolvable.
+  CTC decode over the v5 dict, blank+18383). `bean_parse.js` first
+  snaps each line to a closed-domain LEXICON via fixLine() (~150
+  coffee terms — estates/origins/varieties/processes — PLUS every
+  name/brand/estate/variety/process string in the user's bean library;
+  CJK sliding-window + latin per-word, ~1 edit per ~4 chars; raw OCR
+  kept in `l.raw`, shown with a 改 marker) — that vocabulary IS the
+  semantic layer a CTC model
+  lacks; then maps lines → bean fields via keyword tables
+  (process/variety/origin/
+  net-wt/roast-date) + fuzzy-matches the bean library (name-similarity
+  primary, brand-on-label + agreeing fields as gated bonuses; chips show
+  the score); tapping a raw line fills the focused field. The 已存在
+  chip selects a matched bean instead of duplicating. Worker resilience:
+  every ort.Tensor in the det/rec paths is dispose()d (leaked tensors
+  OOM the WASM heap after repeated scans), every request carries a
+  watchdog timer (detect 25 s / read 90 s), and worker onerror or a
+  timeout terminates + respawns it — never let "识别中…" pin forever.
+  `fetch_ocr.sh` pulls `vendor/ort` (ort.webgpu.min.mjs + asyncify wasm)
+  and `vendor/ocr/v5/` (PP-OCRv5 det/rec ONNX from HF PaddlePaddle org +
+  ppocrv5_dict + PP-OCRv4 rec4/keys4) and writes `manifest.json` with
+  real byte sizes — content-length under gzip reports transfer size, not
+  the decoded bytes progress counts. All gitignored, fetched again in
+  the pages.yml workflow; site.sh ships them when present. The `v5/`
+  path IS the model version and `sw.js` keeps vendor/ort|ocr in a
+  persistent `OCR_CACHE` that app-update cache-busting never evicts —
+  bump the cache name to purge stale models. `ocr_test.mjs` = node
+  tests: pure postprocess/parse always, real-model e2e when
+  `onnxruntime-node` is resolvable.
   `smoke.mjs` +
   `ble_test.mjs` = node tests. Pages setup: repo Settings → Pages →
   Source: GitHub Actions.

@@ -11,17 +11,28 @@
 import * as PP from './ocr_pp.js';
 
 const ORT_MJS  = './vendor/ort/ort.webgpu.min.mjs';
-const ORT_BIN  = [ // prefetched for progress + SW cache warm; ort fetches again
-    './vendor/ort/ort-wasm-simd-threaded.asyncify.mjs',
-    './vendor/ort/ort-wasm-simd-threaded.asyncify.wasm',
-];
+const OCR_DIR  = './vendor/ocr/v5';   // dir name = model version
 const ASSETS = {
-    det:  './vendor/ocr/det.onnx',
-    rec:  './vendor/ocr/rec.onnx',
-    keys: './vendor/ocr/keys.txt',
+    det:  `${OCR_DIR}/det.onnx`,      // PP-OCRv5 mobile
+    rec:  `${OCR_DIR}/rec.onnx`,
+    keys: `${OCR_DIR}/keys.txt`,
+    rec4: `${OCR_DIR}/rec4.onnx`,     // PP-OCRv4 rec — second opinion for
+    keys4: `${OCR_DIR}/keys4.txt`,    // weak lines (italic/display fonts)
+    sizes: `${OCR_DIR}/manifest.json`,
 };
+// warm-download set, in manifest-key form (path relative to web root)
+const WARM = [
+    'vendor/ort/ort.webgpu.min.mjs',
+    'vendor/ort/ort-wasm-simd-threaded.asyncify.mjs',
+    'vendor/ort/ort-wasm-simd-threaded.asyncify.wasm',
+    'vendor/ocr/v5/det.onnx',
+    'vendor/ocr/v5/rec.onnx',
+    'vendor/ocr/v5/keys.txt',
+];
+const FALLBACK_TOTAL = 49e6;          // if manifest.json is absent
 
 let ort = null, detSess = null, recSess = null, keys = null;
+let rec4Sess = null, keys4 = null, rec4Loading = null;
 let warming = null;
 
 const post = m => self.postMessage(m);
@@ -45,31 +56,34 @@ async function fetchBuf(url, onBytes) {
 }
 
 // One-time lazy load: ort runtime + models, with byte-level progress.
+// The total comes from manifest.json — content-length under compression
+// reports the TRANSFER size while we count DECODED bytes, so it lies.
 function warm() {
     if (warming) return warming;
     warming = (async () => {
-        const files = [...ORT_BIN, ASSETS.det, ASSETS.rec, ASSETS.keys];
-        const sizes = new Map(), got = new Map();
-        const onBytes = (f, g, t) => {
-            got.set(f, g); if (t) sizes.set(f, t);
-            let G = 0, T = 0;
-            for (const f2 of files) { G += got.get(f2) || 0; T += sizes.get(f2) || 0; }
-            post({ t: 'progress', got: G, total: T });
+        let sizes = {};
+        try {
+            sizes = await (await fetch(ASSETS.sizes)).json();
+        } catch { /* manifest optional */ }
+        const total = WARM.reduce((s, f) => s + (sizes[f] || 0), 0)
+                      || FALLBACK_TOTAL;
+        const got = new Map();
+        const track = f => (g) => {
+            got.set(f, g);
+            let G = 0;
+            for (const v of got.values()) G += v;
+            post({ t: 'progress', got: G, total });
         };
-        // prefetch the wasm binaries through the SW cache so ort's own
-        // internal fetch (which can't report progress) is a cache hit
-        for (const f of ORT_BIN) await fetchBuf(f, (g, t) => onBytes(f, g, t));
+        // prefetch the mjs glue + wasm binaries so ort's own internal
+        // fetch (which can't report progress) is a cache hit
+        for (const f of WARM.slice(0, 3)) await fetchBuf('./' + f, track(f));
         ort = await import(ORT_MJS);
         ort.env.logLevel = 'warning';
         ort.env.wasm.wasmPaths = new URL('./vendor/ort/', import.meta.url).href;
 
-        const keysTxt = await fetchBuf(ASSETS.keys, (g, t) => onBytes(ASSETS.keys, g, t));
-        keys = new TextDecoder().decode(keysTxt)
-            .split('\n').map(s => s.replace(/\r$/, ''));
-        if (keys.length && keys[keys.length - 1] === '') keys.pop();
-        // ppocr class space = blank + keys + ' '
+        keys = decodeKeys(await fetchBuf(ASSETS.keys, track(WARM[5])));
         for (const [name, url] of [['det', ASSETS.det], ['rec', ASSETS.rec]]) {
-            const buf = await fetchBuf(url, (g, t) => onBytes(url, g, t));
+            const buf = await fetchBuf(url, track(url.slice(2)));
             post({ t: 'progress', building: name });
             const sess = await ort.InferenceSession.create(buf, {
                 executionProviders: ['webgpu', 'wasm'],
@@ -85,6 +99,68 @@ function warm() {
     return warming;
 }
 
+// ppocr class space = blank + keys + ' '
+function decodeKeys(buf) {
+    const k = new TextDecoder().decode(buf)
+        .split('\n').map(s => s.replace(/\r$/, ''));
+    if (k.length && k[k.length - 1] === '') k.pop();
+    return k;
+}
+
+// PP-OCRv4 rec — downloaded only when a weak line first needs a second
+// opinion, so the common case never pays the extra ~11 MB.
+function ensureRec4() {
+    rec4Loading ??= (async () => {
+        keys4 = decodeKeys(await fetchBuf(ASSETS.keys4));
+        const buf = await fetchBuf(ASSETS.rec4);
+        rec4Sess = await ort.InferenceSession.create(buf, {
+            executionProviders: ['webgpu', 'wasm'],
+            graphOptimizationLevel: 'all',
+        });
+    })();
+    return rec4Loading;
+}
+
+async function recRun(sess, keyset, inp) {
+    const t = new ort.Tensor('float32', inp.data, [1, 3, 48, inp.W]);
+    const out = await sess.run({ [sess.inputNames[0]]: t });
+    const lg = out[sess.outputNames[0]];
+    const r = PP.ctcDecode(lg.data, lg.dims[1], lg.dims[2], keyset);
+    t.dispose();
+    for (const k in out) out[k].dispose();
+    return r;
+}
+
+// One text box → best-effort text. Weak reads (<0.55) retry inverted
+// (light-on-dark labels) and then ask the v4 recognizer — it handles
+// italic/decorative latin that v5 drops.
+const WEAK = 0.55;
+async function readBox(rgba, w, h, b) {
+    const { pts } = b;
+    const wTop = Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]);
+    const hSide = Math.hypot(pts[3][0] - pts[0][0], pts[3][1] - pts[0][1]);
+    const pw = Math.max(8, Math.round(wTop)), ph = Math.max(8, Math.round(hSide));
+    const patch = PP.warpQuad(rgba, w, h, pts, pw, ph);
+
+    let best = await recRun(recSess, keys, PP.recInput(patch, pw, ph));
+    if (best.score < WEAK) {
+        const r = await recRun(recSess, keys,
+            PP.recInput(PP.invertPatch(patch), pw, ph));
+        if (r.score > best.score) best = r;
+    }
+    if (best.score < WEAK) {
+        try {
+            await ensureRec4();
+            for (const p of [patch, PP.invertPatch(patch)]) {
+                const r = await recRun(rec4Sess, keys4,
+                    PP.recInput(p, pw, ph));
+                if (r.score > best.score) best = r;
+            }
+        } catch { /* second opinion is optional */ }
+    }
+    return best;
+}
+
 function runDet(w, h, rgba) {
     const inp = PP.detInput(rgba, w, h);
     const t = new ort.Tensor('float32', inp.data, [1, 3, inp.H, inp.W]);
@@ -93,6 +169,8 @@ function runDet(w, h, rgba) {
         const boxes = PP.findTextBoxes(prob.data, inp.W, inp.H)
             .map(b => ({ pts: PP.scaleQuad(b.pts, 1 / inp.sx, 1 / inp.sy),
                          score: b.score }));
+        t.dispose();
+        for (const k in out) out[k].dispose();
         return boxes;
     });
 }
@@ -124,19 +202,9 @@ self.onmessage = async e => {
             const boxes = readOrder(await runDet(m.w, m.h, rgba)).slice(0, 24);
             const lines = [];
             for (const b of boxes) {
-                const { pts } = b;
-                const wTop = Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]);
-                const hSide = Math.hypot(pts[3][0] - pts[0][0], pts[3][1] - pts[0][1]);
-                const pw = Math.max(8, Math.round(wTop)), ph = Math.max(8, Math.round(hSide));
-                const patch = PP.warpQuad(rgba, m.w, m.h, pts, pw, ph);
-                const inp = PP.recInput(patch, pw, ph);
-                const t = new ort.Tensor('float32', inp.data, [1, 3, 48, inp.W]);
-                const out = await recSess.run({ [recSess.inputNames[0]]: t });
-                const logits = out[recSess.outputNames[0]];
-                const T = logits.dims[1], C = logits.dims[2];
-                const { text, score } = PP.ctcDecode(logits.data, T, C, keys);
+                const { text, score } = await readBox(rgba, m.w, m.h, b);
                 if (text.trim()) lines.push({ text, score: +score.toFixed(3),
-                                              quad: pts.map(p => p.map(v => +v.toFixed(1))) });
+                    quad: b.pts.map(p => p.map(v => +v.toFixed(1))) });
             }
             post({ t: 'lines', id: m.id, lines,
                    ms: Math.round(performance.now() - t0) });

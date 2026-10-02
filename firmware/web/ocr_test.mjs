@@ -4,7 +4,7 @@
 // dir, symlinked into web/node_modules) plus vendored models — CI skips it.
 
 import * as PP from './ocr_pp.js';
-import { parseBeanLabel } from './bean_parse.js';
+import { parseBeanLabel, fixLine } from './bean_parse.js';
 import { inflateSync } from 'node:zlib';
 import { readFileSync, existsSync } from 'node:fs';
 
@@ -120,6 +120,13 @@ function decodePNG(buf) {
           `(${out[mid]},${out[mid + 1]})`);
 }
 
+{
+    const p = new Uint8Array([10, 20, 30, 255, 250, 240, 230, 255]);
+    const inv = PP.invertPatch(p);
+    check('invertPatch rgb', inv[0] === 245 && inv[1] === 235 && inv[2] === 225);
+    check('invertPatch keeps alpha + input', inv[3] === 255 && p[0] === 10);
+}
+
 // --- bean_parse unit tests -----------------------------------------------------
 
 {
@@ -142,16 +149,84 @@ function decodePNG(buf) {
     check('note has weight', /净含量\s*100/.test(r.fields.note), `(${r.fields.note})`);
     check('note has roast', /烘焙/.test(r.fields.note), `(${r.fields.note})`);
 
+    // notes must not be silently truncated — a long flavor line survives whole
+    const longFlavor = '风味 ' + '草莓玫瑰茉莉柑橘苹果梨桃杏葡萄莓果'.repeat(20);
+    const rl = parseBeanLabel([
+        { text: longFlavor, score: .9, quad: [[0,0],[300,0],[300,40],[0,40]] },
+    ], { beans: [] });
+    check('long note not truncated', rl.fields.note.length > 200,
+          `(${rl.fields.note.length} chars)`);
+
     const r2 = parseBeanLabel(
         [{ text: 'Torch 肯尼亚 AA 水洗豆', score: .9,
            quad: [[0,0],[200,0],[200,50],[0,50]] }],
         { brands: [], beans: [{ id: 7, name: '肯尼亚 AA 水洗', brand: 'Torch' }] });
     check('existing bean match', r2.matches.length > 0 && r2.matches[0].bean.id === 7,
           `(${r2.matches.map(m => m.bean.id)})`);
+
+    // corroborating evidence: same-brand beans, right one wins via name+fields
+    const lib = [
+        { id: 1, name: '耶加雪菲 水洗', brand: 'Torch', process: '水洗', variety: '原生种' },
+        { id: 2, name: '肯尼亚 AA 水洗', brand: 'Torch', process: '水洗', variety: 'SL28' },
+        { id: 3, name: '曼特宁 湿刨', brand: 'Other' },
+    ];
+    const r3 = parseBeanLabel([
+        { text: 'Torch Coffee', score: .9, quad: [[0,0],[200,0],[200,40],[0,40]] },
+        { text: '耶加雪菲水洗 G1', score: .9, quad: [[0,50],[220,50],[220,90],[0,90]] },
+    ], { brands: [], beans: lib });
+    check('brand+fields disambiguate',
+          r3.matches[0]?.bean.id === 1 && r3.matches[0].brandHit,
+          `(${r3.matches.map(m => `${m.bean.id}:${m.s.toFixed(2)}`)})`);
+    check('same-brand wrong bean not promoted',
+          !r3.matches.some(m => m.bean.id === 2),
+          `(${r3.matches.map(m => m.bean.id)})`);
+
+    // brand alone without any name overlap must not fabricate a match
+    const r4 = parseBeanLabel([
+        { text: 'Torch Coffee', score: .9, quad: [[0,0],[200,0],[200,40],[0,40]] },
+        { text: '水洗', score: .9, quad: [[0,50],[100,50],[100,80],[0,80]] },
+    ], { brands: [], beans: [{ id: 5, name: '日晒瑰夏', brand: 'Torch', process: '水洗' }] });
+    check('no name overlap → no match', !r4.matches.length,
+          `(${r4.matches.map(m => m.bean.id)})`);
+}
+
+// --- lexicon correction -----------------------------------------------------
+
+{
+    check('fixLine CJK misread', fixLine('耶咖雪菲 水洗豆') === '耶加雪菲 水洗豆',
+          `(${fixLine('耶咖雪菲 水洗豆')})`);
+    check('fixLine latin misread', fixLine('YUNNAN GESCHA') === 'YUNNAN GESHA',
+          `(${fixLine('YUNNAN GESCHA')})`);
+    check('fixLine multiword term', fixLine('GESCHA VILLAGE') === 'GEISHA VILLAGE',
+          `(${fixLine('GESCHA VILLAGE')})`);
+    check('fixLine leaves plain text', fixLine('今日发货 风味蓝莓') === '今日发货 风味蓝莓',
+          `(${fixLine('今日发货 风味蓝莓')})`);
+    check('fixLine keeps exact terms', fixLine('巴拿马 翡翠庄园') === '巴拿马 翡翠庄园');
+
+    // corrected lines flow into parsing + matching
+    const r = parseBeanLabel([
+        { text: '耶咖雪菲水洗', score: .9, quad: [[0,0],[200,0],[200,40],[0,40]] },
+    ], { beans: [{ id: 9, name: '耶加雪菲 水洗' }] });
+    check('corrected line parses', r.fields.process === '水洗',
+          `(${r.fields.process} / ${r.fields.name})`);
+    check('corrected line matches bean', r.matches[0]?.bean.id === 9,
+          `(${r.matches.map(m => m.bean.id)})`);
+
+    // bean-library terms join the lexicon
+    check('bean lib term snaps', fixLine('哥伦比亚惠兰庄园', ['哥伦比亚慧兰庄园']) ===
+          '哥伦比亚慧兰庄园',
+          `(${fixLine('哥伦比亚惠兰庄园', ['哥伦比亚慧兰庄园'])})`);
+    check('bean brand snaps', fixLine('MOKKE coffee', ['Mokka']) === 'Mokka coffee',
+          `(${fixLine('MOKKE coffee', ['Mokka'])})`);
+    const rb = parseBeanLabel([
+        { text: '哥伦比亚惠兰庄园', score: .9, quad: [[0,0],[200,0],[200,40],[0,40]] },
+    ], { beans: [{ id: 4, name: '哥伦比亚慧兰庄园', brand: 'Mokka' }] });
+    check('lib-corrected bean matches', rb.matches[0]?.bean.id === 4,
+          `(${rb.matches.map(m => `${m.bean.id}:${m.s.toFixed(2)}`)})`);
 }
 
 // --- optional end-to-end with real models ------------------------------------
-// Needs: vendor/ocr/* (fetch_ocr.sh), node_modules/onnxruntime-node, and a
+// Needs: vendor/ocr/v5/* (fetch_ocr.sh), node_modules/onnxruntime-node, and a
 // rendered label PNG at testdata/label.png (tools/make_test_label.py).
 
 const FIXTURE = new URL('./testdata/label.png', import.meta.url).pathname;
@@ -160,18 +235,18 @@ try { ortNode = (await import('onnxruntime-node')).default ?? await import('onnx
 catch { /* not installed */ }
 
 if (ortNode && existsSync(FIXTURE) && existsSync(
-    new URL('./vendor/ocr/det.onnx', import.meta.url).pathname)) {
+    new URL('./vendor/ocr/v5/det.onnx', import.meta.url).pathname)) {
     const { rgba, w, h } = decodePNG(readFileSync(FIXTURE));
     console.log(`e2e: ${w}x${h} fixture`);
     const keys = readFileSync(
-        new URL('./vendor/ocr/keys.txt', import.meta.url), 'utf8')
+        new URL('./vendor/ocr/v5/keys.txt', import.meta.url), 'utf8')
         .split('\n').map(s => s.replace(/\r$/, ''));
     if (keys.at(-1) === '') keys.pop();
 
     const det = await ortNode.InferenceSession.create(
-        new URL('./vendor/ocr/det.onnx', import.meta.url).pathname);
+        new URL('./vendor/ocr/v5/det.onnx', import.meta.url).pathname);
     const rec = await ortNode.InferenceSession.create(
-        new URL('./vendor/ocr/rec.onnx', import.meta.url).pathname);
+        new URL('./vendor/ocr/v5/rec.onnx', import.meta.url).pathname);
 
     const inp = PP.detInput(rgba, w, h);
     const t = new ortNode.Tensor('float32', inp.data, [1, 3, inp.H, inp.W]);
@@ -203,7 +278,7 @@ if (ortNode && existsSync(FIXTURE) && existsSync(
     check('e2e process', parsed.fields.process === '水洗',
           `(${parsed.fields.process})`);
 } else {
-    console.log('skip e2e — needs vendor/ocr/*, testdata/label.png, onnxruntime-node');
+    console.log('skip e2e — needs vendor/ocr/v5/*, testdata/label.png, onnxruntime-node');
 }
 
 if (failures) { console.error(`${failures} FAILED`); process.exit(1); }

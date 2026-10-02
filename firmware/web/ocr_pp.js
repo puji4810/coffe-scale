@@ -242,6 +242,18 @@ export function recInput(patch, w, h, maxW = 960) {
     return { data, W };
 }
 
+// Invert RGB channels of an RGBA patch — light-on-dark label text gets a
+// second chance as dark-on-light (the recognizer's training distribution).
+export function invertPatch(patch) {
+    const out = patch.slice();
+    for (let i = 0; i < out.length; i += 4) {
+        out[i] = 255 - out[i];
+        out[i + 1] = 255 - out[i + 1];
+        out[i + 2] = 255 - out[i + 2];
+    }
+    return out;
+}
+
 function rot90(src, w, h) {
     const out = new Uint8Array(w * h * 4);
     for (let y = 0; y < h; y++)
