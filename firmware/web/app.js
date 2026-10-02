@@ -9,6 +9,7 @@ import ScaleScreenFactory from './dist/scale_screen.mjs';
 import { ScaleChart, brewPlot } from './chart.js';
 import { ScaleLink } from './ble.js';
 import * as DB from './store.js';
+import { initScan } from './scan.js';
 
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js');
@@ -842,6 +843,24 @@ $('bean-form').addEventListener('submit', async e => {
     beanSel.value = String(id);
     openBeans.add(id);
     renderBeans();
+});
+
+// bean-label scanner: camera + on-device OCR (scan.js), models lazy-load on
+// first open; nothing here touches the BLE link or the scale's MCU.
+initScan({
+    toast,
+    getBrands,
+    listBeans: () => beanCache,
+    selectBean: id => {
+        beanSel.value = String(id);
+        toast(`已选择「${beanName(id)}」`);
+    },
+    addBean: async f => {
+        const id = await DB.beans.add({ ...f, dose: doseVal() });
+        beanSel.value = String(id);
+        openBeans.add(id);
+        await renderBeans();
+    },
 });
 
 beanSel.onchange = async () => {

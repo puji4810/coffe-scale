@@ -31,6 +31,8 @@ idf.py -B build-esp32s3 build                # -> coffee_scale.bin
 web/wasm/build.sh             # -> web/dist/{scale_core,scale_screen}.{mjs,wasm}
 cd web && node smoke.mjs      # headless check of both modules + proto bindings
 cd web && node ble_test.mjs   # ScaleLink reconnect/write-queue tests
+cd web && node ocr_test.mjs   # label-OCR postprocess/parse (+e2e if onnxruntime-node present)
+web/fetch_ocr.sh              # once: vendor/ort + vendor/ocr (~42 MB, gitignored)
 web/site.sh _site             # assemble the GitHub Pages site from dist/
 
 # firmware image + flash
@@ -235,7 +237,27 @@ idf.py -B build-esp32s3 build flash
   mid-brew reconnects align), saved-brew detail can overlay a second
   brew, and an "auto-timer on pour" toggle starts the clock on
   sustained >1.5 g/s flow (re-arm needs ~2 s quiet). Wake Lock keeps
-  the screen on while connected. `smoke.mjs` +
+  the screen on while connected.
+  `scan.js` + `ocr_worker.js` + `ocr_pp.js` + `bean_parse.js` = the
+  bean-page 扫标签 scanner: phone camera (getUserMedia, live text-box
+  overlay ~1 Hz) → tap 识别 → PP-OCRv4 det+rec entirely on-device in a
+  module worker via vendored `onnxruntime-web` (`['webgpu','wasm']` EPs,
+  i.e. WebGPU with WASM fallback; ~42 MB lazy-downloaded on first open,
+  SW-cache populated on miss so later scans work offline), no data ever
+  leaves the phone. `ocr_pp.js` is pure postprocess (DB binarize →
+  8-conn components → hull → min-area rect → unclip → homography crop →
+  CTC decode over `keys.txt` = blank+6623+space). `bean_parse.js` maps
+  lines → bean fields via keyword tables (process/variety/origin/
+  net-wt/roast-date) + fuzzy-matches the bean library; tapping a raw
+  line fills the focused field. The 已存在 chip selects a matched bean
+  instead of duplicating. `fetch_ocr.sh` pulls
+  `vendor/ort` (ort.webgpu.min.mjs + asyncify wasm) and `vendor/ocr`
+  (PP-OCRv4 det/rec ONNX from HF SWHL/RapidOCR + ppocr_keys_v1.txt) —
+  gitignored, fetched again in the pages.yml workflow; site.sh ships
+  them when present and the scanner reports a missing-model error
+  otherwise. `ocr_test.mjs` = node tests: pure postprocess/parse always,
+  real-model e2e when `onnxruntime-node` is resolvable.
+  `smoke.mjs` +
   `ble_test.mjs` = node tests. Pages setup: repo Settings → Pages →
   Source: GitHub Actions.
 - `partitions.csv` — dual OTA ~3.9 MB each; the `littlefs` slot is kept

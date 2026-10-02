@@ -13,13 +13,25 @@ for f in dist/scale_screen.mjs dist/scale_screen.wasm; do
 done
 
 mkdir -p "$OUT/vendor" "$OUT/dist" "$OUT/icons"
-cp index.html app.js ble.js chart.js store.js manifest.webmanifest sw.js .nojekyll "$OUT/"
+cp index.html app.js ble.js chart.js store.js scan.js ocr_worker.js \
+   ocr_pp.js bean_parse.js manifest.webmanifest sw.js .nojekyll "$OUT/"
 cp vendor/uPlot.iife.min.js vendor/uPlot.min.css vendor/logo.woff2 \
    vendor/barlow-semi-condensed-latin-400-normal.woff2 \
    vendor/barlow-semi-condensed-latin-500-normal.woff2 \
    vendor/barlow-semi-condensed-latin-600-normal.woff2 "$OUT/vendor/"
 cp icons/*.png "$OUT/icons/"
 cp dist/scale_screen.mjs dist/scale_screen.wasm "$OUT/dist/"
+
+# OCR assets are optional (web/fetch_ocr.sh): the label scanner reports a
+# missing-model error at runtime instead of breaking the rest of the app.
+for d in ort ocr; do
+    if [ -d "vendor/$d" ]; then
+        mkdir -p "$OUT/vendor/$d"
+        cp "vendor/$d"/* "$OUT/vendor/$d/"
+    else
+        echo "warn: vendor/$d missing — run web/fetch_ocr.sh for label OCR" >&2
+    fi
+done
 
 # Stamp the service-worker cache name with a hash of everything it will
 # precache — a changed asset => different sw.js => browser updates.

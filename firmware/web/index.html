@@ -512,6 +512,85 @@
   .dsec p { color: var(--dim); font-size: 13px; margin: 0 0 10px; }
   .dsec .row { display: flex; gap: 8px; flex-wrap: wrap; }
 
+  /* --- label scanner --------------------------------------------------------------------- */
+  #scan-ov {
+    position: fixed; inset: 0; z-index: 80; background: #000;
+  }
+  #scan-ov[hidden] { display: none; }
+  #scan-video {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  #scan-fx {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .scan-top {
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; gap: 10px;
+    padding: calc(8px + env(safe-area-inset-top)) 12px 24px;
+    background: linear-gradient(rgb(0 0 0 / .6), transparent);
+  }
+  #scan-status {
+    flex: 1; text-align: center; color: #fff; font-size: 13px;
+    text-shadow: 0 1px 3px #000; min-width: 0;
+  }
+  .scan-x {
+    min-width: 42px; background: rgb(0 0 0 / .45); color: #fff;
+    border-color: rgb(255 255 255 / .2); border-bottom-width: 1px;
+  }
+  .scan-x.on { background: var(--amber-fill); color: #1F2326; }
+  .scan-bottom {
+    position: absolute; left: 0; right: 0;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    display: flex; justify-content: center; gap: 14px;
+  }
+  .scan-bottom button {
+    min-width: 110px; min-height: 48px; border-radius: 24px;
+    background: rgb(0 0 0 / .5); color: #fff;
+    border: 1px solid rgb(255 255 255 / .35); border-bottom-width: 1px;
+    backdrop-filter: blur(6px);
+  }
+  #scan-read {
+    background: var(--amber-fill); border-color: transparent;
+    color: #1F2326; font-weight: 600;
+  }
+  #scan-panel {
+    position: absolute; left: 0; right: 0; bottom: 0; max-height: 64%;
+    overflow-y: auto; overscroll-behavior: contain;
+    background: var(--plate); border-radius: 14px 14px 0 0;
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 -8px 30px rgb(0 0 0 / .45);
+  }
+  #scan-panel[hidden] { display: none; }
+  .scan-fields {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px;
+  }
+  .scan-fields label { color: var(--dim); font-size: 12px; display: block; }
+  .scan-fields input {
+    width: 100%; margin-top: 3px; min-height: 36px; padding: 5px 9px;
+  }
+  .scan-fields .wide { grid-column: 1 / -1; }
+  #scan-lines, #scan-match { display: flex; flex-wrap: wrap; gap: 6px; }
+  .scan-line {
+    font-size: 13px; padding: 5px 10px; min-height: 32px;
+    border-radius: 999px; max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .scan-line.tagged { border-color: var(--green); }
+  .scan-line i {
+    font-style: normal; color: var(--green);
+    margin-left: 5px; font-size: 11px;
+  }
+  .scan-line.match { border-color: var(--amber-fill); }
+  #scan-panel .row { display: flex; gap: 10px; }
+  #scan-panel .row button { flex: 1; min-height: 44px; }
+  #scan-save {
+    background: var(--amber-fill); border-color: transparent;
+    color: #1F2326; font-weight: 600;
+  }
+
   /* --- toast ---------------------------------------------------------------------------- */
   #toast {
     position: fixed; left: 50%; bottom: calc(64px + env(safe-area-inset-bottom));
@@ -705,6 +784,7 @@
       <form id="bean-form">
         <input type="text" id="bean-name" placeholder="新豆子名称" autocomplete="off">
         <button type="submit" id="btn-addbean" disabled>添加</button>
+        <button type="button" id="btn-scan">扫标签</button>
       </form>
       <div class="brand-mgr">
         <span>常用品牌</span>
@@ -777,6 +857,38 @@
 </main>
 
 <div id="toast" role="status" aria-live="polite"></div>
+
+<!-- bean-label scanner: live camera + on-device OCR (lazy-loaded models) -->
+<div id="scan-ov" hidden>
+  <video id="scan-video" playsinline muted autoplay></video>
+  <canvas id="scan-fx"></canvas>
+  <canvas id="scan-cap" hidden></canvas>
+  <div class="scan-top">
+    <button id="scan-close" class="scan-x" aria-label="关闭">✕</button>
+    <span id="scan-status"></span>
+    <button id="scan-torch" class="scan-x" hidden title="补光灯" aria-label="补光灯">◐</button>
+  </div>
+  <div class="scan-bottom">
+    <button id="scan-file" type="button">相册</button>
+    <button id="scan-read" type="button">识别文字</button>
+  </div>
+  <div id="scan-panel" hidden>
+    <div class="scan-fields">
+      <label>名称<input id="scan-f-name" autocomplete="off"></label>
+      <label>品牌<input id="scan-f-brand" list="dl-brand" autocomplete="off"></label>
+      <label>处理法<input id="scan-f-process" list="dl-process" autocomplete="off"></label>
+      <label>豆种<input id="scan-f-variety" list="dl-variety" autocomplete="off"></label>
+      <label>庄园<input id="scan-f-estate" list="dl-estate" autocomplete="off"></label>
+      <label class="wide">备注<input id="scan-f-note" autocomplete="off"></label>
+    </div>
+    <div id="scan-match"></div>
+    <div id="scan-lines"></div>
+    <div class="row">
+      <button id="scan-again" type="button">重拍</button>
+      <button id="scan-save" type="button">保存为新豆子</button>
+    </div>
+  </div>
+</div>
 
 <script src="./vendor/uPlot.iife.min.js"></script>
 <script type="module" src="./app.js"></script>

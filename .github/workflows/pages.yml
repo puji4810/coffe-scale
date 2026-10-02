@@ -48,6 +48,10 @@ jobs:
         run: |
           node smoke.mjs
           node ble_test.mjs
+          node ocr_test.mjs
+
+      - name: fetch OCR models
+        run: firmware/web/fetch_ocr.sh
 
       - name: assemble site
         run: firmware/web/site.sh _site

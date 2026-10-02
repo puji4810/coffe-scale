@@ -10,6 +10,10 @@ const ASSETS = [
   './ble.js',
   './chart.js',
   './store.js',
+  './scan.js',
+  './ocr_worker.js',
+  './ocr_pp.js',
+  './bean_parse.js',
   './manifest.webmanifest',
   './vendor/uPlot.iife.min.js',
   './vendor/uPlot.min.css',
@@ -52,7 +56,17 @@ self.addEventListener('fetch', e => {
         caches.match('./index.html', { ignoreSearch: true })));
     return;
   }
+  // Big lazy assets (vendor/ort wasm runtime, vendor/ocr models) are NOT in
+  // the precache — they download on first scan use, then this populates the
+  // cache so subsequent scans are offline/instant.
   e.respondWith(
     caches.match(e.request, { ignoreSearch: true }).then(hit =>
-      hit || fetch(e.request)));
+      hit || fetch(e.request).then(res => {
+        if (res.ok) {
+          const put = caches.open(CACHE)
+            .then(c => c.put(e.request, res.clone()));
+          e.waitUntil(put);
+        }
+        return res;
+      })));
 });

@@ -15,3 +15,11 @@
 # inside web/
 /web/dist/
 /web/_site/
+
+# OCR runtime + models (regenerate: web/fetch_ocr.sh) — large binaries
+/web/vendor/ort/
+/web/vendor/ocr/
+
+# local node deps for the optional OCR e2e test
+/web/node_modules
+/web/package*.json
