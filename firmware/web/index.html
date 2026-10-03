@@ -126,6 +126,21 @@
   #btn-ble.arming { background: var(--red); border-color: var(--red);
                     color: #fff; }
 
+  /* header theme cycler — auto/light/dark, mirrored by 数据页 的 select */
+  #btn-theme {
+    width: 40px; min-width: 40px; padding: 0;
+    display: grid; place-items: center;
+  }
+  #btn-theme svg {
+    width: 17px; height: 17px; fill: none; stroke: currentColor;
+    stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+  }
+  #btn-theme .ti-light, #btn-theme .ti-dark, #btn-theme .ti-auto { display: none; }
+  #btn-theme[data-mode="auto"] .ti-auto,
+  #btn-theme[data-mode="light"] .ti-light,
+  #btn-theme[data-mode="dark"] .ti-dark { display: block; }
+  #btn-theme .ti-auto path:last-child { fill: currentColor; stroke: none; }
+
   /* --- tab bar / left rail ------------------------------------------------- */
   #tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
@@ -548,13 +563,20 @@
 
   /* brand chips — each brand's name hashes to a stable hue (--bh) so it
      keeps a consistent "roaster tint"; color-mix keeps it theme-adaptive.
-     Tap the name to filter the list, × removes the preset. */
+     Tap the name to filter the list, × removes the preset. The rail
+     scrolls sideways instead of wrapping into a ragged stack. */
   .brand-mgr {
-    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 6px;
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
     font-size: 13px; color: var(--dim); margin-bottom: 12px;
   }
+  .brand-mgr::-webkit-scrollbar { display: none; }
+  .brand-mgr > * { flex: none; }
   #brand-chips { display: contents; }
   .bchip {
+    /* display:contents parent puts these straight into the rail — the
+       overflow:hidden here would let flex-shrink clip them to nothing */
+    flex: none;
     display: inline-flex; align-items: stretch; overflow: hidden;
     border: 1px solid
       color-mix(in srgb, hsl(var(--bh, 200), 45%, 50%) 45%, var(--rule));
@@ -1067,6 +1089,14 @@
 <header>
   <span class="logo">coffee scale</span>
   <span class="spacer"></span>
+  <button id="btn-theme" data-mode="auto" aria-label="主题：跟随系统"
+          title="切换主题">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <g class="ti-auto"><circle cx="12" cy="12" r="7.5"/><path d="M12 4.5a7.5 7.5 0 0 1 0 15z"/></g>
+      <g class="ti-light"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.8M12 18.7v2.8M2.5 12h2.8M18.7 12h2.8M4.7 4.7l2 2M17.3 17.3l2 2M4.7 19.3l2-2M17.3 6.7l2-2"/></g>
+      <g class="ti-dark"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5 8 8 0 1 0 20.5 14.5z"/></g>
+    </svg>
+  </button>
   <button id="btn-ble" class="st-idle">连接秤</button>
 </header>
 

@@ -1397,6 +1397,9 @@ function renderBrandChips() {
           <button type="button" class="bx" data-branddel="${esc(n)}"
                   aria-label="删除品牌 ${esc(n)}" title="删除">×</button>
         </span>`).join('') || '<span class="dim">还没有</span>';
+    // keep the active chip in view — the rail scrolls horizontally
+    box.querySelector('.bchip.on')
+        ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 // brand add: Enter or the appearing button; several at once split by 、,空格
@@ -1704,14 +1707,11 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
 });
 
 // '' = follow the OS; the early inline script applies the saved value
-// before first paint, this only needs to reflect it in the picker
-const themeSel = $('theme-sel');
-{
-    const t = localStorage.getItem('theme');
-    themeSel.value = t === 'light' || t === 'dark' ? t : '';
-}
-themeSel.onchange = () => {
-    const v = themeSel.value;
+// before first paint, this only needs to reflect it in the pickers
+const themeSel = $('theme-sel'), themeBtn = $('btn-theme');
+const THEME_LABEL = { '': '跟随系统', light: '浅色', dark: '深色' };
+
+function applyTheme(v) {
     if (v) document.documentElement.dataset.theme = v;
     else delete document.documentElement.dataset.theme;
     localStorage.setItem('theme', v);
@@ -1720,8 +1720,23 @@ themeSel.onchange = () => {
         : v === 'light' ? 'all' : '(prefers-color-scheme: light)';
     $('tc-d').media = v === 'dark' ? 'all'
         : v === 'light' ? 'not all' : '(prefers-color-scheme: dark)';
+    themeSel.value = v;
+    themeBtn.dataset.mode = v || 'auto';
+    themeBtn.setAttribute('aria-label', `主题：${THEME_LABEL[v]}`);
     chart.retheme();
     paintBeans();
+}
+{
+    const t = localStorage.getItem('theme');
+    themeSel.value = t === 'light' || t === 'dark' ? t : '';
+    themeBtn.dataset.mode = themeSel.value || 'auto';
+    themeBtn.setAttribute('aria-label', `主题：${THEME_LABEL[themeSel.value]}`);
+}
+themeSel.onchange = () => applyTheme(themeSel.value);
+// header button cycles 自动 → 浅色 → 深色; the select stays in sync
+themeBtn.onclick = () => {
+    const seq = ['', 'light', 'dark'];
+    applyTheme(seq[(seq.indexOf(localStorage.getItem('theme') || '') + 1) % 3]);
 };
 
 // --- main loop -----------------------------------------------------------------
