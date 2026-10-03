@@ -14,6 +14,8 @@ let session = 0, cameraReady = false, workerGpu = false, warmTimer = 0;
 let workerRestarts = 0;
 let scanGeneration = 0;
 let open_ = false, focusedField = 'scan-f-name';
+const userTouched = new Set();   // fields the user edited — a re-识别 only
+                                 // fills untouched fields so edits survive
 const reqDims = new Map();     // request id → grabbed frame {w,h}
 const reqTimers = new Map();   // request id → watchdog timer
 
@@ -40,12 +42,18 @@ export function initScan(h) {
         inp.click();
     };
     // field focus tracking — tapping an OCR line fills the focused input
-    for (const f of ['name', 'brand', 'process', 'variety', 'estate', 'note'])
-        $(`scan-f-${f}`).addEventListener('focus', () => focusedField = `scan-f-${f}`);
+    for (const f of ['name', 'brand', 'process', 'variety', 'estate', 'note']) {
+        const el = $(`scan-f-${f}`);
+        el.addEventListener('focus', () => focusedField = `scan-f-${f}`);
+        el.addEventListener('input', () => userTouched.add(f));
+    }
     // raw OCR line → tap to fill focused field; matched bean → select it
     $('scan-lines').addEventListener('click', e => {
         const b = e.target.closest('[data-txt]');
-        if (b) $(focusedField).value = b.dataset.txt;
+        if (b) {
+            $(focusedField).value = b.dataset.txt;
+            userTouched.add(focusedField.slice(7));
+        }
     });
     $('scan-match').addEventListener('click', e => {
         const b = e.target.closest('[data-bean]');
@@ -118,7 +126,12 @@ async function startCamera(current) {
     if (!open_ || current !== session) return;
     track = stream.getVideoTracks()[0];
     cameraReady = true;
-    if (track?.getCapabilities?.().torch) $('scan-torch').hidden = false;
+    const caps = track?.getCapabilities?.() || {};
+    // continuous autofocus where the device offers it — sharper label text
+    if (caps.focusMode?.includes?.('continuous'))
+        track.applyConstraints(
+            { advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+    if (caps.torch) $('scan-torch').hidden = false;
     sizeFx();
     readyStatus();
     scheduleDet(0);
@@ -290,17 +303,53 @@ function detTick() {
 
 // --- recognize ----------------------------------------------------------------
 
+// draw an image source to scan-cap at longest side ≤ limit, read back rgba
+function bmpToFrame(src, limit) {
+    const r = Math.min(1, limit / Math.max(src.width, src.height));
+    const w = Math.max(1, Math.round(src.width * r));
+    const h = Math.max(1, Math.round(src.height * r));
+    const c = $('scan-cap');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(src, 0, 0, w, h);
+    return { img: ctx.getImageData(0, 0, w, h), w, h };
+}
+
+// a real photo beats a video frame — autofocus completes and the sensor's
+// full resolution is available, so small label text decodes better
+async function photoFrame() {
+    try {
+        const bmp = await createImageBitmap(
+            await new ImageCapture(track).takePhoto());
+        try { return bmpToFrame(bmp, 1600); } finally { bmp.close(); }
+    } catch { return grab(1600); }
+}
+
 async function read() {
     if (readBusy) return;
     if (!worker) warmWorker();
     if (!workerReady) { setStatus(workerErr || '模型还在加载，稍等…'); return; }
-    const f = grab(1600);
-    if (!f) { setStatus('相机还没出画面'); return; }
-    resetResult();
     readBusy = true;
     $('scan-read').disabled = true;
-    setStatus('识别中…');
     clearTimeout(detTimer);
+    const current = session, generation = scanGeneration;
+    // sync video-frame path keeps tap→send at 0 ms where ImageCapture is
+    // absent (and where the scanner tests run); the photo path is async
+    const f = track && typeof ImageCapture === 'function'
+        ? (setStatus('拍照…'), await photoFrame())
+        : grab(1600);
+    if (!f || !open_ || current !== session || generation !== scanGeneration) {
+        if (!f && open_) setStatus('相机还没出画面');
+        if (![...reqDims.values()].some(d => d.read)) {
+            readBusy = false;
+            $('scan-read').disabled = !cameraReady;
+        }
+        return;
+    }
+    // cancelScan inside resetResult clears the busy flags — re-set after
+    resetResult(true);
+    readBusy = true;
+    setStatus('识别中…');
     const id = ++reqId;
     reqDims.set(id, { w: f.w, h: f.h, read: true });
     send({ t: 'read', id, w: f.w, h: f.h,
@@ -310,7 +359,7 @@ async function read() {
 async function readFile(file) {
     if (readBusy || !open_) return;
     if (!worker) warmWorker();
-    resetResult();
+    resetResult(true);
     const current = session, generation = scanGeneration;
     readBusy = true;
     $('scan-read').disabled = true;
@@ -319,21 +368,15 @@ async function readFile(file) {
     try {
         const bmp = await createImageBitmap(file);
         if (!open_ || current !== session || generation !== scanGeneration) { bmp.close(); return; }
-        const r = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
-        const w = Math.round(bmp.width * r), h = Math.round(bmp.height * r);
-        const c = $('scan-cap');
-        c.width = w; c.height = h;
-        const ctx = c.getContext('2d', { willReadFrequently: true });
-        ctx.drawImage(bmp, 0, 0, w, h);
+        const f = bmpToFrame(bmp, 1600);
         bmp.close();
         if (!workerReady) { setStatus('模型还在加载…'); return; }
         $('scan-read').disabled = true; setStatus('识别中…');
         clearTimeout(detTimer);
         const id = ++reqId;
-        reqDims.set(id, { w, h, read: true });
-        const img = ctx.getImageData(0, 0, w, h);
-        send({ t: 'read', id, w, h,
-               rgba: img.data.buffer }, 15000);
+        reqDims.set(id, { w: f.w, h: f.h, read: true });
+        send({ t: 'read', id, w: f.w, h: f.h,
+               rgba: f.img.data.buffer }, 15000);
     } catch (e) {
         if (open_ && current === session && generation === scanGeneration)
             setStatus(`图片读取失败：${e.message}`);
@@ -359,12 +402,18 @@ function cancelScan() {
     reqTimers.clear(); reqDims.clear();
 }
 
-function resetResult() {
+// keepUser: a re-read of the same label shouldn't clobber fields the user
+// already typed into; open/重拍 pass false since they mean "new label"
+function resetResult(keepUser = false) {
     cancelScan();
     hidePanel();
-    for (const f of FIELDS) $(`scan-f-${f}`).value = '';
+    for (const f of FIELDS)
+        if (!(keepUser && userTouched.has(f))) $(`scan-f-${f}`).value = '';
     $('scan-match').innerHTML = $('scan-lines').innerHTML = '';
-    focusedField = 'scan-f-name';
+    if (!keepUser) {
+        focusedField = 'scan-f-name';
+        userTouched.clear();
+    }
     drawQuads([]);
 }
 
@@ -377,7 +426,11 @@ function showResult(lines, ms, dims) {
     // their fields can silently save the previous bean under the current scan.
     const { fields, matches, used } =
         parseBeanLabel(lines, { brands: hooks.getBrands(), beans: hooks.listBeans() });
-    for (const f of FIELDS) $(`scan-f-${f}`).value = fields[f] || '';
+    for (const f of FIELDS)
+        if (!userTouched.has(f)) $(`scan-f-${f}`).value = fields[f] || '';
+    // aim tap-to-fill at whatever the scan couldn't fill itself
+    const firstEmpty = FIELDS.find(f => !$(`scan-f-${f}`).value);
+    if (firstEmpty) focusedField = `scan-f-${firstEmpty}`;
 
     const tagOf = new Map(used.map(u => [u.line, u.as]));
     $('scan-lines').innerHTML = lines.map(l =>

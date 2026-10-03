@@ -78,6 +78,11 @@ const BRAND_WORD = /coffee|roast|咖啡|烘焙|工坊|工作室/i;
 const NETWT = /(?:净含量|净重|net\s*(?:wt|weight)?|规格|含量)[:：]?\s*(\d+(?:\.\d+)?)\s*(kg|g|克|千克|lb|oz)/i;
 const NETWT2 = /(\d{2,4})\s*(g\b|克|千克)/i;
 const ROAST = /(?:烘焙日期|烘焙|roast(?:ed)?(?:\s*on)?|date)[:：]?\s*(\d{4}[./年-]\s?\d{1,2}[./月-]\s?\d{1,2}|\d{1,2}[./月-]\s?\d{1,2}[./日]?)/i;
+const ROAST_EN = /((?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}|\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?,?\s+\d{4})/i;
+// '1800m' / '1800米' / '海拔 1800' — m must not precede a letter ('100ml')
+const ALT = /海拔[:：]?\s*(\d{3,4})\s*(?:m|米)?|(\d{3,4})\s*(?:m(?![a-zA-Z])|米)/i;
+const ROASTLV = /烘焙度[:：]?\s*(\S+)|(?:浅|中|中浅|浅中|中深|深)度?烘焙?|(?:浅|中|深)焙|(?:light|medium|dark)\s*roast(?:ed)?|roast\s*level[:：]?\s*(?:light|medium|dark)/i;
+const PRODUCER = /生产者|种植者|庄园主|producer|farmer|进口商|importer/i;
 const FLAVOR = /风味|notes?|flavo[u]?r|tasting|花香|柑橘|莓果/i;
 const GRADE = /\b(g\s?1|g\s?2|g\s?3|aa|ab|shb|supremo|excelso)\b/i;
 
@@ -265,7 +270,9 @@ export function parseBeanLabel(lines, { brands = [], beans = [] } = {}) {
                       ORIGIN.some(([re]) => re.test(l.text)) ||
                       ESTATE_WORD.test(l.text);
     const meta = new Set(usable.filter(l =>
-        /^(净含量|net|烘焙|roast|保质期|生产日期|storage|保存)/i.test(l.text.trim())));
+        /^(净含量|net|烘焙|roast|保质期|生产日期|storage|保存)/i.test(l.text.trim()) ||
+        NETWT.test(l.text) || ALT.test(l.text) || ROASTLV.test(l.text) ||
+        ROAST_EN.test(l.text) || PRODUCER.test(l.text)));
     const cands = usable.filter(l => {
         const u = used.find(u => u.line === l);
         return (!u.as || !['brand', 'note'].includes(u.as)) &&
@@ -278,14 +285,23 @@ export function parseBeanLabel(lines, { brands = [], beans = [] } = {}) {
     });
     if (cands.length) { fields.name = cands[0].text.trim().slice(0, 40); tag(cands[0], 'name'); }
 
-    // extras → note
+    // extras → note. O/0 confusion inside digit runs breaks the date/weight
+    // regexes — retry those on an O→0 copy (only the capture is used)
     for (const l of usable) {
-        const wt = l.text.match(NETWT) || l.text.match(NETWT2);
+        const dfix = l.text.replace(/[OＯ](?=[\d./-])/g, '0')
+                          .replace(/(?<=[\d./-])[OＯ]/g, '0');
+        const wt = l.text.match(NETWT) || l.text.match(NETWT2)
+                || dfix.match(NETWT) || dfix.match(NETWT2);
         if (wt) { notes.push(`净含量 ${wt[1]}${wt[2]}`); tag(l, 'note'); continue; }
-        const rd = l.text.match(ROAST);
-        if (rd && /\d{4}|\d{1,2}[./月]/.test(rd[1])) { notes.push(`烘焙 ${rd[1].trim()}`); tag(l, 'note'); continue; }
+        const rd = l.text.match(ROAST) || dfix.match(ROAST) || l.text.match(ROAST_EN);
+        if (rd && /\d{4}|\d{1,2}[./月]|[A-Za-z]{3}/.test(rd[1])) { notes.push(`烘焙 ${rd[1].trim()}`); tag(l, 'note'); continue; }
+        const alt = l.text.match(ALT);
+        if (alt) { notes.push(`海拔 ${alt[1] || alt[2]}m`); tag(l, 'note'); continue; }
+        const lv = l.text.match(ROASTLV);
+        if (lv) { notes.push(`烘焙度 ${(lv[1] || lv[0]).trim()}`); tag(l, 'note'); continue; }
         if (FLAVOR.test(l.text) && norm(l.text).length >= 3) { notes.push(l.text.trim()); tag(l, 'note'); continue; }
-        if (GRADE.test(l.text)) { notes.push(`等级 ${l.text.match(GRADE)[0].toUpperCase()}`); tag(l, 'note'); }
+        if (GRADE.test(l.text)) { notes.push(`等级 ${l.text.match(GRADE)[0].toUpperCase()}`); tag(l, 'note'); continue; }
+        if (PRODUCER.test(l.text) && norm(l.text).length >= 3) { notes.push(l.text.trim()); tag(l, 'note'); }
     }
     fields.note = [...new Set(notes)].join('；');
 

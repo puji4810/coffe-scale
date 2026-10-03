@@ -660,18 +660,40 @@ addEventListener('pointerdown', e => {
     const input = b.parentElement.querySelector('input');
     const step = +b.dataset.step;
     const min = input.min === '' ? -Infinity : +input.min;
+    const max = input.max === '' ? Infinity : +input.max;
     const tick = () => {
         const v = Math.round(((parseFloat(input.value) || 0) + step) * 100) / 100;
-        input.value = Math.max(min, v);
+        input.value = Math.min(max, Math.max(min, v));
         input.dispatchEvent(new Event('change', { bubbles: true }));
     };
     tick(); buzz(6);
-    let iv = 0;
-    const t = setTimeout(() => { iv = setInterval(tick, 90); }, 400);
+    let iv = 0, n = 0;
+    // hold: 400 ms pause → ~11 steps/s, accelerating to ~29/s past ~1.3 s —
+    // cal-mass 100→200 g goes from ~8 s to ~4 s while taps stay precise
+    const t = setTimeout(() => {
+        iv = setInterval(() => {
+            tick();
+            if (++n === 10) { clearInterval(iv); iv = setInterval(tick, 35); }
+        }, 90);
+    }, 400);
     const up = () => { clearTimeout(t); clearInterval(iv); };
     addEventListener('pointerup', up, { once: true });
     addEventListener('pointercancel', up, { once: true });
 });
+
+// typed (not stepped) values can sit outside min/max — clamp on commit.
+// Capture phase so the clamp lands before the field's own change handler
+// reads the value.
+addEventListener('change', e => {
+    const inp = e.target;
+    if (!inp.matches?.('input[type=number]')) return;
+    const v = parseFloat(inp.value);
+    if (isNaN(v)) return;
+    const lo = inp.min === '' ? -Infinity : +inp.min;
+    const hi = inp.max === '' ? Infinity : +inp.max;
+    const c = Math.min(hi, Math.max(lo, v));
+    if (c !== v) inp.value = String(c);
+}, true);
 
 async function saveBrew(frames, startedAt) {
     if (frames.length < 10) return;         // taps/blips aren't brews
@@ -736,6 +758,18 @@ function stars(rating, id) {
     return h + '</span>';
 }
 
+// tiny weight-curve silhouette — the pour's shape at a glance, capped at
+// ~60 svg points so a long brew doesn't bloat the accordion's innerHTML
+function sparkline(w) {
+    const ws = w.w || [], n = ws.length;
+    if (n < 4) return '';
+    const mx = Math.max(...ws) || 1, stride = Math.max(1, Math.floor(n / 60));
+    const pts = [];
+    for (let i = 0; i < n; i += stride)
+        pts.push(`${(i / (n - 1) * 44).toFixed(1)},${(19 - ws[i] / mx * 17).toFixed(1)}`);
+    return `<svg class="spark" viewBox="0 0 44 20" aria-hidden="true"><polyline points="${pts.join(' ')}"/></svg>`;
+}
+
 function beanCard(b, bs) {
     const id = b ? b.id : 0;
     const open = openBeans.has(id);
@@ -761,6 +795,7 @@ function beanCard(b, bs) {
             ${w.dose ? `<span class="meta">1:${(w.liquid / w.dose).toFixed(1)}</span>` : ''}
             <span class="meta">${fmtDur(w.durationS)}</span>
           </span>
+          ${sparkline(w)}
           <span class="brew-side">
             ${stars(w.rating, w.id)}
             <button class="fav ${w.fav ? 'on' : ''}" data-fav="${w.id}"
@@ -777,6 +812,9 @@ function beanCard(b, bs) {
             .map(x => `<span class="meta">${esc(x)}</span>`).join('')
         : '';
     const last = bs.length ? bs[0].date.slice(5, 10) : '';
+    const rated = bs.filter(w => w.rating);
+    const avg = rated.length
+        ? (rated.reduce((s, w) => s + w.rating, 0) / rated.length).toFixed(1) : '';
     return `
     <div class="bean ${b ? '' : 'loose'} ${open ? 'open' : ''}">
       <div class="bean-head ${b && selBeans.has(id) ? 'sel' : ''}" role="button" tabindex="0"
@@ -787,6 +825,7 @@ function beanCard(b, bs) {
           <span class="bsub">${sub}</span>
         </span>
         <span class="bh-stat"><b>${bs.length}</b><span>次冲煮</span>${
+          avg ? `<span class="bh-avg">★${avg}</span>` : ''}${
           last ? `<span>${last}</span>` : ''}</span>
       </div>
       <div class="fold" ${open ? '' : 'inert'}><div>
@@ -839,6 +878,10 @@ function paintBeans() {
         : groups.map(({ b, bs }) => beanCard(b, bs)).join('');
     renderBrandChips();
     pickGhost();
+    setTxt($('lib-stats'),
+        `${beanCache.length} 支豆子 · ${brewCache.length} 条冲煮 · 约 ${
+            (new Blob([JSON.stringify({ beans: beanCache, brews: brewCache })])
+                .size / 1024).toFixed(0)} KB`);
     if (suggFor && !suggFor.isConnected) hideSugg();
 
     // open brew details need a sized box — mount plots after the DOM exists
@@ -959,13 +1002,25 @@ $('bean-accordion').addEventListener('click', async e => {
     if (delBean) {
         const id = +delBean.dataset.delbean;
         armConfirm(delBean, '确认删除？冲煮记录会移到未归档', async () => {
-            for (const w of brewCache.filter(w => w.beanId === id)) {
+            const bean = beanCache.find(b => b.id === id);
+            const hit = brewCache.filter(w => w.beanId === id);
+            for (const w of hit) {
                 w.beanId = null;
                 await DB.brews.update(w);
             }
             openBeans.delete(id);
+            if (curBean === id) selectBean(null);
             await DB.beans.del(id);
             renderBeans();
+            toast('已删除豆子', { label: '撤销', fn: async () => {
+                if (bean) await DB.beans.update(bean);
+                for (const w of hit) {
+                    w.beanId = id;
+                    await DB.brews.update(w);
+                }
+                openBeans.add(id);
+                renderBeans();
+            } });
         });
         return;
     }
@@ -1328,10 +1383,14 @@ const beanSheet = $('bean-sheet'), bsQ = $('bs-q'), bsList = $('bs-list');
 
 function renderBsList() {
     const q = bsQ.value.trim().toLowerCase();
-    const brewN = new Map(), lastD = new Map();
+    const brewN = new Map(), lastD = new Map(), rateSum = new Map(), rateN = new Map();
     for (const w of brewCache) {
         if (w.beanId === null || !beanCache.some(b => b.id === w.beanId)) continue;
         brewN.set(w.beanId, (brewN.get(w.beanId) || 0) + 1);
+        if (w.rating) {
+            rateSum.set(w.beanId, (rateSum.get(w.beanId) || 0) + w.rating);
+            rateN.set(w.beanId, (rateN.get(w.beanId) || 0) + 1);
+        }
         if ((lastD.get(w.beanId) || '') < w.date) lastD.set(w.beanId, w.date);
     }
     const items = beanCache
@@ -1353,6 +1412,8 @@ function renderBsList() {
                 .map(v => `<span class="meta">${esc(v)}</span>`).join('')}</span>
           </span>
           <span class="bh-stat"><b>${brewN.get(b.id) || 0}</b><span>次冲煮</span>${
+            rateN.has(b.id) ? `<span class="bh-avg">★${
+                (rateSum.get(b.id) / rateN.get(b.id)).toFixed(1)}</span>` : ''}${
             lastD.has(b.id) ? `<span>${lastD.get(b.id).slice(5, 10)}</span>` : ''}</span>
         </button>`).join('') +
         (name && !beanCache.some(b => b.name === name)
@@ -1369,6 +1430,15 @@ $('bean-pick').onclick = () => {
 };
 $('bs-close').onclick = () => beanSheet.close();
 bsQ.addEventListener('input', renderBsList);
+// Enter = pick the first match; only when nothing matches does it create
+bsQ.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (!bsQ.value.trim()) return;          // empty query — don't surprise-pick
+    const row = bsList.querySelector('.bs-row[data-id]:not([data-id=""])')
+        || bsList.querySelector('.bs-new');
+    row?.click();
+});
 beanSheet.addEventListener('click', e => {        // backdrop tap closes
     if (e.target === beanSheet) beanSheet.close();
 });
@@ -1479,11 +1549,34 @@ new ResizeObserver(() => {
         chart.resize(el.clientWidth, el.clientHeight);
 }).observe($('chart'));
 
-// theme change — rebuild the uPlot instances with the new palette
+// theme change — rebuild the uPlot instances with the new palette.
+// A manual override (数据页) pins the palette, so OS flips are ignored then.
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (document.documentElement.dataset.theme) return;
     chart.retheme();
     paintBeans();
 });
+
+// '' = follow the OS; the early inline script applies the saved value
+// before first paint, this only needs to reflect it in the picker
+const themeSel = $('theme-sel');
+{
+    const t = localStorage.getItem('theme');
+    themeSel.value = t === 'light' || t === 'dark' ? t : '';
+}
+themeSel.onchange = () => {
+    const v = themeSel.value;
+    if (v) document.documentElement.dataset.theme = v;
+    else delete document.documentElement.dataset.theme;
+    localStorage.setItem('theme', v);
+    // the theme-color metas are media-keyed — force the matching one
+    $('tc-l').media = v === 'dark' ? 'not all'
+        : v === 'light' ? 'all' : '(prefers-color-scheme: light)';
+    $('tc-d').media = v === 'dark' ? 'all'
+        : v === 'light' ? 'not all' : '(prefers-color-scheme: dark)';
+    chart.retheme();
+    paintBeans();
+};
 
 // --- main loop -----------------------------------------------------------------
 

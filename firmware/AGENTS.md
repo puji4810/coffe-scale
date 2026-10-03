@@ -256,10 +256,16 @@ idf.py -B build-esp32s3 build flash
   kept in `l.raw`, shown with a 改 marker) — that vocabulary IS the
   semantic layer a CTC model
   lacks; then maps lines → bean fields via keyword tables
-  (process/variety/origin/
-  net-wt/roast-date) + fuzzy-matches the bean library (name-similarity
-  primary, brand-on-label + agreeing fields as gated bonuses; chips show
-  the score); tapping a raw line fills the focused field. The 已存在
+  (process/variety/origin; note-side patterns: net-wt/roast-date incl.
+  latin month names, O→0 digit-run fallback, roast level, altitude,
+  producer/importer lines) + fuzzy-matches the bean library
+  (name-similarity primary, brand-on-label + agreeing fields as gated
+  bonuses; chips show the score); tapping a raw line fills the focused
+  field, and a re-识别 only fills fields the user hasn't edited
+  (重拍/open still clears everything). The read path prefers
+  ImageCapture.takePhoto (autofocus + full sensor res) and falls back
+  to the live video frame; the camera track gets continuous-focusMode
+  where offered. The 已存在
   chip selects a matched bean instead of duplicating. Worker resilience:
   every ort.Tensor in the det/rec paths is dispose()d (leaked tensors
   OOM the WASM heap after repeated scans), every request carries a
