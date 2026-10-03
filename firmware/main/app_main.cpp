@@ -662,7 +662,13 @@ void battery_task(void*) {
         } else {
             mv = raws[kSamples / 2] * 3100 / 4095;   // crude fallback
         }
-        const int vbat = mv * 2;
+        // TP4057 STAT is open-drain, low while charging (R11 pulls up).
+        const bool charging =
+            gpio_get_level(static_cast<gpio_num_t>(board::pins::chrg_stat)) == 0;
+        // While charging the terminal sits ~80 mV above the cell's resting
+        // voltage (charge current × internal+trace R). Estimate against the
+        // resting voltage so unplugging doesn't produce a visible % step.
+        const int vbat = mv * 2 - (charging ? 80 : 0);
         const float pct = battery_pct_of_mv(vbat);
         pct_f = pct_f < 0 ? pct : pct_f * 0.8f + pct * 0.2f;
         // Sticky display: sub-2% wander (charger float, ADC noise) must not
@@ -674,8 +680,7 @@ void battery_task(void*) {
             shown = rounded;
         }
         g_battery_pct = shown;
-        // TP4057 STAT is open-drain, low while charging (R11 pulls up).
-        g_charging = gpio_get_level(static_cast<gpio_num_t>(board::pins::chrg_stat)) == 0;
+        g_charging = charging;
         // TMP102 beside the load cell -> thermal drift model input.
         if (s_tmp) {
             if (auto t = s_tmp->read_celsius(); t) {
