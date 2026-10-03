@@ -202,7 +202,9 @@ function warmWorker() {
 
 function watchWarm() {
     clearTimeout(warmTimer);
-    warmTimer = setTimeout(() => killWorker('模型加载超时', false), 45000);
+    // 49 MB of models — 45 s only fits fast networks; a slow link needs
+    // minutes and per-file progress still streams in meanwhile
+    warmTimer = setTimeout(() => killWorker('模型加载超时', false), 240000);
 }
 
 // A wedged worker (WASM OOM kill, WebGPU stall) must never pin the UI at

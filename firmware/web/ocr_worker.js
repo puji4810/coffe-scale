@@ -43,18 +43,32 @@ const enqueue = fn => {
 
 const post = m => self.postMessage(m);
 
+// Model files run 10-30 MB — a flat timeout aborts a slow-but-healthy
+// download, and the aborted response never lands in the cache, so the next
+// scan re-downloads from zero. Bound STALLS instead: 45 s without a byte.
 async function fetchBuf(url, onBytes, discard = false) {
-    const r = await fetch(url, { signal: AbortSignal.timeout(30000) });
+    const stall = (p, what) => {
+        let t;
+        return Promise.race([p, new Promise((_, rej) => t = setTimeout(
+            () => rej(new Error(`${url} ${what} stalled`)), 45000))])
+            .finally(() => clearTimeout(t));
+    };
+    const r = await stall(fetch(url), 'headers');
     if (!r.ok) throw new Error(`${url} → HTTP ${r.status}`);
     const total = +r.headers.get('content-length') || 0;
     const rd = r.body.getReader(), chunks = [];
     let got = 0;
-    for (;;) {
-        const { done, value } = await rd.read();
-        if (done) break;
-        if (!discard) chunks.push(value);
-        got += value.length;
-        onBytes?.(got, total);
+    try {
+        for (;;) {
+            const { done, value } = await stall(rd.read(), 'download');
+            if (done) break;
+            if (!discard) chunks.push(value);
+            got += value.length;
+            onBytes?.(got, total);
+        }
+    } catch (e) {
+        try { rd.cancel(); } catch {}
+        throw e;
     }
     if (discard) return;
     const buf = new Uint8Array(got);

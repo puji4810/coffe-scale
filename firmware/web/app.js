@@ -27,6 +27,10 @@ if ('serviceWorker' in navigator) {
         });
         setInterval(() => reg.update(), 60 * 60 * 1000);
     }).catch(() => {});
+    // the ~50 MB OCR models in Cache Storage are the first thing a
+    // best-effort bucket evicts under pressure — persist() pins them.
+    // Auto-granted for installed PWAs, silently refused in plain tabs.
+    navigator.storage?.persist?.().catch(() => {});
 }
 
 const Screen = await ScaleScreenFactory();
