@@ -26,6 +26,7 @@ async function scanner(hooks = {}) {
             getContext: () => ({
                 drawImage() {}, clearRect() {}, beginPath() {}, moveTo() {},
                 lineTo() {}, closePath() {}, stroke() {}, fill() {},
+                setTransform() {},
                 getImageData: () => ({ data: new Uint8ClampedArray(640 * 480 * 4) }),
             }),
         });

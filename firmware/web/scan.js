@@ -222,7 +222,10 @@ function send(msg, timeoutMs) {
 
 function sizeFx() {
     const v = $('scan-video'), fx = $('scan-fx');
-    fx.width = v.clientWidth; fx.height = v.clientHeight;
+    // dpr-scaled backing store — overlay lines stay crisp on hiDPI phones
+    const dpr = globalThis.devicePixelRatio || 1;
+    fx.width = Math.round(v.clientWidth * dpr);
+    fx.height = Math.round(v.clientHeight * dpr);
 }
 
 // cover-fit: frame px (of the grabbed frame dims) → overlay css px
@@ -236,7 +239,11 @@ function toFx(pts, dims) {
 
 function drawQuads(quads, dims, color) {
     const fx = $('scan-fx'), ctx = fx.getContext('2d');
-    ctx.clearRect(0, 0, fx.width, fx.height);
+    const cw = $('scan-video').clientWidth, ch = $('scan-video').clientHeight;
+    // draw in css px — the transform maps them onto the dpr-scaled canvas
+    const k = cw && fx.width ? fx.width / cw : 1;
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    ctx.clearRect(0, 0, cw, ch);
     if (!dims) return;
     ctx.lineWidth = 2; ctx.strokeStyle = color;
     ctx.fillStyle = 'rgba(232,163,61,.12)';

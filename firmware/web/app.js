@@ -35,6 +35,12 @@ function blit() {
 
 const $ = id => document.getElementById(id);
 
+// Same-value DOM writes still mark nodes dirty — at 20 Hz that adds up,
+// so hot-path nodes are only touched when the value actually changes.
+const setTxt = (el, s) => { if (el._t !== s) { el._t = s; el.textContent = s; } };
+const setCss = (el, p, s) => { if (el['_' + p] !== s) { el['_' + p] = s; el.style[p] = s; } };
+const setCls = (el, s) => { if (el._c !== s) { el._c = s; el.className = s; } };
+
 let toastTimer = null, toastAct = null;
 function toast(msg, action) {
     const el = $('toast'), act = $('toast-act');
@@ -130,6 +136,7 @@ async function keepScreen(on) {
 // --- snapshot -> UI ----------------------------------------------------------
 
 function segSet(seg, v) {
+    if (seg.dataset.active === String(v)) return;
     seg.dataset.active = String(v);
     seg.querySelectorAll('button').forEach(b =>
         b.setAttribute('aria-checked', String(+b.dataset.v === v)));
@@ -149,43 +156,58 @@ function showFrame(m, tMs) {
     if (timerRestarted)
         chart.ghostBase = chart.secOf(tMs) - s.timerMs / 1000;
 
+    const dose = doseVal(), tgt = targetG();
+    // the buzz is the point of this alert — keep it ahead of the
+    // hidden-tab early return so it still fires off-screen
+    if (s.timerState === 1 && !targetHit && tgt > 0 && s.grams >= tgt) {
+        targetHit = true;
+        buzz([40, 60, 40]);
+        toast(`达到目标 ${Math.round(tgt)} g`);
+    }
+    if (s.timerState === 0) targetHit = false;
+
+    recorder.onFrame(m, tMs);             // recording never pauses
+    autoTimer(s, tMs);                    // nor does the pour auto-timer
+    // Everything below is DOM work — pointless while hidden. The chart
+    // keeps buffering (its own redraw is gated); one flush on return.
+    if (document.hidden) return;
+
     // instrument strip
     $('stable-dot').classList.toggle('on', s.stable);
-    $('v-flags').textContent = s.stable ? '稳定' : '变动中';
+    setTxt($('v-flags'), s.stable ? '稳定' : '变动中');
+    const bf = $('batt-fill');
     if (m.batteryPct < 0) {
-        $('v-batt').textContent = '–';
-        $('batt-fill').style.width = '0%';
+        setTxt($('v-batt'), '–');
+        setCss(bf, 'width', '0%');
     } else {
-        $('v-batt').textContent = m.charging ? '充电中' : `${m.batteryPct}%`;
+        setTxt($('v-batt'), m.charging ? '充电中' : `${m.batteryPct}%`);
         const pct = Math.min(m.batteryPct, 100);
-        const bf = $('batt-fill');
-        bf.style.width = `${pct}%`;
-        bf.style.background = m.charging ? 'var(--amber)'
+        setCss(bf, 'width', `${pct}%`);
+        setCss(bf, 'background', m.charging ? 'var(--amber)'
             : pct > 50 ? 'var(--green)' : pct > 20 ? 'var(--amber)'
-            : 'var(--red)';
+            : 'var(--red)');
     }
     const dx = Math.max(-8, Math.min(8, s.rollDeg * 0.8));
     const dy = Math.max(-8, Math.min(8, s.pitchDeg * 0.8));
     const tilt = Math.max(Math.abs(s.pitchDeg), Math.abs(s.rollDeg));
     const dot = $('bubble-dot');
-    dot.style.transform = `translate(${dx}px, ${dy}px)`;
-    dot.style.background = !s.stable ? 'var(--dim)'
-        : tilt < 2 ? 'var(--green)' : 'var(--amber)';
-    $('v-tilt').textContent = s.stable ? `${tilt.toFixed(1)}°` : '变动中';
-    $('cal-state').textContent = s.calibrated ? '已校准' : '未校准';
+    setCss(dot, 'transform', `translate(${dx}px, ${dy}px)`);
+    setCss(dot, 'background', !s.stable ? 'var(--dim)'
+        : tilt < 2 ? 'var(--green)' : 'var(--amber)');
+    setTxt($('v-tilt'), s.stable ? `${tilt.toFixed(1)}°` : '变动中');
+    setTxt($('cal-state'), s.calibrated ? '已校准' : '未校准');
     $('cal-state').classList.toggle('warn', !s.calibrated);
-    $('cal-chip').textContent = s.calibrated ? '已校准' : '未校准';
-    $('cal-chip').className = `chip ${s.calibrated ? 'ok' : 'warn'}`;
+    setTxt($('cal-chip'), s.calibrated ? '已校准' : '未校准');
+    setCls($('cal-chip'), `chip ${s.calibrated ? 'ok' : 'warn'}`);
 
     // keys / segments reflect the frame — the device is the source of truth
-    $('btn-long').textContent = TIMER_KEY_LABEL[s.timerState] || '开始计时';
+    setTxt($('btn-long'), TIMER_KEY_LABEL[s.timerState] || '开始计时');
     $('btn-reset').disabled = !(live && s.timerState !== 0);
     segSet($('seg-mode'), s.mode);
     segSet($('seg-unit'), s.unit);
 
-    const dose = doseVal();
-    $('v-ratio').textContent =
-        dose > 0 ? `1 : ${(s.grams / dose).toFixed(1)}` : '–';
+    setTxt($('v-ratio'),
+           dose > 0 ? `1 : ${(s.grams / dose).toFixed(1)}` : '–');
 
     // brew focus view — the big numbers mirror what the LCD shows
     const brewing = live && (s.timerState === 1 || s.timerState === 2);
@@ -195,33 +217,25 @@ function showFrame(m, tMs) {
         applyFocus();
     }
     if (brewing) {
-        $('bb-time').textContent = fmtDur(s.timerMs / 1000);
-        $('bb-w').textContent = s.grams.toFixed(1);
-        $('bb-f').textContent = s.flowGps.toFixed(1);
-        $('bb-r').textContent = dose > 0 ? `1:${(s.grams / dose).toFixed(1)}` : '–';
-        const tgt = targetG();
+        setTxt($('bb-time'), fmtDur(s.timerMs / 1000));
+        setTxt($('bb-w'), s.grams.toFixed(1));
+        setTxt($('bb-f'), s.flowGps.toFixed(1));
+        setTxt($('bb-r'), dose > 0 ? `1:${(s.grams / dose).toFixed(1)}` : '–');
         const prog = $('bb-bar');
         if (tgt <= 0) {
-            $('bb-target').textContent = '';
-            prog.style.width = '0%';
+            setTxt($('bb-target'), '');
+            setCss(prog, 'width', '0%');
             prog.classList.remove('full');
         } else {
-            $('bb-target').textContent = `目标 ${Math.round(tgt)} g`;
-            prog.style.width = `${Math.min(100, s.grams / tgt * 100).toFixed(1)}%`;
+            setTxt($('bb-target'), `目标 ${Math.round(tgt)} g`);
+            setCss(prog, 'width',
+                `${Math.min(100, s.grams / tgt * 100).toFixed(1)}%`);
             prog.classList.toggle('full', s.grams >= tgt);
-            if (s.timerState === 1 && !targetHit && s.grams >= tgt) {
-                targetHit = true;
-                buzz([40, 60, 40]);
-                toast(`达到目标 ${Math.round(tgt)} g`);
-            }
         }
     }
-    if (s.timerState === 0) targetHit = false;
 
     updateChartHint();
     recorder.updateStatus(s);
-    recorder.onFrame(m, tMs);
-    autoTimer(s, tMs);
 }
 
 // --- brew focus mode ------------------------------------------------------------
@@ -298,17 +312,18 @@ function updateChartHint() {
     const el = $('chart-empty');
     if (chart.x.length) { el.hidden = true; return; }
     el.hidden = false;
-    el.textContent = live ? '等待数据…' : '连接秤后显示实时曲线';
+    setTxt(el, live ? '等待数据…' : '连接秤后显示实时曲线');
 }
 function clearChart() { chart.clear(); updateChartHint(); }
 
 // screen-reader summary, at most once per second
 setInterval(() => {
-    if (!live) { $('sr-live').textContent = ''; return; }
+    const el = $('sr-live');
+    if (!live || document.hidden) { setTxt(el, ''); return; }
     const ms = lastTimerMs;
-    $('sr-live').textContent =
+    setTxt(el,
         `重量 ${lastGrams.toFixed(1)} g，计时 ` +
-        `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
+        `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`);
 }, 1000);
 
 // --- commands ----------------------------------------------------------------
@@ -382,11 +397,13 @@ $('btn-calspan').onclick = async () => {
 addEventListener('keydown', e => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (beanSheet.open) return;
+    if (!$('scan-ov').hidden) return;         // scanner has the keyboard
     const t = e.target;
     if (t.closest('input, select, textarea') || t.isContentEditable) return;
     if (!live) return;
     if (e.key === 't') cmd(OP.tare);
     else if (e.key === 'l') cmd(OP.timerToggle);
+    else if (e.key === 'r') cmd(OP.timerReset);
     else if (e.key === 'm') cmd(OP.mode);
 });
 
@@ -463,9 +480,13 @@ offBtn.onclick = connectOrDisconnect;
 link.autoConnect();
 
 // Chrome drops advertisement watches while the window is hidden —
-// re-arm the reconnect when we come back.
+// re-arm the reconnect when we come back. Frames kept streaming while
+// hidden, so the chart needs one flush to show the buffered points.
 document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) { link.resume(); keepScreen(live); }
+    if (document.hidden) return;
+    link.resume();
+    keepScreen(live);
+    if (chart.visible) chart.redraw();
 });
 addEventListener('focus', () => link.resume());
 
@@ -516,18 +537,18 @@ const recorder = {
     // chart-head status — called on every frame
     updateStatus(s) {
         if (!this.on) {
-            recStatus.className = '';
-            recTxt.textContent = '计时开始后自动录制';
+            setCls(recStatus, '');
+            setTxt(recTxt, '计时开始后自动录制');
             return;
         }
         const ms = s.timerMs;
         const dur = `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
         if (s.timerState === 2) {
-            recStatus.className = 'paused';
-            recTxt.textContent = `已暂停 ${dur}`;
+            setCls(recStatus, 'paused');
+            setTxt(recTxt, `已暂停 ${dur}`);
         } else {
-            recStatus.className = 'on';
-            recTxt.textContent = `录制中 ${dur}`;
+            setCls(recStatus, 'on');
+            setTxt(recTxt, `录制中 ${dur}`);
         }
     },
 };
@@ -690,7 +711,10 @@ async function saveBrew(frames, startedAt) {
 }
 
 function fmtDur(s) {
-    return `${Math.floor(s / 60)}:${String(Math.round(s) % 60).padStart(2, '0')}`;
+    // round first — splitting floor/round across the minute boundary shows
+    // "1:00" for ~0.5 s at 119.5–120 s
+    const r = Math.round(s);
+    return `${Math.floor(r / 60)}:${String(r % 60).padStart(2, '0')}`;
 }
 
 let beanCache = [], brewCache = [];
@@ -771,6 +795,8 @@ function beanCard(b, bs) {
     </div>`;
 }
 
+let beansLoaded = false;
+
 async function renderBeans() {
     beanCache = await DB.beans.list();
     beanCache.sort((a, b) => {
@@ -779,7 +805,14 @@ async function renderBeans() {
     });
     brewCache = await DB.brews.list();
     brewCache.sort((a, b) => (a.date < b.date ? 1 : -1));   // newest first
+    beansLoaded = true;
+    paintBeans();
+}
 
+// DOM pass over the cached lists — callers that only changed in-memory
+// state (selection, search, a cached field) skip the IndexedDB round-trip.
+function paintBeans() {
+    if (!beansLoaded) return;    // the in-flight first load paints itself
     syncBeanPick();
     $('bar-move').innerHTML = '<option value="-1">归档到…</option>' +
         '<option value="">未归档</option>' +
@@ -1062,7 +1095,7 @@ $('bar-all').onclick = () => {
     const full = allB.every(i => selBeans.has(i)) && allW.every(i => selBrews.has(i));
     selBeans.clear(); selBrews.clear();
     if (!full) { allB.forEach(i => selBeans.add(i)); allW.forEach(i => selBrews.add(i)); }
-    renderBeans();
+    paintBeans();
 };
 $('bar-del').onclick = () => {
     if (!selBeans.size && !selBrews.size) { toast('先选中要删的项'); return; }
@@ -1089,9 +1122,9 @@ $('bar-move').onchange = async () => {
         if (w && w.beanId !== beanId) { w.beanId = beanId; await DB.brews.update(w); n++; }
     }
     toast(n ? `已归档 ${n} 条记录` : '没有选中冲煮记录');
-    exitEdit(); renderBeans();
+    exitEdit(); paintBeans();
 };
-$('bar-done').onclick = () => { exitEdit(); renderBeans(); };
+$('bar-done').onclick = () => { exitEdit(); paintBeans(); };
 
 // rows are divs with role=button — Enter/Space toggles like a real button
 $('bean-accordion').addEventListener('keydown', e => {
@@ -1110,7 +1143,7 @@ $('bean-accordion').addEventListener('change', async e => {
         w.beanId = asg.value === '' ? null : +asg.value;
         await DB.brews.update(w);
         toast(w.beanId === null ? '已移到未归档' : `已归入 ${beanName(w.beanId)}`);
-        renderBeans();
+        paintBeans();
         return;
     }
     const cmp = e.target.closest('[data-cmp]');
@@ -1128,7 +1161,7 @@ $('bean-accordion').addEventListener('change', async e => {
         b[bf.dataset.bf] = bf.dataset.bf === 'dose'
             ? (parseFloat(bf.value) || 0) : bf.value;
         await DB.beans.update(b);
-        renderBeans();                       // name/brand may be in the header
+        paintBeans();                        // name/brand may be in the header
         return;
     }
     const nt = e.target.closest('[data-note]');
@@ -1264,10 +1297,9 @@ $('bean-form').addEventListener('submit', async e => {
     beanNameIn.value = '';
     addBeanBtn.disabled = true;
     const id = await DB.beans.add({ name, dose: doseVal(), ratio: ratioVal() });
+    openBeans.add(id);                 // renders already-open in one pass
     await renderBeans();
     selectBean(id);
-    openBeans.add(id);
-    renderBeans();
 });
 
 // bean-label scanner: camera + on-device OCR (scan.js), models lazy-load on
@@ -1282,10 +1314,9 @@ initScan({
     },
     addBean: async f => {
         const id = await DB.beans.add({ ...f, dose: doseVal(), ratio: ratioVal() });
+        openBeans.add(id);
         await renderBeans();
         selectBean(id);
-        openBeans.add(id);
-        renderBeans();
     },
 });
 
@@ -1310,10 +1341,12 @@ function renderBsList() {
                         || x.name.localeCompare(y.name, 'zh'));
     const name = bsQ.value.trim();
     bsList.innerHTML =
-        `<button class="bs-row${curBean === null ? ' sel' : ''}" data-id="">
+        `<button class="bs-row${curBean === null ? ' sel' : ''}" data-id=""
+           role="option" aria-selected="${curBean === null}">
            <span class="bh-main"><span class="bname dim">不选豆子</span></span></button>` +
         items.map(b => `
-        <button class="bs-row${b.id === curBean ? ' sel' : ''}" data-id="${b.id}">
+        <button class="bs-row${b.id === curBean ? ' sel' : ''}" data-id="${b.id}"
+                role="option" aria-selected="${b.id === curBean}">
           <span class="bh-main">
             <span class="bname">${esc(b.name)}</span>
             <span class="bsub">${[b.brand, b.process, b.variety].filter(Boolean)
@@ -1326,6 +1359,7 @@ function renderBsList() {
             ? `<button class="bs-row bs-new" data-new="1">＋ 新建「${esc(name)}」</button>`
             : '') +
         (!items.length && !name ? '<div class="empty">没有匹配的豆子</div>' : '');
+    bsList.scrollTop = 0;           // filtering/reopen shouldn't keep old scroll
 }
 
 $('bean-pick').onclick = () => {
@@ -1347,10 +1381,9 @@ bsList.addEventListener('click', async e => {
         if (!name) return;
         const id = await DB.beans.add(
             { name, dose: doseVal(), ratio: ratioVal() });
+        openBeans.add(id);
         await renderBeans();
         selectBean(id);
-        openBeans.add(id);
-        renderBeans();
         toast(`已添加「${name}」`);
         buzz(15);
         return;
@@ -1359,8 +1392,14 @@ bsList.addEventListener('click', async e => {
     buzz(8);
 });
 
-// bean search on the 豆子 page
-$('bean-q').addEventListener('input', () => renderBeans());
+// bean search on the 豆子 page — debounced, paints from the cached
+// lists instead of re-reading IndexedDB on every keystroke
+let beanQT = 0;
+$('bean-q').addEventListener('input', () => {
+    if (!beansLoaded) return;
+    clearTimeout(beanQT);
+    beanQT = setTimeout(paintBeans, 150);
+});
 
 // ghost reference on the live chart: the selected bean's ♥ brew,
 // else its newest. Anchored to the brew timer, not wall time.
@@ -1443,7 +1482,7 @@ new ResizeObserver(() => {
 // theme change — rebuild the uPlot instances with the new palette
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     chart.retheme();
-    renderBeans();
+    paintBeans();
 });
 
 // --- main loop -----------------------------------------------------------------

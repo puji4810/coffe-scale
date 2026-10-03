@@ -1233,7 +1233,7 @@
            chrome://flags/#enable-experimental-web-platform-features。
            授权过的秤会自动重连。冲煮计时开始时自动录制，暂停计时同时暂停录制，复位计时后保存；
            称重页的"注水自动计时"开启时，检测到持续注水会自动开始计时。<br>
-           快捷键：T 去皮，L 计时，M 切换模式。</p>
+           快捷键：T 去皮，L 计时，R 复位，M 切换模式。</p>
       </div>
     </div>
   </section>
@@ -1258,7 +1258,7 @@
 <div id="sugg" role="listbox" aria-label="建议" hidden></div>
 
 <!-- bean-label scanner: live camera + on-device OCR (lazy-loaded models) -->
-<div id="scan-ov" hidden>
+<div id="scan-ov" role="dialog" aria-modal="true" aria-label="扫标签" hidden>
   <video id="scan-video" playsinline muted autoplay></video>
   <canvas id="scan-fx"></canvas>
   <canvas id="scan-cap" hidden></canvas>

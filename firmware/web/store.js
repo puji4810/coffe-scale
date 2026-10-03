@@ -67,10 +67,16 @@ export async function exportAll() {
 }
 
 // Import merges by id: rows whose ids collide are overwritten, new rows
-// are added. Returns {beans, brews} counts written.
+// are added. One transaction over both stores — atomic and far faster
+// than a put-per-row on large backups.
 export async function importAll(data) {
-    let nb = 0, nw = 0;
-    for (const b of data.beans || []) { await beans.update(b); nb++; }
-    for (const w of data.brews || []) { await brews.update(w); nw++; }
-    return { beans: nb, brews: nw };
+    const db = await open();
+    const bs = data.beans || [], ws = data.brews || [];
+    return new Promise((res, rej) => {
+        const tx = db.transaction(['beans', 'brews'], 'readwrite');
+        for (const b of bs) tx.objectStore('beans').put(b);
+        for (const w of ws) tx.objectStore('brews').put(w);
+        tx.oncomplete = () => res({ beans: bs.length, brews: ws.length });
+        tx.onerror = tx.onabort = () => rej(tx.error);
+    });
 }

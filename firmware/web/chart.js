@@ -103,7 +103,9 @@ export class ScaleChart {
         this.u = new uPlot(opts, [[], [], [], []], el);
 
         this.ghost = null;              // brew {t[],w[]} to overlay
-        this.ghostBase = null;          // live-x seconds where ghost t=0 lands
+        this._ghostBase = null;         // live-x seconds where ghost t=0 lands
+        this.g = [];                    // ghost column, kept parallel to x/w/f
+        this.gi = 0;                    // amortized segment cursor into ghost.t
         this.lastData = [[], [], [], []];
 
         this.tip = document.createElement('div');
@@ -149,19 +151,44 @@ export class ScaleChart {
     /// before that it stays hidden (there is no meaningful alignment).
     setGhost(brew) {
         this.ghost = brew;
-        this.ghostBase = null;
-        if (this.visible) this.redraw();
+        this.ghostBase = null;          // setter refills the column + redraws
+    }
+
+    get ghostBase() { return this._ghostBase; }
+    set ghostBase(v) {
+        this._ghostBase = v;
+        this.gi = 0;
+        this.refillGhost();
+        if (this.visible && !document.hidden) this.redraw();
+    }
+
+    /// Rebuild the whole ghost column — runs only when the brew or its
+    /// anchor changes; the per-frame path appends through ghostAt().
+    refillGhost() {
+        this.g = (this.ghost && this._ghostBase !== null)
+            ? resample(this.x, this.ghost, this._ghostBase)
+            : new Array(this.x.length).fill(null);
+    }
+
+    /// Interpolated ghost weight at live-x second s — x is monotone, so
+    /// the segment cursor amortizes to O(1) per push.
+    ghostAt(s) {
+        const g = this.ghost;
+        if (!g || this._ghostBase === null) return null;
+        const t = g.t, n = t.length, gt = s - this._ghostBase;
+        if (n < 2 || gt < t[0] || gt > t[n - 1]) return null;
+        let j = this.gi;
+        while (j < n - 2 && t[j + 1] < gt) j++;
+        this.gi = j;
+        const t0 = t[j], t1 = t[j + 1];
+        return t1 === t0 ? g.w[j]
+             : g.w[j] + (g.w[j + 1] - g.w[j]) * (gt - t0) / (t1 - t0);
     }
 
     /// Live-chart seconds for a raw frame timestamp (null until t0).
     secOf(t) { return this.t0 === null ? null : (t - this.t0) / 1000; }
 
-    data4() {
-        if (this.ghost && this.ghostBase !== null)
-            return [this.x, this.w, this.f,
-                    resample(this.x, this.ghost, this.ghostBase)];
-        return [this.x, this.w, this.f, this.x.map(() => null)];
-    }
+    data4() { return [this.x, this.w, this.f, this.g]; }
 
     redraw() {
         const d = this.data4();
@@ -229,19 +256,25 @@ export class ScaleChart {
         const s = (t - this.t0) / 1000;
         const x = this.x;
         x.push(s); this.w.push(grams); this.f.push(flow);
+        this.g.push(this.ghostAt(s));
         // trim to the rolling window
         const cut = s - this.windowS;
         let i = 0;
         while (i < x.length && x[i] < cut) i++;
-        if (i) { x.splice(0, i); this.w.splice(0, i); this.f.splice(0, i); }
-        if (this.visible) this.redraw();
+        if (i) {
+            x.splice(0, i); this.w.splice(0, i);
+            this.f.splice(0, i); this.g.splice(0, i);
+        }
+        // hidden tabs still buffer — the caller flushes on visibilitychange
+        if (this.visible && !document.hidden) this.redraw();
     }
 
     clear() {
         this.t0 = null;
         this.lastT = -Infinity;
-        this.x.length = this.w.length = this.f.length = 0;
-        this.ghostBase = null;
+        this.x.length = this.w.length = this.f.length = this.g.length = 0;
+        this._ghostBase = null;
+        this.gi = 0;
         this.u.setData([[], [], [], []]);
         this.tip.style.display = 'none';
     }
