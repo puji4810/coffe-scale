@@ -808,8 +808,14 @@ function beanCard(b, bs) {
       </div>`).join('')
         || '<div class="empty">这支豆子还没有冲煮记录。</div>';
     const sub = b
-        ? [b.brand, b.process, b.variety].filter(Boolean)
-            .map(x => `<span class="meta">${esc(x)}</span>`).join('')
+        ? [b.brand && `<span class="meta"><i class="bdot" style="--bh:${
+                brandHue(b.brand)}"></i>${esc(b.brand)}</span>`,
+           b.process && `<span class="meta">${esc(b.process)}</span>`,
+           b.variety && `<span class="meta">${esc(b.variety)}</span>`,
+           (b.dose || b.ratio) && `<span class="meta">${
+                b.dose ? `${b.dose}g` : ''}${b.dose && b.ratio ? ' ' : ''}${
+                b.ratio ? `1:${b.ratio}` : ''}</span>`]
+            .filter(Boolean).join('')
         : '';
     const last = bs.length ? bs[0].date.slice(5, 10) : '';
     const rated = bs.filter(w => w.rating);
@@ -857,9 +863,10 @@ function paintBeans() {
         '<option value="">未归档</option>' +
         beanCache.map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('');
 
-    $('bean-q').hidden = beanCache.length < 4;
-    const q = $('bean-q').hidden ? ''
-        : $('bean-q').value.trim().toLowerCase();
+    // hide the search box for tiny libraries — but keep it visible while
+    // it holds an active filter (e.g. a brand-chip tap set it)
+    $('bean-q').hidden = beanCache.length < 4 && !$('bean-q').value;
+    const q = $('bean-q').value.trim().toLowerCase();
     const hit = b => [b.name, b.brand, b.process, b.variety, b.estate]
         .some(v => v && v.toLowerCase().includes(q));
     let groups = beanCache.map(b => ({
@@ -1216,6 +1223,7 @@ $('bean-accordion').addEventListener('change', async e => {
         b[bf.dataset.bf] = bf.dataset.bf === 'dose'
             ? (parseFloat(bf.value) || 0) : bf.value;
         await DB.beans.update(b);
+        if (bf.dataset.bf === 'brand') rememberBrand(b.brand);
         paintBeans();                        // name/brand may be in the header
         return;
     }
@@ -1238,6 +1246,26 @@ const getBrands = () => {
     try { return JSON.parse(localStorage.getItem(BRAND_KEY)) || []; }
     catch { return []; }
 };
+
+// deterministic hue per brand name — a stable "roaster color" for the
+// chips and the bean-head dot, no stored state needed
+function brandHue(n) {
+    let h = 0;
+    for (const c of String(n)) h = (h * 31 + c.codePointAt(0)) >>> 0;
+    return h % 360;
+}
+
+// a brand that landed on a bean (typed or scanned) joins the preset list
+// so it autocompletes everywhere afterwards
+function rememberBrand(n) {
+    n = String(n || '').trim();
+    if (!n) return;
+    const list = getBrands();
+    if (list.includes(n)) return;
+    list.push(n);
+    localStorage.setItem(BRAND_KEY, JSON.stringify(list));
+    renderBrandChips();
+}
 const PROCESS_PRESET = ['水洗', '日晒', '蜜处理', '厌氧日晒', '水洗厌氧', '酒桶发酵', '湿刨'];
 const VARIETY_PRESET = ['瑰夏', '铁皮卡', '波旁', '卡杜拉', '卡蒂姆', 'SL28', 'SL34', '原生种', '帕卡马拉'];
 const SUGG_PRESETS = { process: PROCESS_PRESET, variety: VARIETY_PRESET };
@@ -1305,10 +1333,18 @@ visualViewport?.addEventListener('resize', () => { if (suggFor) placeSugg(); });
 function renderBrandChips() {
     const box = $('brand-chips');
     if (!box) return;
-    box.innerHTML = getBrands().map(n =>
-        `<span class="bchip">${esc(n)}<button type="button"
-            data-branddel="${esc(n)}" aria-label="删除品牌 ${esc(n)}">×</button></span>`
-    ).join('') || '<span class="dim">还没有</span>';
+    const beanN = new Map();
+    for (const b of beanCache)
+        if (b.brand) beanN.set(b.brand, (beanN.get(b.brand) || 0) + 1);
+    const cur = $('bean-q').value.trim();
+    box.innerHTML = getBrands().map(n => `
+        <span class="bchip${cur === n ? ' on' : ''}" style="--bh:${brandHue(n)}">
+          <button type="button" class="bf" data-brand="${esc(n)}"
+                  aria-pressed="${cur === n}" title="按品牌筛选">${esc(n)}${
+            beanN.has(n) ? `<i>${beanN.get(n)}</i>` : ''}</button>
+          <button type="button" class="bx" data-branddel="${esc(n)}"
+                  aria-label="删除品牌 ${esc(n)}" title="删除">×</button>
+        </span>`).join('') || '<span class="dim">还没有</span>';
 }
 
 // brand add: Enter or the appearing button; several at once split by 、,空格
@@ -1327,16 +1363,26 @@ $('brand-form').addEventListener('submit', e => {
 });
 $('brand-chips').addEventListener('click', e => {
     const del = e.target.closest('[data-branddel]');
-    if (!del) return;
-    const n = del.dataset.branddel;
-    const prev = getBrands();
-    localStorage.setItem(BRAND_KEY,
-        JSON.stringify(prev.filter(x => x !== n)));
-    renderBrandChips();
-    toast(`已删除品牌「${n}」`, { label: '撤销', fn: () => {
-        localStorage.setItem(BRAND_KEY, JSON.stringify(prev));
+    if (del) {
+        const n = del.dataset.branddel;
+        const prev = getBrands();
+        localStorage.setItem(BRAND_KEY,
+            JSON.stringify(prev.filter(x => x !== n)));
         renderBrandChips();
-    } });
+        toast(`已删除品牌「${n}」`, { label: '撤销', fn: () => {
+            localStorage.setItem(BRAND_KEY, JSON.stringify(prev));
+            renderBrandChips();
+        } });
+        return;
+    }
+    // tap a chip to filter the list to that brand; tap again to clear.
+    // The search box becomes visible so the active filter is clearable.
+    const chip = e.target.closest('[data-brand]');
+    if (!chip) return;
+    const q = $('bean-q');
+    q.value = q.value.trim() === chip.dataset.brand ? '' : chip.dataset.brand;
+    q.hidden = false;
+    paintBeans();
 });
 
 // add-bean form — submit on Enter or the button; disabled while empty
@@ -1369,6 +1415,7 @@ initScan({
     },
     addBean: async f => {
         const id = await DB.beans.add({ ...f, dose: doseVal(), ratio: ratioVal() });
+        if (f.brand) rememberBrand(f.brand);
         openBeans.add(id);
         await renderBeans();
         selectBean(id);
@@ -1408,8 +1455,11 @@ function renderBsList() {
                 role="option" aria-selected="${b.id === curBean}">
           <span class="bh-main">
             <span class="bname">${esc(b.name)}</span>
-            <span class="bsub">${[b.brand, b.process, b.variety].filter(Boolean)
-                .map(v => `<span class="meta">${esc(v)}</span>`).join('')}</span>
+            <span class="bsub">${[b.brand && `<span class="meta"><i class="bdot"
+                    style="--bh:${brandHue(b.brand)}"></i>${esc(b.brand)}</span>`,
+                b.process && `<span class="meta">${esc(b.process)}</span>`,
+                b.variety && `<span class="meta">${esc(b.variety)}</span>`]
+                .filter(Boolean).join('')}</span>
           </span>
           <span class="bh-stat"><b>${brewN.get(b.id) || 0}</b><span>次冲煮</span>${
             rateN.has(b.id) ? `<span class="bh-avg">★${

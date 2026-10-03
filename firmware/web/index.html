@@ -543,32 +543,61 @@
   .bean-meta .wide { grid-column: 1 / -1; }
   .bean-meta .danger-text { align-self: end; justify-self: start; }
 
-  /* preset brand chips — the bean card's 品牌 field suggests them */
+  /* brand chips — each brand's name hashes to a stable hue (--bh) so it
+     keeps a consistent "roaster tint"; color-mix keeps it theme-adaptive.
+     Tap the name to filter the list, × removes the preset. */
   .brand-mgr {
     display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
     font-size: 13px; color: var(--dim); margin-bottom: 12px;
   }
   #brand-chips { display: contents; }
-  .brand-add { display: inline-flex; gap: 6px; align-items: center; }
-  .brand-add input {
-    width: 108px; min-height: 32px; padding: 3px 10px; font-size: 13px;
-    border-radius: 999px; transition: width .2s;
-  }
-  .brand-add input:focus { width: 140px; }
-  .brand-add input:placeholder-shown + button { display: none; }
-  .brand-add button { min-height: 32px; border-radius: 999px; font-size: 13px; }
   .bchip {
-    display: inline-flex; align-items: center;
-    border: 1px solid var(--rule); border-radius: 999px;
-    padding: 0 0 0 11px; font-size: 13px; color: var(--ink);
-    background: var(--key); min-height: 32px;
+    display: inline-flex; align-items: stretch; overflow: hidden;
+    border: 1px solid
+      color-mix(in srgb, hsl(var(--bh, 200), 45%, 50%) 45%, var(--rule));
+    border-radius: 999px; font-size: 13px; color: var(--ink);
+    background:
+      color-mix(in srgb, hsl(var(--bh, 200), 48%, 52%) 14%, var(--key));
+    min-height: 32px;
   }
   .bchip button {
-    border: none; background: none; min-height: 30px; min-width: 30px; padding: 0;
-    color: var(--dim); font-size: 16px; line-height: 1; border-radius: 999px;
+    border: none; background: none; color: inherit; font-size: 13px;
+    min-height: 30px; cursor: pointer;
   }
-  .bchip button:active:not(:disabled) { transform: none; color: var(--red); }
-  .bchip button:hover { color: var(--red); }
+  .bchip .bf { padding: 0 3px 0 11px; }
+  .bchip .bf i {
+    font-style: normal; font-size: 11px; color: var(--dim); margin-left: 5px;
+  }
+  .bchip.on {
+    background:
+      color-mix(in srgb, hsl(var(--bh), 50%, 50%) 38%, var(--key));
+    border-color: hsl(var(--bh), 45%, 55%);
+  }
+  .bchip .bx {
+    min-width: 28px; padding: 0 8px 0 4px; color: var(--dim);
+    font-size: 15px; line-height: 1;
+  }
+  .bchip .bx:hover { color: var(--red); }
+  /* inside the pill, the global press-translate would poke outside */
+  .bchip button:active:not(:disabled) { transform: none; border-bottom-width: 1px; }
+  .bchip .bf:active:not(:disabled) { opacity: .6; }
+  .brand-add { display: inline-flex; gap: 6px; align-items: center; }
+  .brand-add input {
+    width: 86px; min-height: 30px; padding: 3px 10px; font-size: 13px;
+    border-radius: 999px; border-style: dashed; background: transparent;
+    transition: width .2s;
+  }
+  .brand-add input:focus,
+  .brand-add input:not(:placeholder-shown) {
+    width: 140px; border-style: solid;
+  }
+  .brand-add input:placeholder-shown + button { display: none; }
+  .brand-add button { min-height: 30px; border-radius: 999px; font-size: 13px; }
+  /* bean-head brand dot — same hash hue as the chips above */
+  .bdot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: hsl(var(--bh), 48%, 52%); margin-right: 5px;
+  }
 
   .brew { border-top: 1px solid var(--rule); }
   .brew-head {
