@@ -23,6 +23,34 @@ function fmtTime(v) {
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
+// floating readout pinned to the cursor — time + each series' value.
+// Shared by the live chart and saved-brew plots; on touch screens a
+// horizontal drag drives it (drag-zoom is disabled, see cursor.drag).
+function chartTip(u, tip, data) {
+    const i = u.cursor.idx;
+    if (i == null || i >= data[0].length) {
+        tip.style.display = 'none';
+        return;
+    }
+    tip.style.display = 'block';
+    const v = (x, un) => x == null ? '' : `  ${x.toFixed(1)} ${un}`;
+    tip.textContent = fmtTime(data[0][i]) + v(data[1][i], 'g')
+        + v(data[2][i], 'g/s')
+        + (data[3]?.[i] == null ? '' : `  参考 ${data[3][i].toFixed(1)} g`);
+    const bw = u.bbox.width / devicePixelRatio;
+    const left = Math.min(u.cursor.left + 12, bw - tip.offsetWidth - 4);
+    tip.style.left = `${Math.max(0, left)}px`;
+    tip.style.top = '6px';
+}
+
+function mountTip(u, data) {
+    const tip = document.createElement('div');
+    tip.className = 'chart-tip';
+    tip.style.display = 'none';
+    u.over.appendChild(tip);
+    return u.hooks.setCursor.push(u => chartTip(u, tip, data));
+}
+
 /// uPlot series share one x array — a second brew's points have their
 /// own timestamps. Interleaving them into the x array would punch null
 /// gaps into the weight/flow columns at every ghost point and make the
@@ -229,22 +257,8 @@ export class ScaleChart {
     }
 
     updateTip(u) {
-        const i = u.cursor.idx;
         if (!this.tip) return;            // hook can fire during construction
-        const d = this.lastData;
-        if (i == null || i >= d[0].length) {
-            this.tip.style.display = 'none';
-            return;
-        }
-        this.tip.style.display = 'block';
-        const v = (x, u) => x == null ? '' : `  ${x.toFixed(1)} ${u}`;
-        this.tip.textContent = fmtTime(d[0][i]) + v(d[1][i], 'g') +
-            v(d[2][i], 'g/s') +
-            (d[3][i] == null ? '' : `  参考 ${d[3][i].toFixed(1)} g`);
-        const bw = u.bbox.width / devicePixelRatio;
-        const left = Math.min(u.cursor.left + 12, bw - this.tip.offsetWidth - 4);
-        this.tip.style.left = `${Math.max(0, left)}px`;
-        this.tip.style.top = '6px';
+        chartTip(u, this.tip, this.lastData);
     }
 
     /// t in ms (any monotone clock — first call anchors t0).
@@ -297,7 +311,7 @@ export function brewPlot(el, t, w, f, other = null) {
         : a.concat(new Array(X.length - a.length).fill(null));
     const data = [X, pad(w), pad(f),
                   other ? resample(X, other) : X.map(() => null)];
-    return new uPlot({
+    const u = new uPlot({
         width: el.clientWidth,
         height: 190,
         padding: [8, 8, 0, 0],
@@ -327,5 +341,8 @@ export function brewPlot(el, t, w, f, other = null) {
         ],
         legend: { show: !!other },
         cursor: { show: true, drag: { x: false, y: false } },
+        hooks: { setCursor: [] },        // mountTip fills it after creation
     }, data, el);
+    mountTip(u, data);
+    return u;
 }

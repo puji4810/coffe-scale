@@ -529,8 +529,11 @@
   .fold > div { min-height: 0; overflow: hidden; }
   .open > .fold { grid-template-rows: 1fr; }
   .bean-body { padding: 0 14px 14px; }
-  #bean-q { width: 100%; margin-bottom: 10px; }
-  #bean-q[hidden] { display: none; }
+  .bean-tools { display: flex; gap: 8px; margin-bottom: 10px; }
+  .bean-tools[hidden] { display: none; }
+  .bean-tools #bean-q { flex: 1; min-width: 0; }
+  .bean-tools #bean-sort { flex: none; }
+  #bean-q[hidden], #bean-sort[hidden] { display: none; }
   .bean-meta {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 8px 10px; margin-bottom: 12px;
@@ -920,6 +923,8 @@
   }
   .u-legend { font-size: 11px; color: var(--dim); }
   .u-cursor-x, .u-cursor-y { border-color: var(--dim) !important; }
+  /* horizontal drag drives the cursor readout; vertical stays page scroll */
+  .chart-wrap .u-over, .bd-curve .u-over { touch-action: pan-y; }
 
   :focus-visible {
     outline: 2px solid var(--amber-fill); outline-offset: 2px; border-radius: 4px;
@@ -1208,8 +1213,16 @@
           <button type="submit" class="small">添加</button>
         </form>
       </div>
-      <input type="search" id="bean-q" placeholder="搜索名称、品牌、产区…" autocomplete="off"
-             enterkeyhint="search" aria-label="搜索豆子" hidden>
+      <div class="bean-tools" id="bean-tools" hidden>
+        <input type="search" id="bean-q" placeholder="搜索名称、品牌、产区…" autocomplete="off"
+               enterkeyhint="search" aria-label="搜索豆子" hidden>
+        <select id="bean-sort" aria-label="豆库排序">
+          <option value="manual">手动排序</option>
+          <option value="recent">最近冲煮</option>
+          <option value="name">名称</option>
+          <option value="rating">评分</option>
+        </select>
+      </div>
       <div id="bean-bar" hidden>
         <button id="bar-all" type="button">全选</button>
         <select id="bar-move"><option value="-1">归档到…</option></select>
@@ -1272,6 +1285,7 @@
         <div class="row">
           <button id="btn-export">导出备份</button>
           <button id="btn-import">导入备份</button>
+          <button id="btn-brewcsv">冲煮 CSV</button>
         </div>
       </div>
       <div class="dsec">

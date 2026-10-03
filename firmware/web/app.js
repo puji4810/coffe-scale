@@ -12,7 +12,21 @@ import * as DB from './store.js';
 import { initScan } from './scan.js';
 
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js');
+    // captured before register() — the very first install also fires
+    // controllerchange (null → sw), which is not an "update"
+    const hadCtrl = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+        let prompted = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            // a deployed update skipWaits and takes control right away —
+            // offer a reload rather than silently swapping caches under
+            // a long-open tab
+            if (!hadCtrl || prompted) return;
+            prompted = true;
+            toast('新版本已就绪', { label: '刷新', fn: () => location.reload() });
+        });
+        setInterval(() => reg.update(), 60 * 60 * 1000);
+    }).catch(() => {});
 }
 
 const Screen = await ScaleScreenFactory();
@@ -865,8 +879,11 @@ function paintBeans() {
 
     // hide the search box for tiny libraries — but keep it visible while
     // it holds an active filter (e.g. a brand-chip tap set it)
-    $('bean-q').hidden = beanCache.length < 4 && !$('bean-q').value;
-    const q = $('bean-q').value.trim().toLowerCase();
+    const qEl = $('bean-q'), sortEl = $('bean-sort');
+    qEl.hidden = beanCache.length < 4 && !qEl.value;
+    sortEl.hidden = beanCache.length < 2;
+    $('bean-tools').hidden = qEl.hidden && sortEl.hidden;
+    const q = qEl.value.trim().toLowerCase();
     const hit = b => [b.name, b.brand, b.process, b.variety, b.estate]
         .some(v => v && v.toLowerCase().includes(q));
     let groups = beanCache.map(b => ({
@@ -876,6 +893,17 @@ function paintBeans() {
         hit(g.b) || g.bs.some(w => w.note?.toLowerCase().includes(q)));
     const loose = brewCache.filter(w =>
         w.beanId === null || !beanCache.some(b => b.id === w.beanId));
+    // non-manual sorts — brewCache is newest-first so bs[0] is the latest
+    const avgRate = g => {
+        const r = g.bs.filter(w => w.rating);
+        return r.length ? r.reduce((s, w) => s + w.rating, 0) / r.length : -1;
+    };
+    if (beanSort === 'recent')
+        groups.sort((a, b) => (b.bs[0]?.date || '').localeCompare(a.bs[0]?.date || ''));
+    else if (beanSort === 'name')
+        groups.sort((a, b) => a.b.name.localeCompare(b.b.name, 'zh'));
+    else if (beanSort === 'rating')
+        groups.sort((a, b) => avgRate(b) - avgRate(a));
     if (loose.length && !q) groups.push({ b: null, bs: loose });
 
     const acc = $('bean-accordion');
@@ -906,11 +934,30 @@ function plotBrew(bd, w) {
                     other || null);
 }
 
+// derived pour stats — recomputed from the raw t/w/f arrays on render,
+// nothing is stored back. t[] is seconds since pour start.
+function brewStats(w) {
+    const t = w.t || [], ws = w.w || [], f = w.f || [];
+    if (!t.length) return null;
+    let peak = 0, sum = 0, n = 0, first = null;
+    for (let i = 0; i < t.length; i++) {
+        if (f[i] > peak) peak = f[i];
+        if (f[i] > 0.5) { sum += f[i]; n++; }
+        if (first === null && ws[i] > 2) first = t[i];
+    }
+    return {
+        peak: +peak.toFixed(1),
+        avg: n ? +(sum / n).toFixed(1) : null,
+        firstDrop: first === null ? null : Math.round(first),
+    };
+}
+
 function mountBrewDetail(w) {
     const bd = document.querySelector(`.brew-detail[data-bd="${w.id}"]`);
     if (!bd || bd.dataset.mounted) return;
     bd.dataset.mounted = '1';
     const others = brewCache.filter(x => x.id !== w.id);
+    const st = brewStats(w);
     bd.innerHTML = `
       <div class="bd-curve"></div>
       <div class="bd-data">
@@ -918,6 +965,7 @@ function mountBrewDetail(w) {
         <div>${w.dose || '?'} g → <span class="v">${w.liquid} g</span>` +
         `${w.dose ? ` <span class="v">1:${(w.liquid / w.dose).toFixed(1)}</span>` : ''}</div>
         <div>${fmtDur(w.durationS)} · ${w.t.length} 个点</div>
+        ${st ? `<div>首滴 ${st.firstDrop ?? '–'} s · 均流 ${st.avg ?? '–'} · 峰值 ${st.peak} g/s</div>` : ''}
         <textarea class="note" rows="2" data-note="${w.id}"
                   placeholder="备注：风味、改进…">${esc(w.note || '')}</textarea>
         ${others.length ? `<select class="cmp" data-cmp="${w.id}">
@@ -1068,6 +1116,7 @@ let editMode = false;
 const selBeans = new Set(), selBrews = new Set();
 let beanOrder = [];
 try { beanOrder = JSON.parse(localStorage.getItem('beanOrder') || '[]'); } catch {}
+let beanSort = localStorage.getItem('beanSort') || 'manual';
 
 let lpTimer = 0, lpPt = null, suppressHeadClick = false, dragBean = null;
 const beanAcc = $('bean-accordion');
@@ -1104,7 +1153,10 @@ beanAcc.addEventListener('pointerdown', e => {
         toggleSel(head);
         suppressHeadClick = true;          // the click on release would re-toggle
         const id = head.dataset.beanhead;
-        if (id !== undefined && id !== '0') dragBean = { id, armed: true };
+        // drag-reorder only exists in manual order — a sorted list isn't
+        // the user's to arrange
+        if (id !== undefined && id !== '0' && beanSort === 'manual')
+            dragBean = { id, armed: true };
     }, 450);
 });
 beanAcc.addEventListener('pointermove', e => {
@@ -1521,6 +1573,15 @@ $('bean-q').addEventListener('input', () => {
     beanQT = setTimeout(paintBeans, 150);
 });
 
+const sortSel = $('bean-sort');
+sortSel.value = beanSort;
+beanSort = sortSel.value || 'manual';    // normalize a stale stored value
+sortSel.onchange = () => {
+    beanSort = sortSel.value;
+    localStorage.setItem('beanSort', beanSort);
+    paintBeans();
+};
+
 // ghost reference on the live chart: the selected bean's ♥ brew,
 // else its newest. Anchored to the brew timer, not wall time.
 function pickGhost() {
@@ -1548,6 +1609,41 @@ $('btn-export').onclick = async () => {
     a.click();
     URL.revokeObjectURL(a.href);
     toast('备份已导出');
+};
+
+// spreadsheet-friendly dump of every brew — ratings + derived stats included
+const csvEsc = v => {
+    const s = String(v ?? '');
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+$('btn-brewcsv').onclick = () => {
+    const rows = [[
+        '日期', '豆子', '品牌', '粉量g', '液重g', '粉水比', '时长s',
+        '首滴s', '均流速g/s', '峰值流速g/s', '评分', '收藏', '备注',
+    ]];
+    for (const w of brewCache) {
+        const b = beanCache.find(x => x.id === w.beanId);
+        const st = brewStats(w);
+        rows.push([
+            w.date.slice(0, 16).replace('T', ' '),
+            b?.name ?? '未归档', b?.brand ?? '',
+            w.dose ?? '', w.liquid,
+            w.dose ? (w.liquid / w.dose).toFixed(2) : '',
+            w.durationS,
+            st?.firstDrop ?? '', st?.avg ?? '', st?.peak ?? '',
+            w.rating || '', w.fav ? '♥' : '', w.note || '',
+        ]);
+    }
+    // leading BOM: Excel/Numbers sniff it as UTF-8 so CJK stays intact
+    const csv = String.fromCharCode(0xFEFF)
+        + rows.map(r => r.map(csvEsc).join(',')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv],
+        { type: 'text/csv;charset=utf-8' }));
+    a.download = `brews-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast(`已导出 ${brewCache.length} 条冲煮`);
 };
 
 $('btn-import').onclick = () => {
