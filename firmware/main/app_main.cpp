@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
 #include <mutex>
 #include <optional>
 
@@ -571,6 +572,26 @@ void power_task(void*) {
     }
 }
 
+/// Li-ion open-circuit % approximation — piecewise-linear between typical
+/// resting points. Reads a bit low under load (voltage sags); the spread
+/// sampler + EMA in battery_task already take out the transient part.
+float battery_pct_of_mv(int mv) {
+    struct Pt { int mv; float pct; };
+    static constexpr Pt kCurve[] = {
+        {3300,   0}, {3450,   5}, {3550,  10}, {3600,  15},
+        {3650,  25}, {3700,  35}, {3750,  45}, {3800,  55},
+        {3850,  65}, {3900,  75}, {4000,  85}, {4100,  95}, {4200, 100},
+    };
+    if (mv <= kCurve[0].mv) return 0.f;
+    for (int i = 1; i < std::size(kCurve); ++i) {
+        if (mv <= kCurve[i].mv) {
+            const Pt &lo = kCurve[i - 1], &hi = kCurve[i];
+            return lo.pct + (hi.pct - lo.pct) * (mv - lo.mv) / (hi.mv - lo.mv);
+        }
+    }
+    return 100.f;
+}
+
 void battery_task(void*) {
     const adc_oneshot_unit_init_cfg_t unit_cfg = {
         .unit_id  = ADC_UNIT_1,
@@ -601,9 +622,15 @@ void battery_task(void*) {
     }
 
     // R13/R14 100k/100k divider -> 50 k source impedance: a single oneshot
-    // read droops and jitters on the sampling cap. Median of a burst +
-    // slow EMA keeps the displayed percent from wandering.
-    constexpr int kSamples = 9;
+    // read droops and jitters on the sampling cap. And the reads must be
+    // spread, not back-to-back: BLE conn events (~50 ms) and LCD bursts sag
+    // VBAT by tens of mV, so a microsecond-long burst lands wholly inside
+    // or outside a sag and the median flips between two plateaus (~10%).
+    // ~100 ms spans at least two connection intervals; the median then
+    // rejects the sag samples. Slow EMA on top damps the rest. (A ~100 nF
+    // cap on the divider midpoint would fix it in hardware.)
+    constexpr int kSamples    = 13;
+    constexpr int kSampleGapMs = 8;
     int          raws[kSamples] = {};
     float        pct_f = -1.f;
 
@@ -623,6 +650,7 @@ void battery_task(void*) {
     for (;;) {
         for (int i = 0; i < kSamples; ++i) {
             adc_oneshot_read(adc, ADC_CHANNEL_8, &raws[i]);
+            vTaskDelay(pdMS_TO_TICKS(kSampleGapMs));
         }
         std::qsort(raws, kSamples, sizeof(int),
                    [](const void* a, const void* b) {
@@ -635,9 +663,8 @@ void battery_task(void*) {
             mv = raws[kSamples / 2] * 3100 / 4095;   // crude fallback
         }
         const int vbat = mv * 2;
-        // TODO(calib): real battery curve; 3.3..4.15 V is a placeholder.
-        const float pct = std::clamp<float>((vbat - 3300) * 100.f / (4150 - 3300), 0, 100);
-        pct_f = pct_f < 0 ? pct : pct_f * 0.7f + pct * 0.3f;
+        const float pct = battery_pct_of_mv(vbat);
+        pct_f = pct_f < 0 ? pct : pct_f * 0.8f + pct * 0.2f;
         // Sticky display: sub-2% wander (charger float, ADC noise) must not
         // flicker the readout — update in 2% steps, except hitting the rails.
         const int rounded = static_cast<int>(pct_f + 0.5f);
