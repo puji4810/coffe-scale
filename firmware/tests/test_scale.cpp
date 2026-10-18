@@ -240,14 +240,15 @@ TEST_CASE("scale: flow settles after a pour stops") {
         t += clock_ms{10};
     }
     CHECK(s.flow_gps() == doctest::Approx(10.f).epsilon(0.2));
-    // fixed 1.0 s window: the ramp tail decays inside ~1 s (100 samples)
+    // Fixed 1.2 s window + 100 ms EMA: the stateless display deadband
+    // reaches zero within 1.5 s, without a stop latch or restart proof.
     int n = 0;
     while (n < 200 && s.flow_gps() != 0.0f) {
         s.push(1'500, t);
         t += clock_ms{10};
         ++n;
     }
-    CHECK(n < 120);
+    CHECK(n < 150);
 }
 
 TEST_CASE("scale: flow does not drop out mid slow pour") {
@@ -350,13 +351,13 @@ TEST_CASE("scale: unprimed pipeline reads 0, not a phantom tare's worth") {
     CHECK(s.grams() == doctest::Approx(0.f).epsilon(0.01));
 }
 
-TEST_CASE("scale: step load is rejected by the impact gate") {
+TEST_CASE("scale: gross load step is translated without manufacturing flow") {
     scale::scale s{{.lpf = lpf_kind::none}};
     s.load_calibration({.zero_counts = 0.f, .counts_per_gram = 100.f});
     clock_ms t{0};
     feed_n(s, 10'000, 100, t);
-    // drop a 100 g cup instantly: the Kalman innovation gate rejects it —
-    // the readout never reports the step as flow
+    // A gross cup step translates the regression's weight origin; there is
+    // no gate to decay the output or suppress the next real pour.
     float peak = 0.0f;
     bool  gated = false;
     for (int i = 0; i < 80; ++i) {
@@ -365,8 +366,8 @@ TEST_CASE("scale: step load is rejected by the impact gate") {
         peak  = std::max(peak, s.flow_gps());
         gated = gated || s.disturbed();
     }
-    CHECK(peak <= 30.0f);
-    CHECK(gated);                 // the gate must have caught the step
+    CHECK(peak == 0.0f);
+    CHECK(gated);                 // a one-sample level-step diagnostic
 }
 
 TEST_CASE("scale: zero tracking absorbs drift, not a placed object") {

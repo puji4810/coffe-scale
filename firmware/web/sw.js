@@ -14,6 +14,7 @@ const ASSETS = [
   './app.js',
   './ble.js',
   './chart.js',
+  './brew_flow.js',
   './store.js',
   './scan.js',
   './ocr_worker.js',

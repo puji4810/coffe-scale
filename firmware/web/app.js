@@ -7,6 +7,7 @@
 
 import ScaleScreenFactory from './dist/scale_screen.mjs';
 import { ScaleChart, brewPlot } from './chart.js';
+import { brewFlow, recordedCurves, flowStats } from './brew_flow.js';
 import { ScaleLink } from './ble.js';
 import * as DB from './store.js';
 import { initScan } from './scan.js';
@@ -518,7 +519,7 @@ const recStatus = $('rec-status');
 const recTxt = $('rec-txt');
 
 const recorder = {
-    frames: [], on: false, lastTimerMs: 0,
+    frames: [], on: false, lastTimerMs: 0, breakBefore: false,
     onFrame(m, t) {
         const s = m.snap;
         if (!this.on) {
@@ -532,12 +533,15 @@ const recorder = {
             this.start();
         }
         if (this.on && s.timerState === 1) {
-            this.frames.push({ t: Math.round(t), ...m });
+            this.frames.push({ t: Math.round(t), ...m,
+                ...(this.breakBefore ? { breakBefore: true } : {}) });
+            this.breakBefore = false;
         }
+        if (this.on && s.timerState === 2) this.breakBefore = true;
         this.lastTimerMs = s.timerMs;
     },
     start() {
-        this.on = true; this.frames = [];
+        this.on = true; this.frames = []; this.breakBefore = false;
         this.startedAt = Date.now();
         $('rec-info').textContent = '';
     },
@@ -715,21 +719,15 @@ addEventListener('change', e => {
 
 async function saveBrew(frames, startedAt) {
     if (frames.length < 10) return;         // taps/blips aren't brews
-    const t0 = frames[0].snap.timerMs;
-    const t = [], w = [], f = [];
-    for (const m of frames) {
-        // x = timer time — paused intervals are simply absent
-        t.push(+((m.snap.timerMs - t0) / 1000).toFixed(2));
-        w.push(+m.snap.grams.toFixed(2));
-        f.push(+m.snap.flowGps.toFixed(2));
-    }
+    const curves = recordedCurves(frames);
+    const { t, w } = curves;
     const brew = {
         beanId: curBeanId(),
         date: new Date(startedAt).toISOString(),
         durationS: +t[t.length - 1].toFixed(1),
         dose: doseVal(),
         liquid: +w[w.length - 1].toFixed(1),
-        rating: 0, fav: false, t, w, f,
+        rating: 0, fav: false, ...curves,
     };
     await DB.brews.add(brew);
     let beanTxt = '';
@@ -911,6 +909,7 @@ function paintBeans() {
     if (loose.length && !q) groups.push({ b: null, bs: loose });
 
     const acc = $('bean-accordion');
+    acc.querySelectorAll('.brew-detail').forEach(bd => bd._u?.destroy());
     acc.innerHTML = groups.length === 0
         ? (q ? '<div class="empty">没有匹配的豆子。</div>'
              : '<div class="empty">还没有豆子。添加第一支豆子后，冲煮记录会自动归到它名下。</div>')
@@ -931,27 +930,26 @@ function paintBeans() {
 
 // comparison overlay: brew id -> other brew id, survives re-renders
 const cmpSel = new Map();
+const rawFlowSel = new Set();
 
 function plotBrew(bd, w) {
     const other = brewCache.find(x => x.id === cmpSel.get(w.id));
-    return brewPlot(bd.querySelector('.bd-curve'), w.t, w.w, w.f,
-                    other || null);
+    const raw = rawFlowSel.has(w.id);
+    return brewPlot(bd.querySelector('.bd-curve'), w.t, w.w,
+                    raw ? w.f : brewFlow(w), other || null,
+                    raw ? '设备流速' : '拟合流速');
 }
 
-// derived pour stats — recomputed from the raw t/w/f arrays on render,
-// nothing is stored back. t[] is seconds since pour start.
+// All library statistics and CSV summaries use the same weight-derived curve.
 function brewStats(w) {
-    const t = w.t || [], ws = w.w || [], f = w.f || [];
+    const t = w.t || [], ws = w.w || [];
     if (!t.length) return null;
-    let peak = 0, sum = 0, n = 0, first = null;
+    let first = null;
     for (let i = 0; i < t.length; i++) {
-        if (f[i] > peak) peak = f[i];
-        if (f[i] > 0.5) { sum += f[i]; n++; }
         if (first === null && ws[i] > 2) first = t[i];
     }
     return {
-        peak: +peak.toFixed(1),
-        avg: n ? +(sum / n).toFixed(1) : null,
+        ...flowStats(t, brewFlow(w)),
         firstDrop: first === null ? null : Math.round(first),
     };
 }
@@ -963,13 +961,27 @@ function mountBrewDetail(w) {
     const others = brewCache.filter(x => x.id !== w.id);
     const st = brewStats(w);
     bd.innerHTML = `
-      <div class="bd-curve"></div>
+      <div class="bd-plot">
+        <div class="bd-plot-head">
+          <span class="chip"><i class="chip-line ink"></i>重量 g</span>
+          <label class="bd-flow-choice">流速
+            <select data-flow="${w.id}" aria-label="流速曲线">
+              <option value="fit">重量拟合</option>
+              <option value="raw"${rawFlowSel.has(w.id) ? ' selected' : ''}>设备记录</option>
+            </select>
+          </label>
+        </div>
+        <div class="bd-curve" aria-label="冲煮重量与流速曲线"></div>
+        <p class="bd-caption">${rawFlowSel.has(w.id) ? '设备实时流速的原始记录。' : '流速由整段重量趋势拟合；中断与移杯处断开显示。'}</p>
+      </div>
       <div class="bd-data">
         <div><span class="v">${w.date.slice(0, 16).replace('T', ' ')}</span></div>
         <div>${w.dose || '?'} g → <span class="v">${w.liquid} g</span>` +
         `${w.dose ? ` <span class="v">1:${(w.liquid / w.dose).toFixed(1)}</span>` : ''}</div>
         <div>${fmtDur(w.durationS)} · ${w.t.length} 个点</div>
-        ${st ? `<div>首滴 ${st.firstDrop ?? '–'} s · 均流 ${st.avg ?? '–'} · 峰值 ${st.peak} g/s</div>` : ''}
+        ${st ? `<div>首滴 ${st.firstDrop ?? '–'} s</div>
+        <div class="bd-flow-stats"><span>均流 <b>${st.avg ?? '–'}</b></span><span>峰值 <b>${st.peak}</b></span><span>g/s</span></div>
+        <div class="bd-caption">按拟合曲线统计</div>` : ''}
         <textarea class="note" rows="2" data-note="${w.id}"
                   placeholder="备注：风味、改进…">${esc(w.note || '')}</textarea>
         ${others.length ? `<select class="cmp" data-cmp="${w.id}">
@@ -1255,6 +1267,19 @@ $('bean-accordion').addEventListener('keydown', e => {
 
 // bean meta fields + per-brew note — saved on blur/enter
 $('bean-accordion').addEventListener('change', async e => {
+    const flow = e.target.closest('[data-flow]');
+    if (flow) {
+        const id = +flow.dataset.flow;
+        if (flow.value === 'raw') rawFlowSel.add(id); else rawFlowSel.delete(id);
+        const bd = flow.closest('.brew-detail'), w = brewCache.find(w => w.id === id);
+        if (bd && w) {
+            bd._u?.destroy(); bd._u = plotBrew(bd, w);
+            bd.querySelector('.bd-plot > .bd-caption').textContent = flow.value === 'raw'
+                ? '设备实时流速的原始记录。'
+                : '流速由整段重量趋势拟合；中断与移杯处断开显示。';
+        }
+        return;
+    }
     const asg = e.target.closest('[data-assign]');
     if (asg) {
         const w = brewCache.find(w => w.id === +asg.dataset.assign);

@@ -431,7 +431,7 @@
   .chip[hidden] { display: none; }
   .chip-line { width: 14px; height: 0; border-top: 2px solid; flex: none; }
   .chip-line.ink { border-color: var(--ink); }
-  .chip-line.amber { border-color: var(--amber-fill); }
+  .chip-line.amber { border-color: var(--amber); border-top-width: 3px; }
   .chip-line.ref { border-top-style: dashed; border-color: var(--ref); }
   .autotimer {
     display: inline-flex; align-items: center; gap: 5px;
@@ -650,10 +650,21 @@
   @keyframes pop { 50% { transform: scale(1.35); } }
 
   .brew-detail {
-    display: grid; grid-template-columns: minmax(0,1fr) 230px;
+    display: grid; grid-template-columns: minmax(0,1fr) 190px;
     gap: 14px; padding: 4px 4px 12px;
   }
   @media (max-width: 700px) { .brew-detail { grid-template-columns: 1fr; } }
+  .bd-plot { min-width: 0; }
+  .bd-plot-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .bd-flow-choice { display: inline-flex; align-items: center; gap: 6px;
+                    color: var(--amber); font-size: 13px; font-weight: 500; }
+  .bd-flow-choice select { color: var(--amber); font-size: 13px; min-height: 36px;
+                           padding: 4px 28px 4px 8px; }
+  .bd-curve { height: 250px; min-width: 0; margin-top: 6px; }
+  .bd-caption { color: var(--dim); font-size: 12px; margin: 4px 0 0; }
+  .bd-flow-stats { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 14px;
+                   color: var(--amber); }
+  .bd-flow-stats b { font-size: 25px; font-weight: 600; }
   .bd-data { color: var(--dim); font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
   .bd-data .v { color: var(--ink); }
   .bd-data .note { width: 100%; font-size: 13px; min-height: 32px; padding: 5px 9px; }
@@ -879,37 +890,50 @@
 
   /* --- brew focus mode --------------------------------------------------------- */
   .brewbar { display: none; }
+  body.focus { padding-left: 0; }
   body.focus header, body.focus #tabbar,
   body.focus .strip, body.focus .segrow, body.focus .setup,
   body.focus .bezel, body.focus .panel-foot { display: none; }
   body.focus main {
+    max-width: none;
     padding: calc(8px + env(safe-area-inset-top))
              calc(10px + env(safe-area-inset-right))
              calc(8px + env(safe-area-inset-bottom))
              calc(10px + env(safe-area-inset-left));
   }
   body.focus #page-weigh.active {
-    display: flex; flex-direction: column; gap: 10px;
+    display: flex; flex-direction: column; gap: 10px; align-items: stretch;
     height: calc(100vh - 16px); height: calc(100dvh - 16px);
     height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   }
   body.focus #page-weigh > section:first-child { display: contents; }
   body.focus .brewbar {
-    display: flex; align-items: center; gap: 6px 18px; flex-wrap: wrap;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "clock exit" "weight flow" "ratio ratio" "progress progress";
+    align-items: center; gap: 6px 16px;
     background: var(--well); border-radius: 12px;
     box-shadow: inset 0 1px 2px rgb(0 0 0 / .12);
-    padding: 8px 6px 8px 18px;
+    padding: 12px 16px;
   }
+  .bb-clock { grid-area: clock; }
+  .bb-label { display: block; color: var(--dim); font-size: 12px; font-weight: 400; line-height: 1.4; }
+  .bb-weight { grid-area: weight; }
+  .bb-flow { grid-area: flow; color: var(--amber); }
+  .bb-flow .bb-label, .bb-flow .bb-u { color: var(--amber); }
+  .bb-ratio { grid-area: ratio; display: flex; align-items: baseline; gap: 8px;
+              color: var(--dim); font-size: 16px; }
   .bb-time {
-    font-size: clamp(34px, 8vw, 56px); font-weight: 600;
+    display: block; font-size: clamp(28px, 7vw, 38px); font-weight: 500;
     font-variant-numeric: tabular-nums; line-height: 1;
   }
-  .bb-cell { display: inline-flex; align-items: baseline; gap: 5px; }
-  .bb-v { font-size: clamp(22px, 5.5vw, 34px); font-weight: 500;
-          font-variant-numeric: tabular-nums; }
+  .bb-cell { display: inline-flex; align-items: baseline; flex-wrap: wrap;
+             max-width: 100%; gap: 0 5px; }
+  .bb-v { font-size: clamp(34px, 9vw, 48px); font-weight: 500;
+          font-variant-numeric: tabular-nums; line-height: 1.05; }
+  .bb-flow .bb-v { font-size: clamp(46px, 12vw, 64px); font-weight: 600; }
   .bb-u { color: var(--dim); font-size: 12px; }
   .bb-prog {
-    flex: 1 1 100%; display: flex; align-items: center; gap: 10px;
+    grid-area: progress; display: flex; align-items: center; gap: 10px;
     color: var(--dim); font-size: 12px;
   }
   .bb-prog:empty { display: none; }
@@ -923,7 +947,7 @@
     transition: width .3s ease, background .4s;
   }
   #bb-bar.full { background: var(--green); }
-  #bb-exit { font-size: 13px; }
+  #bb-exit { grid-area: exit; justify-self: end; font-size: 13px; min-height: 44px; }
   body.focus #page-weigh.active > section:last-child {
     order: 1; flex: 1; min-height: 0;
     display: flex; flex-direction: column;
@@ -933,6 +957,8 @@
   }
   body.focus .chart-wrap { flex: 1; min-height: 0; }
   body.focus .chart-wrap > #chart { height: auto; }
+  body.focus .panel-head { gap: 6px 10px; }
+  body.focus .panel-title { display: none; }
   body.focus .keys { margin-top: 0; order: 2; }
   body.focus .keys .key { height: 60px; }
 
@@ -1007,21 +1033,25 @@
     }
     #toast { bottom: calc(16px + env(safe-area-inset-bottom)); }
 
-    /* focus mode in landscape: big readout + keys left, chart right */
+    /* Keep every action in reach on a short viewport; no left navigation gutter. */
     body.focus #page-weigh.active { flex-direction: row; }
     body.focus #page-weigh > section:first-child {
-      display: flex; flex-direction: column; gap: 10px;
-      width: min(300px, 38vw); flex: none; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 8px; min-height: 0;
+      width: clamp(240px, 36vw, 320px); flex: none;
     }
     body.focus .chart-panel { position: static; }
     body.focus #page-weigh > section:last-child {
       flex: 1; min-width: 0; display: flex; flex-direction: column;
     }
-    body.focus .brewbar { padding: 8px 14px; }
-    body.focus .bb-time { font-size: clamp(30px, 5vh, 44px); }
-    body.focus .bb-v { font-size: clamp(18px, 3.4vh, 26px); }
-    body.focus .keys { grid-template-columns: 1fr; }
-    body.focus .keys .key { height: 48px; }
+    body.focus .brewbar { padding: 10px 14px; flex: 1; gap: 4px 12px; container-type: inline-size; }
+    body.focus .bb-time { font-size: clamp(26px, 8vh, 36px); }
+    body.focus .bb-v { font-size: clamp(28px, 14cqw, 44px); }
+    body.focus .bb-flow .bb-v { font-size: clamp(36px, 18cqw, 60px); }
+    body.focus .keys { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; flex: none; }
+    body.focus .keys .key { height: 48px; min-width: 0; padding: 4px; font-size: 14px; }
+    body.focus .legend { display: flex; flex-wrap: wrap; gap: 8px; order: 0; flex-basis: auto; }
+    body.focus #rec-status { font-size: 12px; }
+    body.focus .chart-panel { padding: 10px 8px; }
   }
 
   /* --- desktop rail ≥ 960px (not phones — those need height too) ------------ */
@@ -1121,10 +1151,10 @@
   <section class="page active" id="page-weigh">
     <section>
       <div class="brewbar" id="brewbar">
-        <span class="bb-time" id="bb-time">0:00</span>
-        <span class="bb-cell"><span class="bb-v" id="bb-w">0.0</span><span class="bb-u">g</span></span>
-        <span class="bb-cell"><span class="bb-v" id="bb-f">0.0</span><span class="bb-u">g/s</span></span>
-        <span class="bb-cell"><span class="bb-v" id="bb-r">–</span><span class="bb-u">粉水比</span></span>
+        <div class="bb-clock"><span class="bb-label">计时</span><span class="bb-time" id="bb-time">0:00</span></div>
+        <div class="bb-weight"><span class="bb-label">重量</span><span class="bb-cell"><span class="bb-v" id="bb-w">0.0</span><span class="bb-u">g</span></span></div>
+        <div class="bb-flow"><span class="bb-label">实时流速</span><span class="bb-cell"><span class="bb-v" id="bb-f">0.0</span><span class="bb-u">g/s</span></span></div>
+        <div class="bb-ratio"><span class="bb-label">粉水比</span><span id="bb-r">–</span></div>
         <span class="bb-prog"><span class="bb-track"><i id="bb-bar"></i></span><span id="bb-target"></span></span>
         <button class="textbtn" id="bb-exit" type="button">退出专注</button>
       </div>

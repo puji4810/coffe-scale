@@ -4,7 +4,7 @@
 ///     raw counts -> median(3) -> LPF -> plateau snap -> filtered counts
 ///       -> calibrated gross weight -> stability -> physical zero tracker
 ///       -> tare + zero offset + deadband -> grams
-///     median counts -> calibrated weight - tare -> Kalman flow rate
+///     median counts -> calibrated weight - tare -> trailing slope + EMA flow
 ///     net median + compensated grams -> display platform + hysteresis
 ///
 /// Feed one push() per ADC conversion (e.g. 80 Hz at NAU7802 80 SPS) with a
@@ -25,7 +25,7 @@
 #include "scale/calibration.hpp"
 #include "scale/clock.hpp"
 #include "scale/filters.hpp"
-#include "scale/flow_kf.hpp"
+#include "scale/flow_rate.hpp"
 #include "scale/stability.hpp"
 #include "scale/thermal.hpp"
 #include "scale/tilt.hpp"
@@ -53,9 +53,9 @@ struct scale_config {
     float       bessel_cutoff_hz = 2.0f;
     std::size_t stability_window = 16;      // 16 @ 80 SPS = 200 ms
     float       stability_tol_g  = 0.5f;    // max spread inside window
-    /// Flow estimator: gated constant-velocity Kalman on an 8 Hz
-    /// Butterworth-prefiltered weight signal (see flow_kf.hpp).
-    flow_kf_config flow_kf{};
+    /// Real-time flow: trailing weight regression + fixed publication EMA.
+    /// Full-brew curve fitting belongs to the web library.
+    flow_config flow{};
     /// Plateau snap: once the median output itself has been quiet for
     /// `snap_window` samples (spread under `snap_spread_g` AND
     /// least-squares slope under `snap_max_gps` — the rate gate keeps
@@ -93,8 +93,8 @@ struct scale_config {
     /// The anchor is continuous, separate from the rounded digit; edges,
     /// clean trends or sustained growth release it. <= 0 disables hold.
     clock_ms    latch_hold{300};
-    /// Same for the flow readout: the KF's resting estimate otherwise
-    /// flickers ±0.x g/s. Real pours are >= 1 g/s.
+    /// Stateless flow display deadband. It never latches a stop or
+    /// requires evidence to release; slow slopes remain in the estimator.
     float       flow_deadband_gps  = 0.3f;
     /// Display clamp for the flow readout: real pours are < ~15 g/s, so
     /// anything past this is a step-load artifact, not pour dynamics.
@@ -114,10 +114,10 @@ struct diag {
     float        temp_c        = 0.0f;
     float        drift_counts  = 0.0f;
     float        flow_gps      = 0.0f;
-    bool         disturbed     = false;  // flow KF impact gate engaged
-    int          flow_trip     = 0;      // last gate reason (flow_kf)
-    int          flow_boost    = 0;      // estimator tracking a change
-    float        flow_resume   = 0.0f;   // flow adopted at last un-gate
+    bool         disturbed     = false;  // one-sample gross level discontinuity
+    int          flow_trip     = 0;      // 1 = gross level discontinuity
+    int          flow_boost    = 0;      // reserved legacy CSV field, always 0
+    float        flow_resume   = 0.0f;   // reserved legacy CSV field, always 0
     bool         stable        = false;  // load-cell window
     bool         tilt_quiet    = true;   // accelerometer motion gate
     tilt::vec3   accel_mg{};
@@ -150,7 +150,7 @@ public:
         zt_.apply(gross, input, system_stable(), now);
         // Zero corrections translate the weight origin; they are not flow.
         const float flow_g = input - tare_counts_ / cal_.counts_per_gram;
-        kf_.push(now, flow_g);
+        flow_.push(now, flow_g);
         fed_ = true;
         const float net = grams();
         const float display_input = input - tare_counts_ / cal_.counts_per_gram - zt_.offset();
@@ -158,7 +158,7 @@ public:
             zt_.empty() && std::fabs(input-zt_.offset()) < deadband_g_
                 ? std::optional<float>{-tare_counts_ / cal_.counts_per_gram}
                 : std::nullopt;
-        display_.push(display_input, net + lag_comp_g(), flow_gps(),
+        display_.push(display_input, net + lag_comp_g(), flow_state_gps(),
                       tilt_.quiet(), empty_value, now);
 
         diag_.t             = now;
@@ -171,10 +171,10 @@ public:
         diag_.drift_counts  = thermal_.drift_counts(temp_c_);
         diag_.flow_gps      = flow_gps();
         diag_.stable        = stab_.stable();
-        diag_.disturbed     = kf_.disturbed();
-        diag_.flow_trip     = kf_.trip_reason();
-        diag_.flow_boost    = kf_.boosting() ? 1 : 0;
-        diag_.flow_resume   = kf_.ungate_f0();
+        diag_.disturbed     = flow_.discontinuity();
+        diag_.flow_trip     = flow_.discontinuity() ? 1 : 0;
+        diag_.flow_boost    = 0;
+        diag_.flow_resume   = 0.0f;
         diag_.tilt_quiet    = tilt_.quiet();
         diag_.accel_mg      = tilt_.accel();
         diag_.pitch_deg     = tilt_.pitch_deg();
@@ -184,7 +184,6 @@ public:
     /// Feed one accelerometer sample (mg) — 10-25 Hz suffices.
     void feed_accel(float x_mg, float y_mg, float z_mg) {
         tilt_.feed(x_mg, y_mg, z_mg);
-        kf_.feed_accel(x_mg, y_mg, z_mg);   // motion veto on boost evidence
     }
 
     /// Load-cell signal stable (spread window quiet).
@@ -218,19 +217,24 @@ public:
     /// same cached digit without advancing its evidence/history.
     [[nodiscard]] float display_grams() const { return display_.value(); }
 
-    /// Pour rate in g/s from the gated Kalman estimator. |rate| under
-    /// flow_deadband_gps reads 0, and the readout is clipped to
-    /// ±flow_clip_gps. While disturbed() the estimator holds the
-    /// pre-impact flow briefly, then 0.
+    /// Published flow: trailing weight slope + fixed EMA. The display
+    /// deadband and clip are stateless; neither affects future estimates.
     [[nodiscard]] float flow_gps() const {
         if (!fed_) return 0.0f;
-        const float c = std::clamp(kf_.rate(), -flow_clip_gps_, flow_clip_gps_);
+        const float c = std::clamp(flow_.readout_rate(), -flow_clip_gps_, flow_clip_gps_);
         return std::fabs(c) < flow_deadband_gps_ ? 0.0f : c;
     }
 
-    /// Impact gate engaged — the estimator detected a disturbance
-    /// (cup set down, knock, stirring) and is holding/rejecting it.
-    [[nodiscard]] bool disturbed() const { return kf_.disturbed(); }
+    /// Unsmoothed estimator state for weight compensation and diagnostics.
+    /// Publishing flow must never alter weight lag correction or holding.
+    [[nodiscard]] float flow_state_gps() const {
+        if (!fed_) return 0.0f;
+        const float c = std::clamp(flow_.rate(), -flow_clip_gps_, flow_clip_gps_);
+        return std::fabs(c) < flow_deadband_gps_ ? 0.0f : c;
+    }
+
+    /// This sample contained a gross weight step; no hold/gate follows it.
+    [[nodiscard]] bool disturbed() const { return flow_.discontinuity(); }
 
     /// Last pushed sample's diagnostic record.
     [[nodiscard]] const diag& last_diag() const { return diag_; }
@@ -258,7 +262,7 @@ public:
             - zt_.offset() * cal_.counts_per_gram;
         stab_.reset();
         zt_.cancel_pending();
-        kf_.reset();
+        flow_.reset();
         display_.reset();
     }
     void               clear_tare() { tare_counts_ = 0.0f; }
@@ -276,7 +280,7 @@ public:
         tare_counts_     = 0.0f;
         stab_.reset();
         zt_.reset();
-        kf_.reset();
+        flow_.reset();
         display_.reset();
     }
 
@@ -291,7 +295,7 @@ public:
         ema_.set_counts_per_gram(cal_.counts_per_gram);
         stab_.reset();
         zt_.reset();
-        kf_.reset();
+        flow_.reset();
         display_.reset();
         return true;
     }
@@ -302,7 +306,7 @@ public:
         ema_.set_counts_per_gram(c.counts_per_gram);
         stab_.reset();
         zt_.reset();
-        kf_.reset();
+        flow_.reset();
         display_.reset();
     }
     [[nodiscard]] bool calibrated() const { return cal_.valid(); }
@@ -370,15 +374,15 @@ private:
         bessel_.reset(mean);
     }
 
-    /// Measured filter lag in grams — the gap between the Kalman's
-    /// lag-free weight state and the LPF output. Gated by pour rate so
+    /// Measured filter lag in grams — the gap between the regression's
+    /// fitted current weight and the LPF output. Gated by pour rate so
     /// resting jitter is never amplified; ramps in over
     /// [lag_min_gps_, lag_full_gps_]. Only applied when the estimate leads
     /// the filter in the direction of the measured flow — after a step the
     /// estimate is the laggard, and adding it back would drag the readout
     /// below the true weight.
     [[nodiscard]] float lag_comp_g() const {
-        const float r = flow_gps();
+        const float r = flow_state_gps();
         const float w = std::clamp(
             (std::fabs(r) - lag_min_gps_) / (lag_full_gps_ - lag_min_gps_),
             0.0f, 1.0f);
@@ -386,7 +390,7 @@ private:
             return 0.0f;
         }
         const float g = grams();
-        const float d = (kf_.primed() ? kf_.weight() - zt_.offset() : g) - g;
+        const float d = (flow_.primed() ? flow_.weight() - zt_.offset() : g) - g;
         return r * d > 0.0f ? w * d : 0.0f;
     }
 
@@ -398,7 +402,7 @@ private:
         bessel_.configure(cfg.bessel_cutoff_hz, sample_hz_);
         stab_.configure(cfg.stability_window, cfg.stability_tol_g);
         tilt_.configure(cfg.tilt);
-        kf_.configure(cfg.flow_kf);
+        flow_.configure(cfg.flow);
         zt_    = zero_tracker{cfg.zero_track};
         deadband_g_      = cfg.display_deadband_g;
         flow_deadband_gps_ = cfg.flow_deadband_gps;
@@ -427,7 +431,7 @@ private:
     bessel2_lpf            bessel_;
     savitzky_golay<7, 2>   sg_;
     stability_detector<>   stab_{16, 0.3f};
-    flow_kf                kf_{};
+    flow_rate              flow_{};
     zero_tracker           zt_{};
     thermal_model          thermal_{};
     tilt                   tilt_{};

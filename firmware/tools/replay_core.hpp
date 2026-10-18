@@ -35,7 +35,7 @@ class driver {
 public:
     explicit driver(std::ostream& out) : out_(out) {
         out_ << "t_ms,raw,grams,display_g,flow_gps,stable,system_stable,"
-                "disturbed,ftrip,fboost,fresume\n";
+                "disturbed,ftrip,fboost,fresume,flow_state_gps\n";
     }
 
     /// '# coffee-scale raw v1' header — stash calibration; the tare is
@@ -124,7 +124,7 @@ private:
         const auto& d = app_.inner().last_diag();
         char buf[192];
         std::snprintf(buf, sizeof(buf),
-                      "%.3f,%ld,%.4f,%.2f,%.3f,%d,%d,%d,%d,%d,%.2f\n",
+                      "%.3f,%ld,%.4f,%.2f,%.3f,%d,%d,%d,%d,%d,%.2f,%.3f\n",
                       us / 1000.0, static_cast<long>(counts),
                       static_cast<double>(s.grams),
                       static_cast<double>(app_.display_value()),
@@ -133,7 +133,8 @@ private:
                       s.stable ? 1 : 0,
                       app_.inner().disturbed() ? 1 : 0,
                       d.flow_trip, d.flow_boost,
-                      static_cast<double>(d.flow_resume));
+                      static_cast<double>(d.flow_resume),
+                      static_cast<double>(app_.inner().flow_state_gps()));
         out_ << buf;
     }
 

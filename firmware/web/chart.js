@@ -1,7 +1,7 @@
 // Rolling weight/flow chart on uPlot (vendored, global `uPlot`).
 // X axis is seconds since first pushed frame; left axis = weight, right = flow.
-// Plotted values are the device's own numbers — firmware flow is already
-// Kalman-filtered with impact rejection.
+// The live chart uses device readings; saved brews receive a separate
+// weight-derived offline flow curve from brew_flow.js.
 // Colors come from the app's CSS custom properties so both themes work;
 // call retheme() after a prefers-color-scheme change to rebuild.
 
@@ -10,7 +10,8 @@ function theme() {
     const v = n => cs.getPropertyValue(n).trim();
     return {
         ink: v('--ink') || '#1F2326',
-        amber: v('--amber-fill') || '#E8A33D',
+        amber: v('--amber') || '#B8741A',
+        flowFill: 'color-mix(in srgb, ' + (v('--amber') || '#B8741A') + ' 12%, transparent)',
         grid: v('--rule') || '#B7BCB5',
         dim: v('--dim') || '#5E6660',
         ref: v('--ref') || '#4E86B8',
@@ -96,7 +97,7 @@ function chartOpts(el, c, getTarget) {
             {},
             { label: 'g', scale: 'w', stroke: c.ink, width: 2,
               points: { show: false } },
-            { label: 'g/s', scale: 'f', stroke: c.amber, width: 1.5,
+            { label: '实时 g/s', scale: 'f', stroke: c.amber, width: 2.5,
               points: { show: false } },
             { label: '参考 g', scale: 'w', stroke: c.ref, width: 1.5,
               dash: [6, 4], points: { show: false } },
@@ -111,7 +112,8 @@ function chartOpts(el, c, getTarget) {
             { scale: 'f', side: 1, stroke: c.amber, grid: { show: false },
               font: c.font, size: 48 },
         ],
-        legend: { show: true, live: true },
+        // The panel already has a legend; cursor readings live in the tip.
+        legend: { show: false },
         cursor: { show: true, drag: { x: false, y: false } },
     };
 }
@@ -298,9 +300,9 @@ export class ScaleChart {
 
 /// Static weight/flow curve for a saved brew — same axes/series language
 /// as the live chart, but a plain one-shot plot for the bean library.
-/// Plots the stored raw weight and stored device flow verbatim. Pass a
-/// second brew as `other` to overlay its weight curve for comparison.
-export function brewPlot(el, t, w, f, other = null) {
+/// Receives weight-derived flow by default, or the retained device readings
+/// when selected. A second brew overlays its weight curve for comparison.
+export function brewPlot(el, t, w, f, other = null, flowLabel = '拟合流速') {
     const c = theme();
     // union x so a longer comparison brew keeps its tail; the main
     // curve just ends early (trailing nulls = line stops, not dots)
@@ -313,36 +315,50 @@ export function brewPlot(el, t, w, f, other = null) {
                   other ? resample(X, other) : X.map(() => null)];
     const u = new uPlot({
         width: el.clientWidth,
-        height: 190,
+        height: el.clientHeight || 250,
         padding: [8, 8, 0, 0],
         font: c.font,
         scales: {
             x: { time: false },
             w: { range: { min: { hard: 0, soft: 0, mode: 1, pad: 0.05 },
                           max: { soft: 50, mode: 1, pad: 0.08 } } },
-            f: { range: [-10, 40] },
+            // The entire brew is available, so this scale stays fixed while
+            // viewing it and lets an ordinary 3 g/s pour occupy useful space.
+            f: { range: (u, lo, hi) => {
+                const top = Math.max(5, hi || 0);
+                const step = top > 10 ? 5 : 2;
+                return [Math.min(-1, Math.floor(lo || 0)), Math.ceil(top * 1.12 / step) * step];
+            } },
         },
         series: [
             {},
-            { label: 'g', scale: 'w', stroke: c.ink, width: 2,
+            { label: '重量 g', scale: 'w', stroke: c.dim, width: 1.25,
               points: { show: false } },
-            { label: 'g/s', scale: 'f', stroke: c.amber, width: 1.5,
-              points: { show: false } },
+            { label: `${flowLabel} g/s`, scale: 'f', stroke: c.amber, width: 2.8,
+              fill: c.flowFill, spanGaps: false, points: { show: false } },
             { label: '参考 g', scale: 'w', stroke: c.ref, width: 1.5,
               dash: [6, 4], points: { show: false } },
         ],
         axes: [
             { stroke: c.dim, grid: { stroke: c.grid }, font: c.font,
               values: (u, s) => s.map(fmtTime) },
-            { scale: 'w', stroke: c.ink, grid: { stroke: c.grid }, font: c.font,
-              size: 50 },
-            { scale: 'f', side: 1, stroke: c.amber, grid: { show: false },
-              font: c.font, size: 42 },
+            { scale: 'w', stroke: c.dim, grid: { show: false }, font: c.font,
+              size: 44 },
+            { scale: 'f', side: 1, stroke: c.amber, grid: { stroke: c.grid },
+              font: c.font, size: 40 },
         ],
         legend: { show: !!other },
         cursor: { show: true, drag: { x: false, y: false } },
         hooks: { setCursor: [] },        // mountTip fills it after creation
     }, data, el);
     mountTip(u, data);
+    const observer = new ResizeObserver(() => {
+        if (el.clientWidth && el.clientHeight &&
+            (u.width !== el.clientWidth || u.height !== el.clientHeight))
+            u.setSize({ width: el.clientWidth, height: el.clientHeight });
+    });
+    observer.observe(el);
+    const destroy = u.destroy.bind(u);
+    u.destroy = () => { observer.disconnect(); destroy(); };
     return u;
 }

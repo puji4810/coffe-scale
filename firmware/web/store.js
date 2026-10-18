@@ -4,7 +4,9 @@
 //
 //   beans { id, name, brand, process, variety, estate, dose, note, created }
 //   brews { id, beanId|null, date, durationS, dose, liquid, rating 0-5,
-//           fav, note, t[], w[], f[] }   // curve: seconds / g / g/s
+//           fav, note, t[], w[], f[], breaks[], flowFit {version,windowS,f[]} }
+// f[] is the original device flow; flowFit is derived from weight on reset.
+// Older rows need no migration: the library fits their weight on demand.
 
 const DB_NAME = 'coffee-scale', DB_VER = 1;
 let dbp = null;
