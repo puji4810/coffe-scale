@@ -1,0 +1,11 @@
+menu "Coffee scale power"
+
+config SCALE_DEEP_SLEEP
+    bool "Use deep sleep for standby"
+    default y
+    help
+        Wake by LIS2DW12 double-tap or MODE. Retain calibration, tare,
+        mode, unit and paused brew in RTC memory; filters restart fresh.
+        Disable to retain the light-sleep fallback for hardware comparison.
+
+endmenu

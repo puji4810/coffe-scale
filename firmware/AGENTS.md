@@ -190,16 +190,20 @@ idf.py -B build-esp32s3 build flash
   'r' toggles the raw capture stream — `W`/`A`/`E` lines for
   `tools/capture.py` + `tools/replay`, plus `T,<t_us>,<tmp102_c>` and
   `C,<t_us>,<chip_c>` on the ~2 s battery_task cadence),
-  power (idle->light sleep), lvgl.
-  Power: after 5 min without "new activity" (weight step >4000 raw counts
-  off a slow baseline, IMU motion >150 mg, button, console/BLE command —
+  power (idle->standby), lvgl.
+  Power: after 5 min without "new activity" (weight step >20000 raw counts
+  off a slow baseline, IMU motion >60 mg, button, console/BLE command —
   NOT just "number didn't change") the firmware blanks the LCD +
-  backlight, stops BLE, powers down NAU7802 and light-sleeps.
-  Wake sources: LIS2DW12 tap on INT1 (IO13, latched level — needs
-  CTRL7.interrupts_enable + CTRL4.int1_tap + CTRL3.LIR, cleared by
-  reading ALL_INT_SRC/TAP_SRC) and MODE button (IO18, low level).
-  btn_tare (IO48) is NOT an RTC pin and cannot wake. Light sleep keeps
-  RAM + LVGL + filters; the brew timer running suppresses auto-sleep.
+  backlight (including ST7789 SLPIN), stops BLE, powers down NAU7802,
+  and deep-sleeps by default (`SCALE_DEEP_SLEEP`; optional light fallback).
+  Wake sources: LIS2DW12 double-tap on INT1 (IO13, EXT1 high; 400 Hz,
+  CTRL4=0x08, no single-tap/motion route) and MODE (IO18, EXT0 low).
+  btn_tare (IO48) is NOT an RTC pin and cannot wake. RTC retains user
+  offsets, calibration, unit/mode and paused timer; filters re-prime after
+  the deep-sleep reboot. Only a running timer suppresses auto-sleep.
+  For power/wake changes, read `POWER.md` for resume ordering, diagnostics
+  and hardware verification. Analog power gating belongs to the next PCB
+  revision; current s3.1 keeps VDD_ADC/load-cell excitation powered.
 - `tests/` — doctest + `mock_i2c` register-level driver tests.
 - `sim/` — SDL2 LVGL simulator with synthetic weight signal.
 - `main/ble_link.cpp` — NimBLE peripheral "coffee-scale". GAP: flags +

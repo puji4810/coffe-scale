@@ -181,8 +181,15 @@ void ui::render_pause(bool paused) {
 }
 
 void ui::display_power(bool on) {
-    esp_lcd_panel_disp_on_off(s_panel, on);   // DISPON off: GRAM retained
-    gpio_set_level(static_cast<gpio_num_t>(board::pins::lcd_bl), on ? 1 : 0);
+    if (on) {
+        ESP_ERROR_CHECK(esp_lcd_panel_disp_sleep(s_panel, false));
+        ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(s_panel, true));
+        gpio_set_level(static_cast<gpio_num_t>(board::pins::lcd_bl), 1);
+    } else {
+        gpio_set_level(static_cast<gpio_num_t>(board::pins::lcd_bl), 0);
+        ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(s_panel, false));
+        ESP_ERROR_CHECK(esp_lcd_panel_disp_sleep(s_panel, true));
+    }
 }
 
 void ui::display_init() {

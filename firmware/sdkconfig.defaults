@@ -1,5 +1,6 @@
 # scale-adc-s3 target defaults — see pcb/scale-adc-s3/README.md
 CONFIG_IDF_TARGET_ESP32S3=y
+CONFIG_SCALE_DEEP_SLEEP=y
 
 # ESP32-S3-WROOM-1-N16R8: 16 MB flash + 8 MB octal PSRAM
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y

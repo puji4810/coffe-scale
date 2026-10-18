@@ -13,8 +13,9 @@
 ///   power_task   tracks "new activity" (weight steps, motion, buttons,
 ///                taps, BLE link events); after kIdleTimeoutMs of quiet it
 ///                powers down LCD/backlight/BLE/NAU7802, arms LIS2DW12
-///                tap->INT1 as the GPIO wake source and enters light
-///                sleep. Double-tap (or MODE button) wakes everything
+///                double-tap->INT1 as the wake source and enters deep
+///                sleep (light-sleep fallback is configurable).
+///                Double-tap (or MODE button) wakes everything
 ///                back up. btn_tare (IO48) is not an RTC pin and cannot
 ///                wake.
 ///   lvgl_task    spawned by ui::port_init(); renders + pulls ui::model via
@@ -33,6 +34,8 @@
 #include <iterator>
 #include <mutex>
 #include <optional>
+#include <type_traits>
+#include <sys/time.h>
 
 #include "board/pins.hpp"
 #include "bus/i2c_esp.hpp"
@@ -51,6 +54,7 @@
 #include <unistd.h>
 
 #include "driver/gpio.h"
+#include "driver/rtc_io.h"
 #include "driver/i2c_master.h"
 #include "driver/usb_serial_jtag.h"
 #include "driver/usb_serial_jtag_vfs.h"
@@ -60,7 +64,9 @@
 #include "esp_adc/adc_oneshot.h"
 #include "esp_app_desc.h"
 #include "esp_log.h"
+#include "esp_attr.h"
 #include "esp_sleep.h"
+#include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -73,8 +79,13 @@ namespace {
 const char* kTag = "scale";
 
 std::mutex      g_mtx;
+// Serializes sensor access across shutdown/restore. In particular, the
+// accel poller must not clear the latched wake event while we arm sleep.
+std::mutex      g_sensor_mtx;
+std::atomic<bool> g_peripherals_paused{false};
 scale::app      g_app;
 std::atomic<int>  g_battery_pct{-1};
+std::atomic<int>  g_battery_mv{0};
 std::atomic<bool> g_charging{false};
 std::atomic<bool> g_telemetry{false};
 std::atomic<bool> g_raw{false};   // 'r' console key: raw capture stream
@@ -103,6 +114,35 @@ std::atomic<bool>    g_sleep_request{false};
 constexpr int64_t kIdleTimeoutMs       = 300'000;   // 5 min
 constexpr float   kActivityCountsThresh = 20000.0f; // raw-count step
 constexpr float   kMotionThreshMg      = 60.0f;     // per-sample accel delta
+
+struct standby_record {
+    std::uint32_t magic;
+    scale::app::standby_state app;
+    std::int64_t entered_wall_us;
+};
+static_assert(std::is_trivially_copyable_v<standby_record>);
+RTC_DATA_ATTR standby_record s_standby{};
+constexpr std::uint32_t kStandbyMagic = 0x534C5001;
+std::int64_t g_awake_since_ms = 0;
+std::atomic<std::int64_t> g_last_sleep_ms{0};
+std::atomic<std::uint32_t> g_last_wake{0};
+
+const char* wake_name(std::uint32_t causes) {
+    const bool mode = (causes & (1U << ESP_SLEEP_WAKEUP_EXT0)) != 0;
+    const bool tap = (causes & (1U << ESP_SLEEP_WAKEUP_EXT1)) != 0;
+    if (mode && tap) return "MODE + double-tap";
+    if (mode) return "MODE";
+    if (tap) return "double-tap";
+    if (causes & (1U << ESP_SLEEP_WAKEUP_GPIO)) return "GPIO (see MODE/INT1 log)";
+    if (!causes || causes == (1U << ESP_SLEEP_WAKEUP_UNDEFINED)) return "cold boot / rejected sleep";
+    return "other";
+}
+
+std::int64_t wall_us() {
+    timeval tv{};
+    gettimeofday(&tv, nullptr); // RTC-backed system time survives deep sleep
+    return static_cast<std::int64_t>(tv.tv_sec) * 1'000'000 + tv.tv_usec;
+}
 
 void mark_activity() {
     g_last_activity_ms.store(esp_timer_get_time() / 1000,
@@ -195,6 +235,9 @@ void adc_task(void*) {
         // periods is generous — a longer silence means a lost edge (or a
         // stalled task), so fall back to polling the CR bit over i2c.
         const int pending = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(30));
+        if (g_peripherals_paused.load()) continue;
+        std::unique_lock sensor_lk(g_sensor_mtx);
+        if (g_peripherals_paused.load()) continue;
         if (!s_adc) continue;
         std::int64_t t_us = 0;
         if (pending > 0) {
@@ -238,6 +281,7 @@ void adc_task(void*) {
         }
         const auto t0 = esp_timer_get_time();
         const auto v  = s_adc->read();
+        sensor_lk.unlock();
         const auto i2c_dur = esp_timer_get_time() - t0;
         i2c_sum += i2c_dur;
         i2c_max  = std::max(i2c_max, i2c_dur);
@@ -315,39 +359,47 @@ void accel_task(void*) {
                         // effective — same meaning as before the rate bump)
     TickType_t last = xTaskGetTickCount();
     for (;;) {
+        if (g_peripherals_paused.load()) {
+            vTaskDelay(pdMS_TO_TICKS(50));
+            last = xTaskGetTickCount(); // don't replay missed poll ticks
+            primed = false;
+            continue;
+        }
+        std::unique_lock sensor_lk(g_sensor_mtx);
+        if (g_peripherals_paused.load()) continue;
         if (ulTaskNotifyTake(pdTRUE, 0) != 0) {
             // A tap/motion event latched INT1 — clear the source regs so the
             // pin drops again and count the event as user activity.
             if (s_acc) (void)s_acc->clear_wake_srcs();
             mark_activity();
         }
+        std::optional<drv::lis2dw12<bus::i2c_dev_esp>::vec3> a;
         if (s_acc) {
-            if (auto a = s_acc->read_mg(); a) {
-                if (g_raw.load(std::memory_order_relaxed)) {
-                    char line[96];
-                    snprintf(line, sizeof(line), "A,%lld,%.1f,%.1f,%.1f\n",
-                             static_cast<long long>(esp_timer_get_time()),
-                             static_cast<double>(a->x),
-                             static_cast<double>(a->y),
-                             static_cast<double>(a->z));
-                    fputs(line, stdout);
+            if (auto result = s_acc->read_mg(); result) a = *result;
+        }
+        sensor_lk.unlock(); // logging/model work must not block ADC's I2C read
+        if (a && !g_peripherals_paused.load()) {
+            if (g_raw.load(std::memory_order_relaxed)) {
+                char line[96];
+                snprintf(line, sizeof(line), "A,%lld,%.1f,%.1f,%.1f\n",
+                         static_cast<long long>(esp_timer_get_time()),
+                         static_cast<double>(a->x),
+                         static_cast<double>(a->y),
+                         static_cast<double>(a->z));
+                fputs(line, stdout);
+            }
+            if (++decim >= 5) {
+                decim = 0;
+                // Static offset and a permanently tilted mount cancel out.
+                if (primed &&
+                    std::fabs(a->x - prev.x) + std::fabs(a->y - prev.y) +
+                            std::fabs(a->z - prev.z) > kMotionThreshMg) {
+                    mark_activity();
                 }
-                if (++decim >= 5) {
-                    decim = 0;
-                    // Motion = change between samples: static offset and a
-                    // permanently tilted mount cancel out; bumps and
-                    // handling show up as a delta of tens-hundreds of mg
-                    // between the 20 Hz-decimated samples.
-                    if (primed &&
-                        std::fabs(a->x - prev.x) + std::fabs(a->y - prev.y) +
-                                std::fabs(a->z - prev.z) > kMotionThreshMg) {
-                        mark_activity();
-                    }
-                    prev   = *a;
-                    primed = true;
-                    std::lock_guard lk(g_mtx);
-                    g_app.feed_accel(a->x, a->y, a->z);
-                }
+                prev   = *a;
+                primed = true;
+                std::lock_guard lk(g_mtx);
+                if (!g_app.sleeping()) g_app.feed_accel(a->x, a->y, a->z);
             }
         }
         vTaskDelayUntil(&last, pdMS_TO_TICKS(10));   // 100 Hz (tick = 10 ms)
@@ -355,10 +407,14 @@ void accel_task(void*) {
 }
 
 /// Minimal console: 't' toggles the per-sample CSV stream, 'z' = tare,
-/// 'r' toggles the raw capture stream (W/A/E lines for tools/replay).
+/// 'r' toggles the raw capture stream; 'p' shows battery + standby diagnostics.
 void console_task(void*) {
     fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
     for (;;) {
+        if (g_peripherals_paused.load()) {
+            vTaskDelay(pdMS_TO_TICKS(50));
+            continue;
+        }
         char c;
         while (read(STDIN_FILENO, &c, 1) == 1) {
             mark_activity();
@@ -388,6 +444,11 @@ void console_task(void*) {
                 raw_event("tare");
                 std::lock_guard lk(g_mtx);
                 g_app.tare();
+            } else if (c == 'p') {
+                ESP_LOGI(kTag, "power: VBAT=%d mV, estimate=%d%%, last sleep=%lld ms, wake=%s",
+                         g_battery_mv.load(), g_battery_pct.load(),
+                         static_cast<long long>(g_last_sleep_ms.load()),
+                         wake_name(g_last_wake.load()));
             }
         }
         vTaskDelay(pdMS_TO_TICKS(50));
@@ -434,11 +495,11 @@ void button_task(void*) {
 }
 
 // ---- power management -----------------------------------------------------
-// Idle -> light sleep: display + backlight off, BLE controller fully torn
+// Idle -> standby: LCD SLPIN + backlight off, BLE controller fully torn
 // down, NAU7802 powered down, LIS2DW12 reconfigured to drive a LATCHED tap
 // interrupt on INT1 (IO13 is an RTC pin, so a level wake works), MODE
-// button as a second source. RAM survives light sleep, so wake is a
-// sub-second restore instead of a reboot.
+// button as a second source. Deep sleep retains only semantic app state
+// in RTC memory; the optional light-sleep fallback retains normal RAM.
 
 const ble::source s_ble_src = {
     .ctx      = nullptr,
@@ -463,6 +524,9 @@ void enter_sleep() {
     // pad can float when the digital domain gates and the LED relights.
     gpio_hold_en(static_cast<gpio_num_t>(board::pins::lcd_bl));
     ble::stop();
+    g_peripherals_paused.store(true);
+    // Wait for in-flight I2C reads, then own the bus through wake/restore.
+    std::unique_lock sensor_lk(g_sensor_mtx);
     if (s_adc) {
         if (auto r = s_adc->power_down(); !r) {
             ESP_LOGW(kTag, "adc power_down failed: errc %d",
@@ -479,33 +543,82 @@ void enter_sleep() {
         }
     }
 
-    // Clear any stale latched tap event — a level wake source that is
-    // already active returns from light sleep immediately.
-    if (tap_wake) {
-        (void)s_acc->clear_wake_srcs();
-    }
-    esp_sleep_enable_gpio_wakeup();
-    if (tap_wake) {
-        gpio_wakeup_enable(static_cast<gpio_num_t>(board::pins::accel_int1),
-                           GPIO_INTR_HIGH_LEVEL);   // latched INT1
-    }
-    gpio_wakeup_enable(static_cast<gpio_num_t>(board::pins::btn_mode),
-                       GPIO_INTR_LOW_LEVEL);        // active-low press
-
-    // gpio_wakeup_enable switched these pins to LEVEL interrupts — a latched
+    // Mask before clearing the latch and arming level wake. A latched
     // INT1 or a held button fires the GPIO ISR the instant interrupts are
     // unmasked inside esp_light_sleep_start, and NotifyGiveFromISR deadlocks
     // on the port spinlock (Interrupt WDT). Wake detection itself is the
     // pin's wake latch, not the ISR — so mask the ISRs for the sleep window.
     gpio_intr_disable(static_cast<gpio_num_t>(board::pins::accel_int1));
     gpio_intr_disable(static_cast<gpio_num_t>(board::pins::btn_mode));
-
-    esp_light_sleep_start();
+    if (tap_wake) {
+        if (auto r = s_acc->clear_wake_srcs(); !r) {
+            tap_wake = false; // keep MODE wake even if the IMU is unavailable
+            ESP_LOGW(kTag, "wake latch clear failed; MODE-only standby");
+        }
+    }
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+    const auto entered_us = esp_timer_get_time();
+    ESP_LOGI(kTag, "power: awake=%lld ms, VBAT=%d mV, estimate=%d%%, standby=%s",
+             static_cast<long long>(entered_us / 1000 - g_awake_since_ms),
+             g_battery_mv.load(), g_battery_pct.load(),
+#if CONFIG_SCALE_DEEP_SLEEP
+             "deep"
+#else
+             "light"
+#endif
+    );
+    esp_err_t sleep_result;
+#if CONFIG_SCALE_DEEP_SLEEP
+    // S3 EXT1 requires one polarity across its pins: IMU uses EXT1 high,
+    // active-low MODE uses EXT0. Both are RTC pins; IO48 cannot wake.
+    sleep_result = esp_sleep_enable_ext0_wakeup(
+        static_cast<gpio_num_t>(board::pins::btn_mode), 0);
+    if (sleep_result == ESP_OK && tap_wake) {
+        sleep_result = esp_sleep_enable_ext1_wakeup_io(
+            1ULL << board::pins::accel_int1, ESP_EXT1_WAKEUP_ANY_HIGH);
+    }
+    if (sleep_result == ESP_OK) {
+        {
+            std::lock_guard lk(g_mtx);
+            s_standby.app = g_app.save_standby();
+        }
+        s_standby.entered_wall_us = wall_us();
+        s_standby.magic = kStandbyMagic;
+        gpio_deep_sleep_hold_en(); // retain backlight LOW through reset
+        sleep_result = esp_deep_sleep_try_to_start(); // only returns on failure
+        s_standby.magic = 0;
+        gpio_deep_sleep_hold_dis();
+        rtc_gpio_deinit(static_cast<gpio_num_t>(board::pins::accel_int1));
+        rtc_gpio_deinit(static_cast<gpio_num_t>(board::pins::btn_mode));
+    }
+#else
+    sleep_result = esp_sleep_enable_gpio_wakeup();
+    if (sleep_result == ESP_OK && tap_wake) {
+        sleep_result = gpio_wakeup_enable(
+            static_cast<gpio_num_t>(board::pins::accel_int1), GPIO_INTR_HIGH_LEVEL);
+    }
+    if (sleep_result == ESP_OK) {
+        sleep_result = gpio_wakeup_enable(
+            static_cast<gpio_num_t>(board::pins::btn_mode), GPIO_INTR_LOW_LEVEL);
+    }
+    if (sleep_result == ESP_OK) sleep_result = esp_light_sleep_start();
+    gpio_wakeup_disable(static_cast<gpio_num_t>(board::pins::accel_int1));
+    gpio_wakeup_disable(static_cast<gpio_num_t>(board::pins::btn_mode));
+#endif
     const std::uint32_t cause = esp_sleep_get_wakeup_causes();
 
     // ---- resume ------------------------------------------------------------
     mark_activity();
-    ESP_LOGI(kTag, "woke (cause 0x%x)", cause);
+    g_awake_since_ms = esp_timer_get_time() / 1000;
+    g_last_sleep_ms = (esp_timer_get_time() - entered_us) / 1000;
+    g_last_wake = sleep_result == ESP_OK ? cause : 0;
+    ESP_LOGI(kTag, "power: slept=%lld ms, causes=0x%lx, MODE=%d INT1=%d, result=%s",
+             static_cast<long long>((esp_timer_get_time() - entered_us) / 1000),
+             static_cast<unsigned long>(cause),
+             gpio_get_level(static_cast<gpio_num_t>(board::pins::btn_mode)),
+             gpio_get_level(static_cast<gpio_num_t>(board::pins::accel_int1)),
+             esp_err_to_name(sleep_result));
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
 
     if (s_acc) {
         if (auto r = s_acc->disable_tap_wake(); !r) {
@@ -528,6 +641,8 @@ void enter_sleep() {
             gpio_get_level(static_cast<gpio_num_t>(board::pins::btn_mode)) == 0);
         g_app.wake(scale::clock_ms{esp_timer_get_time() / 1000});
     }
+    sensor_lk.unlock();
+    g_peripherals_paused.store(false);
     // gpio_wakeup_enable reprogrammed the pins to level mode — restore the
     // awake-time edge interrupts and re-unmask the ISRs.
     gpio_set_intr_type(static_cast<gpio_num_t>(board::pins::accel_int1),
@@ -558,11 +673,12 @@ void power_task(void*) {
         bool timer_active;
         {
             std::lock_guard lk(g_mtx);
-            timer_active = g_app.state().timer_state != scale::brew_timer::state::idle;
+            timer_active = g_app.state().timer_state == scale::brew_timer::state::running;
         }
-        // USB connected (charging) -> stay awake: powered anyway, and it
+        // Charging or native USB host connected -> stay awake; this
         // keeps USB-Serial/JTAG alive so the board stays flashable.
-        const bool powered = g_charging.load(std::memory_order_relaxed);
+        const bool powered = g_charging.load(std::memory_order_relaxed) ||
+                             usb_serial_jtag_is_connected();
         const int64_t idle = esp_timer_get_time() / 1000 -
                              g_last_activity_ms.load(std::memory_order_relaxed);
         if (g_sleep_request.exchange(false) ||
@@ -640,14 +756,17 @@ void battery_task(void*) {
     {
         const temperature_sensor_config_t ts_cfg =
             TEMPERATURE_SENSOR_CONFIG_DEFAULT(-10, 80);
-        if (temperature_sensor_install(&ts_cfg, &chip_ts) != ESP_OK ||
-            temperature_sensor_enable(chip_ts) != ESP_OK) {
+        if (temperature_sensor_install(&ts_cfg, &chip_ts) != ESP_OK) {
             ESP_LOGW(kTag, "chip temp sensor unavailable; no C lines");
             chip_ts = nullptr;
         }
     }
 
     for (;;) {
+        if (g_peripherals_paused.load()) {
+            vTaskDelay(pdMS_TO_TICKS(50));
+            continue;
+        }
         for (int i = 0; i < kSamples; ++i) {
             adc_oneshot_read(adc, ADC_CHANNEL_8, &raws[i]);
             vTaskDelay(pdMS_TO_TICKS(kSampleGapMs));
@@ -669,6 +788,7 @@ void battery_task(void*) {
         // voltage (charge current × internal+trace R). Estimate against the
         // resting voltage so unplugging doesn't produce a visible % step.
         const int vbat = mv * 2 - (charging ? 80 : 0);
+        g_battery_mv = mv * 2; // actual terminal estimate, before charge correction
         const float pct = battery_pct_of_mv(vbat);
         pct_f = pct_f < 0 ? pct : pct_f * 0.8f + pct * 0.2f;
         // Sticky display: sub-2% wander (charger float, ADC noise) must not
@@ -682,26 +802,41 @@ void battery_task(void*) {
         g_battery_pct = shown;
         g_charging = charging;
         // TMP102 beside the load cell -> thermal drift model input.
-        if (s_tmp) {
-            if (auto t = s_tmp->read_celsius(); t) {
+        std::optional<float> temperature;
+        std::unique_lock sensor_lk(g_sensor_mtx);
+        if (s_tmp && !g_peripherals_paused.load()) {
+            if (auto t = s_tmp->read_celsius(); t) temperature = *t;
+        }
+        sensor_lk.unlock();
+        if (temperature && !g_peripherals_paused.load()) {
+            {
                 std::lock_guard lk(g_mtx);
-                g_app.set_temperature(*t);
-                if (g_raw.load(std::memory_order_relaxed)) {
-                    char line[40];
-                    snprintf(line, sizeof(line), "T,%lld,%.3f\n",
-                             static_cast<long long>(esp_timer_get_time()),
-                             static_cast<double>(*t));
-                    fputs(line, stdout);
-                }
+                g_app.set_temperature(*temperature);
+            }
+            if (g_raw.load(std::memory_order_relaxed)) {
+                char line[40];
+                snprintf(line, sizeof(line), "T,%lld,%.3f\n",
+                         static_cast<long long>(esp_timer_get_time()),
+                         static_cast<double>(*temperature));
+                fputs(line, stdout);
             }
         }
         if (chip_ts && g_raw.load(std::memory_order_relaxed)) {
-            float chip_c = 0.f;
-            if (temperature_sensor_get_celsius(chip_ts, &chip_c) == ESP_OK) {
+            std::optional<float> chip_c;
+            {
+                std::lock_guard sensor(g_sensor_mtx);
+                if (!g_peripherals_paused.load() &&
+                    temperature_sensor_enable(chip_ts) == ESP_OK) {
+                    float value = 0.f;
+                    if (temperature_sensor_get_celsius(chip_ts, &value) == ESP_OK) chip_c = value;
+                    temperature_sensor_disable(chip_ts);
+                }
+            }
+            if (chip_c) {
                 char line[40];
                 snprintf(line, sizeof(line), "C,%lld,%.2f\n",
                          static_cast<long long>(esp_timer_get_time()),
-                         static_cast<double>(chip_c));
+                         static_cast<double>(*chip_c));
                 fputs(line, stdout);
             }
         }
@@ -822,6 +957,20 @@ void ble_command(void*, const proto::command& cmd) {
 } // namespace
 
 extern "C" void app_main() {
+    const bool standby_resume = esp_reset_reason() == ESP_RST_DEEPSLEEP &&
+                                s_standby.magic == kStandbyMagic;
+    const auto wake_cause = esp_sleep_get_wakeup_causes();
+    if (esp_reset_reason() == ESP_RST_DEEPSLEEP) {
+        // EXT0/EXT1 leave these pads in RTC mode. Restore normal buttons
+        // and interrupts before configuring the digital GPIO driver.
+        rtc_gpio_deinit(static_cast<gpio_num_t>(board::pins::accel_int1));
+        rtc_gpio_deinit(static_cast<gpio_num_t>(board::pins::btn_mode));
+        gpio_deep_sleep_hold_dis();
+        gpio_set_level(static_cast<gpio_num_t>(board::pins::lcd_bl), 0);
+        gpio_set_direction(static_cast<gpio_num_t>(board::pins::lcd_bl), GPIO_MODE_OUTPUT);
+        gpio_hold_dis(static_cast<gpio_num_t>(board::pins::lcd_bl));
+    }
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
     // USB-Serial-JTAG console: install the real driver (interrupt-driven
     // RX/TX ring buffers) and point stdio at it — without this the VFS
     // never drains host->device RX, so console keys ('t'/'z'/'r') are
@@ -840,6 +989,25 @@ extern "C" void app_main() {
         nvs_flash_erase();
         nvs_flash_init();
     }
+
+    // Restore before any sampling task can consume the new clock origin.
+    if (standby_resume) {
+        g_app.restore_standby(s_standby.app, scale::clock_ms{esp_timer_get_time() / 1000});
+        g_last_sleep_ms = std::max<std::int64_t>(
+            0, (wall_us() - s_standby.entered_wall_us) / 1000);
+        g_last_wake = wake_cause;
+        ESP_LOGI(kTag, "power: deep wake=%s, slept=%lld ms, tare/timer restored",
+                 wake_name(wake_cause), static_cast<long long>(g_last_sleep_ms.load()));
+    } else {
+        scale::calibration c;
+        if (load_calibration(c)) {
+            g_app.load_calibration(c);
+            ESP_LOGI(kTag, "calibration loaded: %.1f counts/g",
+                     static_cast<double>(c.counts_per_gram));
+        }
+    }
+    s_standby.magic = 0; // a later watchdog/reset must not restore stale state
+    g_awake_since_ms = esp_timer_get_time() / 1000;
 
     // ---- i2c bus + sensor devices ------------------------------------------
     const i2c_master_bus_config_t bus_cfg = {
@@ -879,12 +1047,9 @@ extern "C" void app_main() {
     if (s_acc) {
         if (auto r = s_acc->init(); r) {
             ESP_LOGI(kTag, "LIS2DW12 up");
-            // Keep tap/motion detection armed while running too — INT1
-            // events count as activity through the ISR notify.
-            if (auto r2 = s_acc->enable_tap_wake(); !r2) {
-                ESP_LOGW(kTag, "tap detect arm failed: errc %d",
-                         static_cast<int>(r2.error()));
-            }
+            // Tap ODR is 400 Hz only during standby; awake measurement
+            // remains 100 Hz. Poll deltas already count real motion.
+            (void)s_acc->disable_tap_wake();
         } else {
             ESP_LOGE(kTag, "LIS2DW12 init failed: errc %d", static_cast<int>(r.error()));
         }
@@ -932,7 +1097,7 @@ extern "C" void app_main() {
     xTaskCreate(battery_task, "batt", 3072, nullptr, 3, nullptr);
     xTaskCreate(console_task, "console", 3072, nullptr, 2, nullptr);
     xTaskCreate(power_task, "power", 3072, nullptr, 2, nullptr);
-    ESP_LOGI(kTag, "console: 't' = CSV telemetry, 'z' = tare, 'r' = raw capture");
+    ESP_LOGI(kTag, "console: 't' = CSV telemetry, 'z' = tare, 'r' = raw capture, 'p' = power");
 
     gpio_install_isr_service(0);
     gpio_set_intr_type(static_cast<gpio_num_t>(board::pins::adc_drdy), GPIO_INTR_POSEDGE);
@@ -948,15 +1113,6 @@ extern "C" void app_main() {
                          int1_isr, nullptr);
 
     // ---- app + ui -------------------------------------------------------------
-    {
-        scale::calibration c;
-        if (load_calibration(c)) {
-            std::lock_guard lk(g_mtx);
-            g_app.load_calibration(c);
-            ESP_LOGI(kTag, "calibration loaded: %.1f counts/g",
-                     static_cast<double>(c.counts_per_gram));
-        }
-    }
     // TODO: expose cal_zero()/cal_span()+save_calibration() via a button menu
     // or a USB console command once the bring-up flow settles.
 

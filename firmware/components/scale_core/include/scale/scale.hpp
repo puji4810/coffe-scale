@@ -271,6 +271,15 @@ public:
     /// capture header; replay applies it as the starting tare).
     [[nodiscard]] float tare_counts() const { return tare_counts_; }
 
+    /// Standby resume restores offsets, never stale filter/flow history.
+    void restore_offsets(float tare_counts, float zero_offset_g) {
+        tare_counts_ = tare_counts;
+        zt_.restore_offset(zero_offset_g);
+        stab_.reset();
+        flow_.reset();
+        display_.reset();
+    }
+
     // --- calibration ---------------------------------------------------
     // Two-step: clear pan -> cal_zero(); place known mass -> cal_span(mass).
 

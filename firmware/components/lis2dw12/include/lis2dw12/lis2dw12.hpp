@@ -1,7 +1,7 @@
 #pragma once
 
 /// LIS2DW12 3-axis accelerometer (I2C 0x18, SA0=0) for level, vibration and
-/// tap detection. Register layout per ST lis2dw12_reg.h / datasheet DS12119.
+/// tap detection. Register layout per ST datasheet DS11811 and AN5038.
 
 #include <array>
 #include <cstdint>
@@ -33,9 +33,10 @@ inline constexpr std::uint8_t ctrl7      = 0x3F;  // interrupts_enable
 
 // CTRL6[5:4] full scale
 enum class lis2dw12_fs : std::uint8_t { g2 = 0, g4 = 1, g8 = 2, g16 = 3 };
-// CTRL1[7:4] output data rate
+// CTRL1[7:4] high-performance output data rate; code 1 is LP-only 1.6 Hz.
 enum class lis2dw12_odr : std::uint8_t {
-    off = 0, hz12_5, hz25, hz50, hz100, hz200, hz400, hz800, hz1600,
+    off = 0, hz12_5 = 2, hz25 = 3, hz50 = 4,
+    hz100 = 5, hz200 = 6, hz400 = 7, hz800 = 8, hz1600 = 9,
 };
 
 template <bus::i2c_device I2c>
@@ -58,6 +59,7 @@ public:
         if (*id != kWhoAmI) return std::unexpected(bus::i2c_errc::io);
 
         fs_ = fs;
+        odr_ = odr;
         if (auto r = bus::reg_write_u8(dev_, lis2dw12_reg::ctrl2, 0x0C); !r) return r;  // BDU|IF_ADD_INC
         if (auto r = bus::reg_write_u8(dev_, lis2dw12_reg::ctrl6,
                                        static_cast<std::uint8_t>(fs) << 4 | 0x04);
@@ -93,11 +95,14 @@ public:
         return (*v & 0x01) != 0;
     }
 
-    /// Sleep-time configuration: arm tap detection (single + double — the
-    /// hardware cannot route double-tap alone) on a LATCHED INT1 so the
-    /// pin holds its level while the host sleeps and a GPIO level wake
-    /// can catch it. Data output keeps running; the draw is a few uA.
+    /// AN5038 section 5.6: double-tap only on latched INT1, >=400 Hz.
+    /// High-performance mode draws ~90 uA with low-noise disabled; this
+    /// is deliberately not the sub-uA motion-only mode (which can't tap).
     std::expected<void, bus::i2c_errc> enable_tap_wake() {
+        if (auto r = bus::reg_write_u8(dev_, lis2dw12_reg::ctrl4, 0); !r) return r;
+        if (auto r = bus::reg_write_u8(dev_, lis2dw12_reg::ctrl6,
+                                      static_cast<std::uint8_t>(fs_) << 4); !r) return r;
+        if (auto r = bus::reg_write_u8(dev_, lis2dw12_reg::ctrl1, 0x74); !r) return r;
         // CTRL7.interrupts_enable (bit5 = 0x20) — master switch for the
         // tap/ff/wu detection block; without it no source bit ever sets.
         if (auto r = bus::reg_write_u8(dev_, lis2dw12_reg::ctrl7, 0x20); !r) {
@@ -114,14 +119,13 @@ public:
                                      0xE0 | 10); !r) {
             return r;
         }
-        // INT_DUR: latency 8 (wide double-tap window), quiet 1, shock 2.
-        if (auto r = bus::reg_write_u8(dev_, lis2dw12_reg::int_dur, 0x86); !r) {
+        // 400 Hz: latency 5*32/ODR = 400 ms, quiet 2*4/ODR = 20 ms,
+        // shock 2*8/ODR = 40 ms. A single impact is not a double-tap.
+        if (auto r = bus::reg_write_u8(dev_, lis2dw12_reg::int_dur, 0x5A); !r) {
             return r;
         }
-        // WAKE_UP_THS: single_double_tap=1 (single + double tap armed) and
-        // wk_ths=4 (~125 mg at FS 2 g) so a plain nudge also raises INT1
-        // through the wake-up-event path — taps are finicky to reproduce.
-        if (auto r = bus::reg_write_u8(dev_, lis2dw12_reg::wake_up_ths, 0x84);
+        // Enable the double-tap recognizer; WU is NOT routed to INT1.
+        if (auto r = bus::reg_write_u8(dev_, lis2dw12_reg::wake_up_ths, 0x80);
             !r) {
             return r;
         }
@@ -129,9 +133,9 @@ public:
         if (auto r = bus::reg_write_u8(dev_, lis2dw12_reg::ctrl3, 0x10); !r) {
             return r;
         }
-        // CTRL4_INT1_PAD_CTRL: int1_single_tap (0x40) | int1_tap (0x08) |
-        // int1_wu (0x20) -> tap OR motion events drive INT1.
-        return bus::reg_write_u8(dev_, lis2dw12_reg::ctrl4, 0x68);
+        // INT1_TAP (bit3) routes DOUBLE tap. SINGLE_TAP (bit6) and WU
+        // (bit5) must remain off, otherwise a nudge lights the screen.
+        return bus::reg_write_u8(dev_, lis2dw12_reg::ctrl4, 0x08);
     }
 
     /// Read the latched interrupt source registers — releases a LIR-latched
@@ -159,7 +163,11 @@ public:
         if (auto r = bus::reg_write_u8(dev_, lis2dw12_reg::ctrl3, 0x00); !r) {
             return r;
         }
-        return bus::reg_write_u8(dev_, lis2dw12_reg::ctrl7, 0x00);
+        if (auto r = bus::reg_write_u8(dev_, lis2dw12_reg::ctrl7, 0x00); !r) return r;
+        if (auto r = bus::reg_write_u8(dev_, lis2dw12_reg::ctrl6,
+                                      static_cast<std::uint8_t>(fs_) << 4 | 0x04); !r) return r;
+        return bus::reg_write_u8(dev_, lis2dw12_reg::ctrl1,
+                                static_cast<std::uint8_t>(odr_) << 4 | 0x04);
     }
 
     /// Sensitivity in mg/LSB of the 14-bit value (datasheet table 3).
@@ -176,6 +184,7 @@ public:
 private:
     I2c&        dev_;
     lis2dw12_fs fs_ = lis2dw12_fs::g2;
+    lis2dw12_odr odr_ = lis2dw12_odr::hz100;
 };
 
 } // namespace drv

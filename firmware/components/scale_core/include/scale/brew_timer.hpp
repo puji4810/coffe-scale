@@ -47,6 +47,16 @@ public:
         acc_   = clock_ms{0};
     }
 
+    /// A standby reboot has a new clock origin. Never resume a running
+    /// brew implicitly or count time spent asleep as brew time.
+    void restore_paused(clock_ms elapsed, bool paused) {
+        reset();
+        if (paused) {
+            acc_ = elapsed;
+            state_ = state::paused;
+        }
+    }
+
     [[nodiscard]] clock_ms elapsed(clock_ms now) const {
         return acc_ + (state_ == state::running ? now - started_ : clock_ms{0});
     }

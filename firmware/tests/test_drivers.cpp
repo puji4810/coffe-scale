@@ -115,7 +115,7 @@ TEST_CASE("lis2dw12 init checks WHO_AM_I and programs control regs") {
     REQUIRE(a.init().has_value());
     CHECK(m.regs[0x21] == 0x0C);   // CTRL2: BDU | IF_ADD_INC
     CHECK(m.regs[0x25] == 0x04);   // CTRL6: FS 2g, low noise
-    CHECK(m.regs[0x20] == 0x44);   // CTRL1: ODR 100 Hz, high-perf
+    CHECK(m.regs[0x20] == 0x54);   // CTRL1: ODR 100 Hz, high-perf
 }
 
 TEST_CASE("lis2dw12 init rejects a wrong chip id") {
@@ -139,4 +139,22 @@ TEST_CASE("lis2dw12 read_mg converts 14-bit left-justified data") {
     CHECK(v->x == doctest::Approx(249.856f));
     CHECK(v->y == doctest::Approx(0.f));
     CHECK(v->z == doctest::Approx(0.f));
+}
+
+TEST_CASE("lis2dw12 sleep wake routes double-tap only, not a nudge or single tap") {
+    mock_i2c m;
+    lis2dw12 a{m};
+    m.regs[0x0F] = 0x44;
+    REQUIRE(a.init().has_value());
+    REQUIRE(a.enable_tap_wake().has_value());
+    // AN5038: INT1_TAP is double-tap; SINGLE_TAP and WU are separate routes.
+    CHECK(m.regs[0x23] == 0x08);
+    CHECK((m.regs[0x34] & 0x80) != 0);
+    CHECK((m.regs[0x22] & 0x10) != 0); // level stays latched for sleeping MCU
+    // Tap recognition needs >=400 Hz; ODR code 7, high performance.
+    CHECK(m.regs[0x20] == 0x74);
+    REQUIRE(a.disable_tap_wake().has_value());
+    CHECK(m.regs[0x23] == 0);
+    CHECK(m.regs[0x20] == 0x54); // restore 100 Hz measurement mode
+    CHECK(m.regs[0x25] == 0x04);
 }

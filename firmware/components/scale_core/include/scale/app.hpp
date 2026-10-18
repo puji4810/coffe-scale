@@ -30,6 +30,18 @@ public:
         float             roll_deg;
     };
 
+    /// Small value-only RTC payload; filters and their old time axis are
+    /// re-earned from live samples after a deep-sleep reboot.
+    struct standby_state {
+        calibration cal;
+        float tare_counts;
+        float zero_offset_g;
+        unit u;
+        mode m;
+        bool timer_paused;
+        clock_ms timer_elapsed;
+    };
+
     /// One ADC conversion. `now` is the same injected time base used by the
     /// timer APIs (e.g. esp_timer_get_time()/1000 on target, steady_clock in
     /// tests/sim). Also feeds the flow/zero-track time axis — keep it real.
@@ -79,6 +91,25 @@ public:
     }
 
     [[nodiscard]] bool sleeping() const { return sleeping_; }
+
+    [[nodiscard]] standby_state save_standby() const {
+        return {scale_.calibration_data(), scale_.tare_counts(),
+                scale_.zero_offset_g(), unit_, mode_,
+                timer_.current() != brew_timer::state::idle,
+                timer_.elapsed(now_)};
+    }
+
+    /// Called on a fresh app before sampling/controls begin. Calibration,
+    /// tare, mode and paused brew survive; a removed tared cup stays negative.
+    void restore_standby(const standby_state& saved, clock_ms now) {
+        scale_.load_calibration(saved.cal);
+        scale_.restore_offsets(saved.tare_counts, saved.zero_offset_g);
+        unit_ = saved.u;
+        mode_ = saved.m;
+        scale_.set_zero_tracking(mode_ == mode::weigh);
+        timer_.restore_paused(saved.timer_elapsed, saved.timer_paused);
+        wake(now);
+    }
 
     /// Reset the brew timer to 0:0.0 in any mode (does not touch tare).
     void timer_reset() { timer_.reset(); }

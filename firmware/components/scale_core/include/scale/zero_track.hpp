@@ -113,6 +113,12 @@ public:
         empty_ = loaded_ = wide_return_ = primed_ = false;
         last_time_ = clock_ms{0};
     }
+    /// Restore the physical zero correction after reboot, with fresh
+    /// evidence: a load changed during standby must not inherit old fits.
+    void restore_offset(float grams) {
+        reset();
+        off_ = std::clamp(grams, -cfg_.max_g, cfg_.max_g);
+    }
 private:
     zero_track_config cfg_;
     weight_window<128> evidence_;

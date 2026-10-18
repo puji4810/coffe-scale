@@ -975,6 +975,12 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
+# Coffee scale power
+#
+CONFIG_SCALE_DEEP_SLEEP=y
+# end of Coffee scale power
+
+#
 # Compiler options
 #
 # default:

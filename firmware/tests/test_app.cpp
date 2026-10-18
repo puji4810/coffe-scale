@@ -11,6 +11,49 @@ void feed(app& a, int32_t counts, clock_ms t, int n = 1) {
 }
 }
 
+TEST_CASE("app: deep standby reboot retains tare, calibration, unit and paused brew") {
+    app before;
+    before.load_calibration({.zero_counts = 1000.f, .counts_per_gram = 100.f});
+    feed(before, 11000, clock_ms{1000}, 40);
+    before.tare();
+    before.next_mode();
+    before.set_unit(unit::ounce);
+    before.tare_long(clock_ms{2000});
+    before.prepare_sleep(clock_ms{7000});
+    const auto saved = before.save_standby();
+    app after; // reboot: no old filter or clock state
+    after.restore_standby(saved, clock_ms{0});
+    CHECK(!after.sleeping());
+    CHECK(after.current_unit() == unit::ounce);
+    CHECK(after.current_mode() == app::mode::brew);
+    CHECK(after.state().timer_state == brew_timer::state::paused);
+    CHECK(after.state().timer_elapsed == clock_ms{5000});
+    CHECK(after.inner().tare_counts() == before.inner().tare_counts());
+    // Remove the tared 100 g cup during sleep; resume must NOT auto-tare.
+    for (int i = 0; i < 200; ++i) after.feed(1000, clock_ms{i * 13});
+    CHECK(after.state().grams == doctest::Approx(-100.f).epsilon(.001));
+    CHECK(after.state().flow_gps == doctest::Approx(0.f));
+    after.tare_long(clock_ms{3000});
+    after.feed(1000, clock_ms{4000});
+    CHECK(after.state().timer_elapsed == clock_ms{6000});
+}
+
+TEST_CASE("app: idle timer and acquired physical zero survive a standby reboot") {
+    app before;
+    before.load_calibration({.zero_counts = 1000.f, .counts_per_gram = 100.f});
+    // Empty-pan evidence then slow drift accumulates a physical correction.
+    for (int i = 0; i < 800; ++i) before.feed(1000, clock_ms{i * 13});
+    for (int i = 800; i < 2800; ++i) before.feed(1000 + (i-800)/100, clock_ms{i * 13});
+    before.prepare_sleep(clock_ms{40000});
+    const auto saved = before.save_standby();
+    REQUIRE(saved.zero_offset_g > 0.f);
+    app after;
+    after.restore_standby(saved, clock_ms{0});
+    CHECK(after.inner().zero_offset_g() == saved.zero_offset_g);
+    CHECK(after.state().timer_state == brew_timer::state::idle);
+    CHECK(after.state().timer_elapsed == clock_ms{0});
+}
+
 TEST_CASE("app: snapshot reflects feed + tare") {
     app a;
     a.load_calibration({.zero_counts = 0.f, .counts_per_gram = 100.f});
